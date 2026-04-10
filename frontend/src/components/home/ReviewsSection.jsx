@@ -1,0 +1,100 @@
+import React from "react";
+import { googleReviewLink } from "../../data/googleReviewConfig";
+
+function Stars({ rating }) {
+  return (
+    <div className="flex gap-1 text-amber-300">
+      {Array.from({ length: 5 }, (_, index) => (
+        <span key={index}>{index < rating ? "★" : "☆"}</span>
+      ))}
+    </div>
+  );
+}
+
+export default function ReviewsSection({ language }) {
+  const [reviews, setReviews] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let ignore = false;
+
+    async function loadReviews() {
+      try {
+        const response = await fetch("/api/google-reviews");
+        const data = await response.json();
+
+        if (!ignore) {
+          setReviews(Array.isArray(data) ? data.slice(0, 6) : []);
+        }
+      } catch (error) {
+        console.error("Failed to load Google reviews", error);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    loadReviews();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  return (
+    <section className="mx-auto max-w-7xl px-6 py-20">
+      <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
+            {language === "bg" ? "Отзиви" : "Reviews"}
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold md:text-4xl">
+            {language === "bg"
+              ? "Какво казват гостите за нас"
+              : "What guests say about us"}
+          </h2>
+        </div>
+
+        <a
+          href={googleReviewLink}
+          target="_blank"
+          rel="noreferrer"
+          className="rounded-2xl border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-5 py-3 text-sm font-medium text-[#f2d3a0] transition hover:bg-[#c9a56a]/20"
+        >
+          {language === "bg" ? "Остави отзив в Google" : "Leave a review on Google"}
+        </a>
+      </div>
+
+      {loading ? (
+        <div className="text-white/60">
+          {language === "bg" ? "Зареждане на отзиви..." : "Loading reviews..."}
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {reviews.map((review) => (
+            <div
+              key={review.reviewId}
+              className="rounded-[2rem] border border-white/10 bg-white/5 p-6 shadow-xl"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-lg font-semibold text-white">
+                    {review.reviewer?.displayName || "Google User"}
+                  </div>
+                  <div className="mt-1 text-sm text-white/45">
+                    {review.relativeTimeDescription || ""}
+                  </div>
+                </div>
+
+                <Stars rating={review.starRating || 5} />
+              </div>
+
+              <p className="mt-5 text-sm leading-7 text-white/70">
+                {review.comment || (language === "bg" ? "Без текстов коментар." : "No text review.")}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
