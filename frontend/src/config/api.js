@@ -1,1 +1,1 @@
-export const API_BASE_URL = "http://localhost:5183";
+export const API_BASE_URL = "https://casa-di-fratelli-api.onrender.com";
