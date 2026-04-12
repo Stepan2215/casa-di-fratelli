@@ -45,3 +45,5 @@ backend/**/obj/
 *.tmp
 *.swp
 *.db
+*.sqlite
+*.sqlite3

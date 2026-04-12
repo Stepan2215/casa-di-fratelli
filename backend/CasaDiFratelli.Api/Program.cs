@@ -15,7 +15,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("frontend", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173")
+            .WithOrigins("https://casa-di-fratelli.vercel.app")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
