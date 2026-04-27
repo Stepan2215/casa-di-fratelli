@@ -723,14 +723,16 @@ const handleSubmit = async (event) => {
       return;
     }
 
-    setSubmitError("");
-    setSubmitSuccess(
-      language === "bg"
-        ? "Резервацията беше изпратена успешно."
-        : "Reservation submitted successfully."
-    );
+const form = event.currentTarget;
 
-    event.currentTarget.reset();
+setSubmitError("");
+setSubmitSuccess(
+  language === "bg"
+    ? "Резервацията беше изпратена успешно."
+    : "Reservation submitted successfully."
+);
+
+form?.reset?.();
 
     setTimeout(() => {
       setShowBookingForm(false);
