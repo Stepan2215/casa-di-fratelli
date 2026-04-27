@@ -1,15 +1,17 @@
-using System.Text.Json.Serialization;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CasaDiFratelli.Api.Models;
 
 public class ReservationTable
 {
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
+
+    public string TableCode { get; set; } = string.Empty;
 
     public int ReservationId { get; set; }
 
-    [JsonIgnore]
     public Reservation Reservation { get; set; } = null!;
-
-    public string TableCode { get; set; } = string.Empty;
 }
