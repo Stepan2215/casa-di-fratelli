@@ -11,33 +11,39 @@ function Stars({ rating }) {
   );
 }
 
+// 👉 демо-отзывы (можешь потом заменить на реальные)
+const demoReviews = [
+  {
+    reviewId: "1",
+    reviewer: { displayName: "Ivan Petrov" },
+    starRating: 5,
+    comment: "Amazing atmosphere and authentic Italian food!",
+    relativeTimeDescription: "2 days ago",
+  },
+  {
+    reviewId: "2",
+    reviewer: { displayName: "Maria Ivanova" },
+    starRating: 5,
+    comment: "Best pasta in Plovdiv. Highly recommended!",
+    relativeTimeDescription: "1 week ago",
+  },
+  {
+    reviewId: "3",
+    reviewer: { displayName: "George Dimitrov" },
+    starRating: 4,
+    comment: "Great service and cozy place.",
+    relativeTimeDescription: "3 days ago",
+  },
+];
+
 export default function ReviewsSection({ language }) {
   const [reviews, setReviews] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    let ignore = false;
-
-    async function loadReviews() {
-      try {
-        const response = await fetch("/api/google-reviews");
-        const data = await response.json();
-
-        if (!ignore) {
-          setReviews(Array.isArray(data) ? data.slice(0, 6) : []);
-        }
-      } catch (error) {
-        console.error("Failed to load Google reviews", error);
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    }
-
-    loadReviews();
-
-    return () => {
-      ignore = true;
-    };
+    // 👉 вместо API просто ставим демо данные
+    setReviews(demoReviews);
+    setLoading(false);
   }, []);
 
   return (
@@ -60,13 +66,23 @@ export default function ReviewsSection({ language }) {
           rel="noreferrer"
           className="rounded-2xl border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-5 py-3 text-sm font-medium text-[#f2d3a0] transition hover:bg-[#c9a56a]/20"
         >
-          {language === "bg" ? "Остави отзив в Google" : "Leave a review on Google"}
+          {language === "bg"
+            ? "Остави отзив в Google"
+            : "Leave a review on Google"}
         </a>
       </div>
 
       {loading ? (
         <div className="text-white/60">
-          {language === "bg" ? "Зареждане на отзиви..." : "Loading reviews..."}
+          {language === "bg"
+            ? "Зареждане на отзиви..."
+            : "Loading reviews..."}
+        </div>
+      ) : reviews.length === 0 ? (
+        <div className="text-white/60">
+          {language === "bg"
+            ? "Отзивите ще бъдат добавени скоро."
+            : "Reviews will be added soon."}
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
@@ -89,7 +105,10 @@ export default function ReviewsSection({ language }) {
               </div>
 
               <p className="mt-5 text-sm leading-7 text-white/70">
-                {review.comment || (language === "bg" ? "Без текстов коментар." : "No text review.")}
+                {review.comment ||
+                  (language === "bg"
+                    ? "Без текстов коментар."
+                    : "No text review.")}
               </p>
             </div>
           ))}
