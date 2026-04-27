@@ -1,8 +1,6 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
 
-
-
 const gardenTables = [
   { id: "42", x: 10, y: 22, seats: 4 },
   { id: "43", x: 10, y: 42, seats: 4 },
@@ -48,6 +46,7 @@ const indoorTables = [
   { id: "28", x: 16, y: 90, seats: 6, wide: true },
   { id: "29", x: 16, y: 80, seats: 6, wide: true },
 ];
+
 const gardenOrder = [
   "42", "43", "44", "45",
   "38", "39", "40", "41",
@@ -55,8 +54,8 @@ const gardenOrder = [
   "30", "31", "32", "33",
 ];
 
-const reservedGardenIds = new Set(["39", "34", "30A"]);
-const reservedIndoorIds = new Set(["3", "10", "22", "28"]);
+const reservedGardenIds = new Set([]);
+const reservedIndoorIds = new Set([]);
 
 const availabilityByTable = {
   42: { free: ["18:00", "19:30", "21:00"], busy: ["20:30"] },
@@ -83,6 +82,88 @@ const availabilityByTable = {
   27: { free: ["18:00", "20:00", "22:00"], busy: ["19:00"] },
   29: { free: ["18:30", "20:30"], busy: ["19:30"] },
 };
+
+function languageSafe(t, key, fallback) {
+  return t?.[key] || fallback;
+}
+
+function getAvailabilityForTable(tableId) {
+  return availabilityByTable[tableId] || { free: ["18:00", "19:30", "21:00"], busy: ["20:30"] };
+}
+
+function intersectFreeTimes(selectedTables) {
+  if (!selectedTables.length) return [];
+  const freeSets = selectedTables.map((table) => getAvailabilityForTable(table.id).free);
+  return freeSets.reduce((acc, current) => acc.filter((time) => current.includes(time)));
+}
+
+function unionBusyTimes(selectedTables) {
+  const allBusy = selectedTables.flatMap((table) => getAvailabilityForTable(table.id).busy);
+  return [...new Set(allBusy)];
+}
+
+function getDynamicAvailabilityForTables(selectedTables, blockedSlots) {
+  if (!selectedTables.length) return { free: [], busy: [] };
+
+  const baseFreeTimes = intersectFreeTimes(selectedTables);
+  const baseBusyTimes = unionBusyTimes(selectedTables);
+  const selectedIds = selectedTables.map((table) => table.id);
+
+  const backendBusyTimes = blockedSlots
+    .filter((slot) => {
+      const tableIds = slot.tableIds || slot.TableIds || [];
+      return selectedIds.some((id) => tableIds.includes(id));
+    })
+    .map((slot) => slot.reservedTime || slot.ReservedTime)
+    .filter(Boolean);
+
+  const busy = [...new Set([...baseBusyTimes, ...backendBusyTimes])];
+  const free = baseFreeTimes.filter((time) => !busy.includes(time));
+
+  return { free, busy };
+}
+
+function getDefaultTableForArea(area) {
+  return area === "garden" ? gardenTables[0] : indoorTables[0];
+}
+
+function isContinuousTerraceSelection(selectedTables, nextTable) {
+  const ids = [...selectedTables.map((table) => table.id), nextTable.id].filter((id) =>
+    gardenOrder.includes(id)
+  );
+
+  const uniqueIds = [...new Set(ids)];
+  const indexes = uniqueIds.map((id) => gardenOrder.indexOf(id)).sort((a, b) => a - b);
+
+  if (!indexes.length) return true;
+
+  for (let i = 1; i < indexes.length; i += 1) {
+    if (indexes[i] - indexes[i - 1] !== 1) return false;
+  }
+
+  return true;
+}
+
+function canCombineTables(area, selectedTables, nextTable) {
+  if (!selectedTables.length) return true;
+
+  if (area === "garden") {
+    if (nextTable.special) return false;
+    if (selectedTables.some((table) => table.special)) return false;
+    return isContinuousTerraceSelection(selectedTables, nextTable);
+  }
+
+  const allowedGroups = [
+    ["5", "6"],
+    ["20", "21", "22", "23"],
+    ["28", "29"],
+  ];
+
+  const currentIds = selectedTables.map((table) => table.id);
+  const nextIds = [...currentIds, nextTable.id];
+
+  return allowedGroups.some((group) => nextIds.every((id) => group.includes(id)));
+}
 
 function ZoneCard({ title, subtitle, accent, children }) {
   return (
@@ -243,22 +324,10 @@ function SixSeatChairs({ reserved }) {
 function FourSeatChairs({ reserved }) {
   return (
     <>
-      <div
-        className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
-        style={{ left: "50%", top: -8, transform: "translateX(-50%)" }}
-      />
-      <div
-        className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
-        style={{ left: "50%", top: 36, transform: "translateX(-50%)" }}
-      />
-      <div
-        className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
-        style={{ left: 0, top: 14 }}
-      />
-      <div
-        className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
-        style={{ right: 0, top: 14 }}
-      />
+      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: -8, transform: "translateX(-50%)" }} />
+      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: 36, transform: "translateX(-50%)" }} />
+      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: 0, top: 14 }} />
+      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ right: 0, top: 14 }} />
     </>
   );
 }
@@ -333,16 +402,12 @@ function BookingModal({
   submitSuccess,
 }) {
   const guestOptions = Array.from({ length: totalSeats }, (_, index) => index + 1);
-
-  const latePolicyTitle =
-    languageSafe(t, "latePolicyTitle", "Important reservation policy");
-
-  const latePolicyText =
-    languageSafe(
-      t,
-      "latePolicyText",
-      "If you are more than 15 minutes late, the reservation is automatically released and the restaurant is not obliged to call you."
-    );
+  const latePolicyTitle = languageSafe(t, "latePolicyTitle", "Important reservation policy");
+  const latePolicyText = languageSafe(
+    t,
+    "latePolicyText",
+    "If you are more than 15 minutes late, the reservation is automatically released and the restaurant is not obliged to call you."
+  );
   const areaLabel = selectedArea === "garden" ? t.smokingSection : t.familySection;
 
   return (
@@ -351,27 +416,24 @@ function BookingModal({
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
-              {selectedTables.length > 1
-                ? languageSafe(t, "groupBookingTitle", "Group reservation")
-                : t.bookingFormTitle}
+              {selectedTables.length > 1 ? languageSafe(t, "groupBookingTitle", "Group reservation") : t.bookingFormTitle}
             </p>
             <h2 className="mt-3 text-3xl font-semibold">
               {selectedTables.length > 1
                 ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables.map((table) => table.id).join(", ")}`
                 : `${t.selectedTable}: ${selectedTables[0]?.id}`}
             </h2>
-<div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-  <p className="text-sm text-stone-300">
-    {selectedTables.length > 1
-      ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables
-          .map((table) => table.id)
-          .join(", ")}`
-      : `${t.selectedTable}: ${selectedTables[0]?.id}`}
-  </p>
-  <p className="mt-2 text-sm text-stone-300">
-    {areaLabel} · {totalSeats} {t.people} · {selectedTime}
-  </p>
-</div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <p className="text-sm text-stone-300">
+                {selectedTables.length > 1
+                  ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables.map((table) => table.id).join(", ")}`
+                  : `${t.selectedTable}: ${selectedTables[0]?.id}`}
+              </p>
+              <p className="mt-2 text-sm text-stone-300">
+                {areaLabel} · {totalSeats} {t.people} · {selectedTime}
+              </p>
+            </div>
           </div>
 
           <button
@@ -386,199 +448,112 @@ function BookingModal({
         <form onSubmit={onSubmit} className="grid gap-5 sm:grid-cols-2">
           <div>
             <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
-            <input
-              name="guestName"
-              required
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-              placeholder={t.placeholderName}
-            />
+            <input name="guestName" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderName} />
           </div>
 
           <div>
             <label className="mb-2 block text-sm text-stone-300">{t.formPhone}</label>
-            <input
-              name="phone"
-              required
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-              placeholder={t.placeholderPhone}
-            />
+            <input name="phone" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderPhone} />
           </div>
 
           <div>
             <label className="mb-2 block text-sm text-stone-300">{t.formEmail}</label>
-            <input
-              name="email"
-              type="email"
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-              placeholder={t.placeholderEmail}
-            />
+            <input name="email" type="email" className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderEmail} />
           </div>
 
-<div>
-  <label className="mb-2 block text-sm text-stone-300">{t.formGuests}</label>
-  <select
-    name="guestCount"
-    required
-    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-  >
-    <option value="">{t.selectGuests}</option>
-    {guestOptions.map((count) => (
-      <option key={count} value={count}>
-        {count}
-      </option>
-    ))}
-  </select>
-</div>
+          <div>
+            <label className="mb-2 block text-sm text-stone-300">{t.formGuests}</label>
+            <select name="guestCount" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300">
+              <option value="">{t.selectGuests}</option>
+              {guestOptions.map((count) => (
+                <option key={count} value={count}>
+                  {count}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div>
             <label className="mb-2 block text-sm text-stone-300">{t.formDate}</label>
-            <input
-              name="reservedDate"
-              type="date"
-              required
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-            />
+            <input name="reservedDate" type="date" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" />
           </div>
 
           <div>
             <label className="mb-2 block text-sm text-stone-300">{t.formTime}</label>
-            <input
-              readOnly
-              value={selectedTime}
-              className="w-full rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-100 outline-none"
-            />
+            <input readOnly value={selectedTime} className="w-full rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-100 outline-none" />
           </div>
 
           <div className="sm:col-span-2">
             <label className="mb-2 block text-sm text-stone-300">{t.formRequests}</label>
-            <textarea
-              name="notes"
-              rows={4}
-              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-              placeholder={t.placeholderRequests}
-            />
+            <textarea name="notes" rows={4} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderRequests} />
           </div>
-<div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
-  <div className="mb-2 text-xs uppercase tracking-[0.28em] text-amber-300">
-    {latePolicyTitle}
-  </div>
-  <p className="text-sm leading-7 text-amber-100/90">
-    {latePolicyText}
-  </p>
-</div>
-          {submitError && (
-  <div className="sm:col-span-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-    {submitError}
-  </div>
-)}
 
-{submitSuccess && (
-  <div className="sm:col-span-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-    {submitSuccess}
-  </div>
-)}
-<button
-  type="submit"
-  disabled={isSubmitting}
-  className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
-    isSubmitting
-      ? "cursor-not-allowed bg-white/10 text-white/40"
-      : "bg-[#c9a56a] text-black transition hover:scale-[1.01]"
-  }`}
->
-  {isSubmitting
-    ? language === "bg"
-      ? "Изпращане..."
-      : "Submitting..."
-    : selectedTables.length > 1
-    ? languageSafe(t, "submitGroup", "Reserve selected tables")
-    : t.submit}
-</button>
+          <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
+            <div className="mb-2 text-xs uppercase tracking-[0.28em] text-amber-300">{latePolicyTitle}</div>
+            <p className="text-sm leading-7 text-amber-100/90">{latePolicyText}</p>
+          </div>
+
+          {submitError && (
+            <div className="sm:col-span-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+              {submitError}
+            </div>
+          )}
+
+          {submitSuccess && (
+            <div className="sm:col-span-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+              {submitSuccess}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
+              isSubmitting ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-[#c9a56a] text-black transition hover:scale-[1.01]"
+            }`}
+          >
+            {isSubmitting
+              ? language === "bg"
+                ? "Изпращане..."
+                : "Submitting..."
+              : selectedTables.length > 1
+              ? languageSafe(t, "submitGroup", "Reserve selected tables")
+              : t.submit}
+          </button>
         </form>
       </div>
     </div>
   );
 }
 
-function languageSafe(t, key, fallback) {
-  return t?.[key] || fallback;
-}
-
-function getAvailabilityForTable(tableId) {
-  return availabilityByTable[tableId] || { free: ["18:00", "19:30", "21:00"], busy: ["20:30"] };
-}
-
-function intersectFreeTimes(selectedTables) {
-  if (!selectedTables.length) return [];
-
-  const freeSets = selectedTables.map((table) => getAvailabilityForTable(table.id).free);
-  return freeSets.reduce((acc, current) => acc.filter((time) => current.includes(time)));
-}
-
-function unionBusyTimes(selectedTables) {
-  const allBusy = selectedTables.flatMap((table) => getAvailabilityForTable(table.id).busy);
-  return [...new Set(allBusy)];
-}
-
-function getDefaultTableForArea(area) {
-  return area === "garden" ? gardenTables[0] : indoorTables[0];
-}
-
-function isContinuousTerraceSelection(selectedTables, nextTable) {
-  const ids = [...selectedTables.map((table) => table.id), nextTable.id]
-    .filter((id) => gardenOrder.includes(id));
-
-  const uniqueIds = [...new Set(ids)];
-
-  const indexes = uniqueIds
-    .map((id) => gardenOrder.indexOf(id))
-    .sort((a, b) => a - b);
-
-  if (!indexes.length) return true;
-
-  for (let i = 1; i < indexes.length; i += 1) {
-    if (indexes[i] - indexes[i - 1] !== 1) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function canCombineTables(area, selectedTables, nextTable) {
-  if (!selectedTables.length) return true;
-
-  if (area === "garden") {
-    if (nextTable.special) return false;
-    if (selectedTables.some((table) => table.special)) return false;
-
-    return isContinuousTerraceSelection(selectedTables, nextTable);
-  }
-
-  const allowedGroups = [
-    ["5", "6"],
-    ["20", "21", "22", "23"],
-    ["28", "29"],
-  ];
-
-  const currentIds = selectedTables.map((table) => table.id);
-  const nextIds = [...currentIds, nextTable.id];
-
-  return allowedGroups.some((group) =>
-    nextIds.every((id) => group.includes(id))
-  );
-}
-
 export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
-  const [submitSuccess, setSubmitSuccess] = React.useState(""); 
+  const [submitSuccess, setSubmitSuccess] = React.useState("");
   const [bookingMode, setBookingMode] = React.useState("single");
   const [selectedArea, setSelectedArea] = React.useState("indoor");
   const [selectedTables, setSelectedTables] = React.useState([indoorTables[11]]);
   const [selectedTime, setSelectedTime] = React.useState("");
   const [showBookingForm, setShowBookingForm] = React.useState(false);
+  const [blockedSlots, setBlockedSlots] = React.useState([]);
   const timeSelectionRef = React.useRef(null);
+
+  React.useEffect(() => {
+    async function loadBlockedSlots() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/reservations/blocked-slots`);
+        const data = await response.json();
+        setBlockedSlots(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load blocked slots", error);
+      }
+    }
+
+    loadBlockedSlots();
+    const intervalId = setInterval(loadBlockedSlots, 10000);
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   const labels = {
     perimeter: language === "bg" ? "Периметър" : "Garden perimeter",
@@ -586,10 +561,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     gardenTitle: language === "bg" ? "Градина / Пушачи" : "Garden / Smoking",
     gardenSubtitle: language === "bg" ? "Всички маси са за 4 души" : "All tables seat 4 guests",
     indoorTitle: language === "bg" ? "Вътре / Непушачи" : "Indoor / Non-smoking",
-    indoorSubtitle:
-      language === "bg"
-        ? "Комбинация от маси за 4 и 6 души"
-        : "Mix of 4-seat and 6-seat tables",
+    indoorSubtitle: language === "bg" ? "Комбинация от маси за 4 и 6 души" : "Mix of 4-seat and 6-seat tables",
     selectedTable: language === "bg" ? "Избрана маса" : "Selected table",
     selectedTables: language === "bg" ? "Избрани маси" : "Selected tables",
     reservationPreview: language === "bg" ? "Преглед на резервацията" : "Reservation preview",
@@ -606,62 +578,52 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     groupMode: language === "bg" ? "Групова резервация" : "Group booking",
     singleMode: language === "bg" ? "Една маса" : "Single table",
     groupHint:
-        language === "bg"
+      language === "bg"
         ? "На терасата можете да комбинирате всички маси. В залата могат да се комбинират само: 5-6, 20-21-22-23 и 28-29."
         : "On the terrace, all tables can be combined. In the indoor hall, only these combinations are allowed: 5-6, 20-21-22-23, and 28-29.",
   };
 
-const handleSelect = (table, area) => {
-  const isReserved =
-    area === "garden" ? reservedGardenIds.has(table.id) : reservedIndoorIds.has(table.id);
+  const handleSelect = (table, area) => {
+    const isReserved = area === "garden" ? reservedGardenIds.has(table.id) : reservedIndoorIds.has(table.id);
+    if (isReserved) return;
 
-  if (isReserved) return;
-
-  if (bookingMode === "single") {
-    setSelectedArea(area);
-    setSelectedTables([table]);
-    setSelectedTime("");
-  } else {
-    if (area !== selectedArea) {
+    if (bookingMode === "single") {
       setSelectedArea(area);
       setSelectedTables([table]);
       setSelectedTime("");
     } else {
-      setSelectedTables((prev) => {
-        const exists = prev.some((item) => item.id === table.id);
+      if (area !== selectedArea) {
+        setSelectedArea(area);
+        setSelectedTables([table]);
+        setSelectedTime("");
+      } else {
+        setSelectedTables((prev) => {
+          const exists = prev.some((item) => item.id === table.id);
 
-        if (exists) {
-          const next = prev.filter((item) => item.id !== table.id);
-          return next.length ? next : [table];
-        }
+          if (exists) {
+            const next = prev.filter((item) => item.id !== table.id);
+            return next.length ? next : [table];
+          }
 
-        if (!canCombineTables(area, prev, table)) {
-          return prev;
-        }
+          if (!canCombineTables(area, prev, table)) return prev;
 
-        return [...prev, table];
-      });
+          return [...prev, table];
+        });
 
-      setSelectedTime("");
+        setSelectedTime("");
+      }
     }
-  }
 
-  if (window.innerWidth < 1024) {
-    setTimeout(() => {
-      timeSelectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-    }, 250);
-  }
-};
+    if (window.innerWidth < 1024) {
+      setTimeout(() => {
+        timeSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 250);
+    }
+  };
 
   const selectedIds = selectedTables.map((table) => table.id);
   const totalSeats = selectedTables.reduce((sum, table) => sum + table.seats, 0);
-  const availability = {
-    free: intersectFreeTimes(selectedTables),
-    busy: unionBusyTimes(selectedTables),
-  };
+  const availability = getDynamicAvailabilityForTables(selectedTables, blockedSlots);
 
   const isReserved =
     bookingMode === "single" && selectedTables.length === 1
@@ -670,90 +632,75 @@ const handleSelect = (table, area) => {
         : reservedIndoorIds.has(selectedTables[0].id)
       : false;
 
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-const handleSubmit = async (event) => {
-  event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
-  const formData = new FormData(event.currentTarget);
+    const payload = {
+      guestName: String(formData.get("guestName") || ""),
+      phone: String(formData.get("phone") || ""),
+      email: String(formData.get("email") || ""),
+      guestCount: Number(formData.get("guestCount") || 0),
+      area: selectedArea,
+      reservedTime: selectedTime,
+      reservedDate: String(formData.get("reservedDate") || ""),
+      notes: String(formData.get("notes") || ""),
+      tableIds: selectedTables.map((table) => table.id),
+    };
 
-  const payload = {
-    guestName: String(formData.get("guestName") || ""),
-    phone: String(formData.get("phone") || ""),
-    email: String(formData.get("email") || ""),
-    guestCount: Number(formData.get("guestCount") || 0),
-    area: selectedArea,
-    reservedTime: selectedTime,
-    reservedDate: String(formData.get("reservedDate") || ""),
-    notes: String(formData.get("notes") || ""),
-    tableIds: selectedTables.map((table) => table.id),
-  };
-
-  setIsSubmitting(true);
-  setSubmitError("");
-  setSubmitSuccess("");
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/reservations`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const rawText = await response.text();
-    let result = null;
+    setIsSubmitting(true);
+    setSubmitError("");
+    setSubmitSuccess("");
 
     try {
-      result = rawText ? JSON.parse(rawText) : null;
-    } catch {
-      result = null;
-    }
+      const response = await fetch(`${API_BASE_URL}/api/reservations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    if (!response.ok) {
-      const backendMessage =
-        result?.message ||
-        rawText ||
-        (language === "bg"
-          ? "Възникна проблем при изпращането на резервацията."
-          : "There was a problem submitting the reservation.");
+      const rawText = await response.text();
+      let result = null;
 
-      setSubmitSuccess("");
-      setSubmitError(backendMessage);
-      return;
-    }
+      try {
+        result = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        result = null;
+      }
 
-const form = event.currentTarget;
+      if (!response.ok) {
+        const backendMessage =
+          result?.message ||
+          rawText ||
+          (language === "bg"
+            ? "Възникна проблем при изпращането на резервацията."
+            : "There was a problem submitting the reservation.");
 
-setSubmitError("");
-setSubmitSuccess(
-  language === "bg"
-    ? "Резервацията беше изпратена успешно."
-    : "Reservation submitted successfully."
-);
+        setSubmitSuccess("");
+        setSubmitError(backendMessage);
+        return;
+      }
 
-form?.reset?.();
-
-    setTimeout(() => {
-      setShowBookingForm(false);
-      setSelectedTime("");
-      setSubmitSuccess("");
       setSubmitError("");
-    }, 1200);
-  } catch (error) {
-    console.error(error);
-    setSubmitSuccess("");
-    setSubmitError(
-      language === "bg"
-        ? "Възникна проблем при връзката със сървъра."
-        : "There was a problem connecting to the server."
-    );
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      setSubmitSuccess(language === "bg" ? "Резервацията беше изпратена успешно." : "Reservation submitted successfully.");
+      form?.reset?.();
 
-
+      setTimeout(() => {
+        setShowBookingForm(false);
+        setSelectedTime("");
+        setSubmitSuccess("");
+        setSubmitError("");
+      }, 1200);
+    } catch (error) {
+      console.error(error);
+      setSubmitSuccess("");
+      setSubmitError(language === "bg" ? "Възникна проблем при връзката със сървъра." : "There was a problem connecting to the server.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <>
@@ -773,35 +720,15 @@ form?.reset?.();
             </div>
 
             <div className="flex flex-wrap gap-3 text-sm">
-              <button
-                type="button"
-                onClick={() => setLanguage("bg")}
-                className={`rounded-full px-4 py-2 ${
-                  language === "bg"
-                    ? "bg-[#c9a56a] text-black"
-                    : "border border-white/15 bg-white/5 text-white"
-                }`}
-              >
+              <button type="button" onClick={() => setLanguage("bg")} className={`rounded-full px-4 py-2 ${language === "bg" ? "bg-[#c9a56a] text-black" : "border border-white/15 bg-white/5 text-white"}`}>
                 BG
               </button>
 
-              <button
-                type="button"
-                onClick={() => setLanguage("en")}
-                className={`rounded-full px-4 py-2 ${
-                  language === "en"
-                    ? "bg-[#c9a56a] text-black"
-                    : "border border-white/15 bg-white/5 text-white"
-                }`}
-              >
+              <button type="button" onClick={() => setLanguage("en")} className={`rounded-full px-4 py-2 ${language === "en" ? "bg-[#c9a56a] text-black" : "border border-white/15 bg-white/5 text-white"}`}>
                 EN
               </button>
 
-              <button
-                type="button"
-                onClick={onBack}
-                className="rounded-full border border-white/15 px-4 py-2 hover:border-[#c9a56a]/40 hover:text-[#d8b377]"
-              >
+              <button type="button" onClick={onBack} className="rounded-full border border-white/15 px-4 py-2 hover:border-[#c9a56a]/40 hover:text-[#d8b377]">
                 {t.backToSite}
               </button>
             </div>
@@ -817,11 +744,7 @@ form?.reset?.();
                   setSelectedTime("");
                 }
               }}
-              className={`rounded-full px-4 py-2 text-sm ${
-                bookingMode === "single"
-                  ? "bg-[#c9a56a] text-black"
-                  : "border border-white/10 bg-white/5 text-white/80"
-              }`}
+              className={`rounded-full px-4 py-2 text-sm ${bookingMode === "single" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
             >
               {labels.singleMode}
             </button>
@@ -829,82 +752,50 @@ form?.reset?.();
             <button
               type="button"
               onClick={() => setBookingMode("group")}
-              className={`rounded-full px-4 py-2 text-sm ${
-                bookingMode === "group"
-                  ? "bg-[#c9a56a] text-black"
-                  : "border border-white/10 bg-white/5 text-white/80"
-              }`}
+              className={`rounded-full px-4 py-2 text-sm ${bookingMode === "group" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
             >
               {labels.groupMode}
             </button>
-            <div className="ml-0 flex flex-wrap gap-2 md:ml-2">
-  <button
-    type="button"
-    onClick={() => {
-      setSelectedArea("garden");
-      setSelectedTables([getDefaultTableForArea("garden")]);
-      setSelectedTime("");
-    }}
-    className={`rounded-full px-4 py-2 text-sm ${
-      selectedArea === "garden"
-        ? "bg-[#c9a56a] text-black"
-        : "border border-white/10 bg-white/5 text-white/80"
-    }`}
-  >
-    {language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking"}
-  </button>
 
-  <button
-    type="button"
-    onClick={() => {
-      setSelectedArea("indoor");
-      setSelectedTables([getDefaultTableForArea("indoor")]);
-      setSelectedTime("");
-    }}
-    className={`rounded-full px-4 py-2 text-sm ${
-      selectedArea === "indoor"
-        ? "bg-[#c9a56a] text-black"
-        : "border border-white/10 bg-white/5 text-white/80"
-    }`}
-  >
-    {language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking"}
-  </button>
-</div>
+            <div className="ml-0 flex flex-wrap gap-2 md:ml-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedArea("garden");
+                  setSelectedTables([getDefaultTableForArea("garden")]);
+                  setSelectedTime("");
+                }}
+                className={`rounded-full px-4 py-2 text-sm ${selectedArea === "garden" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
+              >
+                {language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedArea("indoor");
+                  setSelectedTables([getDefaultTableForArea("indoor")]);
+                  setSelectedTime("");
+                }}
+                className={`rounded-full px-4 py-2 text-sm ${selectedArea === "indoor" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
+              >
+                {language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking"}
+              </button>
+            </div>
 
             <div className="text-sm text-white/65">{labels.groupHint}</div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1.15fr_0.95fr]">
-            <ZoneCard
-              title={labels.gardenTitle}
-              subtitle={labels.gardenSubtitle}
-              accent={t.smokeLabel}
-            >
-              <GardenMap
-                tables={gardenTables}
-                selectedIds={selectedIds}
-                onSelect={handleSelect}
-                labels={labels}
-              />
+            <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
+              <GardenMap tables={gardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
             </ZoneCard>
 
-            <ZoneCard
-              title={labels.indoorTitle}
-              subtitle={labels.indoorSubtitle}
-              accent={t.mainLabel}
-            >
-              <IndoorMap
-                tables={indoorTables}
-                selectedIds={selectedIds}
-                onSelect={handleSelect}
-                labels={labels}
-              />
+            <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
+              <IndoorMap tables={indoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
             </ZoneCard>
 
-            <div
-              ref={timeSelectionRef}
-              className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6"
-            >
+            <div ref={timeSelectionRef} className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6">
               <div className="mb-2 text-xs uppercase tracking-[0.28em] text-[#c9a56a]">
                 {labels.reservationPreview}
               </div>
@@ -913,30 +804,21 @@ form?.reset?.();
               </h3>
 
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411]">
-                <img
-                  src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
-                  alt="Restaurant zone preview"
-                  className="absolute inset-0 h-full w-full object-cover opacity-60"
-                />
+                <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full object-cover opacity-60" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="mb-2 text-xs uppercase tracking-[0.25em] text-[#d8b377]">
                     {language === "bg" ? "Концепция за сайта" : "Website concept"}
                   </div>
-                  <div className="text-2xl font-serif">
-                    {selectedTables.map((table) => table.id).join(", ")}
-                  </div>
+                  <div className="text-2xl font-serif">{selectedTables.map((table) => table.id).join(", ")}</div>
                   <div className="mt-1 text-sm text-white/70">
-                    {(selectedArea === "garden" ? t.smokingSection : t.familySection)} · {totalSeats} {t.people}
+                    {selectedArea === "garden" ? t.smokingSection : t.familySection} · {totalSeats} {t.people}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                <InfoRow
-                  label={labels.area}
-                  value={selectedArea === "garden" ? t.smokingSection : t.familySection}
-                />
+                <InfoRow label={labels.area} value={selectedArea === "garden" ? t.smokingSection : t.familySection} />
                 <InfoRow label={labels.table} value={selectedTables.map((table) => table.id).join(", ")} />
                 <InfoRow label={labels.capacity} value={`${totalSeats} ${t.people}`} />
                 <InfoRow label={labels.status} value={isReserved ? labels.reserved : labels.available} />
@@ -948,12 +830,7 @@ form?.reset?.();
                 </h4>
                 <div className="flex flex-wrap gap-3">
                   {availability.free.map((time) => (
-                    <TimeChip
-                      key={time}
-                      time={time}
-                      active={selectedTime === time}
-                      onClick={() => setSelectedTime(time)}
-                    />
+                    <TimeChip key={time} time={time} active={selectedTime === time} onClick={() => setSelectedTime(time)} />
                   ))}
                 </div>
               </div>
@@ -995,23 +872,23 @@ form?.reset?.();
       </div>
 
       {showBookingForm && selectedTime && selectedTables.length > 0 && !isReserved && (
-<BookingModal
-  t={t}
-  language={language}
-  selectedTables={selectedTables}
-  selectedArea={selectedArea}
-  selectedTime={selectedTime}
-  totalSeats={totalSeats}
-  onClose={() => {
-  setShowBookingForm(false);
-  setSubmitError("");
-  setSubmitSuccess("");
-}}
-  onSubmit={handleSubmit}
-  isSubmitting={isSubmitting}
-  submitError={submitError}
-  submitSuccess={submitSuccess}
-/>
+        <BookingModal
+          t={t}
+          language={language}
+          selectedTables={selectedTables}
+          selectedArea={selectedArea}
+          selectedTime={selectedTime}
+          totalSeats={totalSeats}
+          onClose={() => {
+            setShowBookingForm(false);
+            setSubmitError("");
+            setSubmitSuccess("");
+          }}
+          onSubmit={handleSubmit}
+          isSubmitting={isSubmitting}
+          submitError={submitError}
+          submitSuccess={submitSuccess}
+        />
       )}
     </>
   );
