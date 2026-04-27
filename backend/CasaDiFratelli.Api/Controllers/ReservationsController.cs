@@ -141,11 +141,11 @@ public class ReservationsController : ControllerBase
             .ToList();
     }
 
-    private static bool HasApprovedConflict(
-        string reservedDate,
-        string reservedTime,
-        List<string> tableIds,
-        int? excludeReservationId = null)
+private static bool HasApprovedConflict(
+    DateOnly reservedDate,
+    string reservedTime,
+    List<string> tableIds,
+    int? excludeReservationId = null)
     {
         return Reservations.Any(x =>
             x.Status == "Approved" &&
@@ -164,7 +164,7 @@ public class ReservationsController : ControllerBase
         public string? Email { get; set; }
         public int GuestCount { get; set; }
         public string? Area { get; set; }
-        public string ReservedDate { get; set; } = "";
+        public DateOnly ReservedDate { get; set; }
         public string ReservedTime { get; set; } = "";
         public string? Notes { get; set; }
         public List<string> TableIds { get; set; } = new();
