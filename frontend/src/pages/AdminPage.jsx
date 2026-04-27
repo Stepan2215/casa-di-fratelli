@@ -39,7 +39,7 @@ export default function AdminPage() {
           </p>
           <h1 className="mt-3 text-4xl font-semibold">Admin Reservations</h1>
           <p className="mt-3 text-stone-400">
-            Управление резервациями ресторана
+            Менеджиране на резервации
           </p>
         </div>
 
@@ -47,7 +47,7 @@ export default function AdminPage() {
           <div className="text-stone-400">Loading...</div>
         ) : reservations.length === 0 ? (
           <div className="rounded-3xl border border-white/10 bg-white/5 p-8 text-stone-300">
-            Пока нет резерваций.
+            За сега няма резервации.
           </div>
         ) : (
           <div className="overflow-hidden rounded-3xl border border-white/10 bg-white/5">
@@ -55,13 +55,13 @@ export default function AdminPage() {
               <thead className="bg-white/10 text-stone-300">
                 <tr>
                   <th className="p-4">ID</th>
-                  <th className="p-4">Гость</th>
+                  <th className="p-4">Гост</th>
                   <th className="p-4">Телефон</th>
                   <th className="p-4">Дата</th>
-                  <th className="p-4">Время</th>
-                  <th className="p-4">Столы</th>
+                  <th className="p-4">Време</th>
+                  <th className="p-4">Маса</th>
                   <th className="p-4">Статус</th>
-                  <th className="p-4">Действия</th>
+                  <th className="p-4">Действие</th>
                 </tr>
               </thead>
 
