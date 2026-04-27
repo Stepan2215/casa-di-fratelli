@@ -5,6 +5,7 @@ import { galleryImages } from "./data/restaurantData";
 import HomePage from "./pages/HomePage";
 import ReservationPage from "./pages/ReservationPage";
 import MenuPage from "./pages/MenuPage";
+import AdminPage from "./pages/AdminPage";
 
 const safeReadStoredLanguage = () => {
   if (typeof window === "undefined") return "bg";
@@ -12,10 +13,19 @@ const safeReadStoredLanguage = () => {
   return stored === "en" ? "en" : "bg";
 };
 
+const getInitialPage = () => {
+  if (typeof window === "undefined") return "home";
+
+  if (window.location.pathname === "/admin") {
+    return "admin";
+  }
+
+  return "home";
+};
+
 const runSanityChecks = () => {
   console.assert(typeof translations.bg.navGallery === "string", "BG translation missing navGallery");
   console.assert(typeof translations.en.navReservation === "string", "EN translation missing navReservation");
-  //console.assert(Array.isArray(menuData.starters.bg), "BG starters should be an array");
   console.assert(galleryImages.length > 0, "Gallery should not be empty");
   console.assert(tables.length > 0, "Tables should not be empty");
 };
@@ -24,7 +34,7 @@ runSanityChecks();
 
 export default function App() {
   const [language, setLanguage] = React.useState(safeReadStoredLanguage);
-  const [currentPage, setCurrentPage] = React.useState("home");
+  const [currentPage, setCurrentPage] = React.useState(getInitialPage);
 
   const t = translations[language];
 
@@ -34,6 +44,33 @@ export default function App() {
       document.documentElement.lang = language;
     }
   }, [language]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const nextPath = currentPage === "admin" ? "/admin" : "/";
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, "", nextPath);
+    }
+  }, [currentPage]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      setCurrentPage(window.location.pathname === "/admin" ? "admin" : "home");
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []);
+
+  if (currentPage === "admin") {
+    return <AdminPage />;
+  }
 
   if (currentPage === "reservation-map") {
     return (
