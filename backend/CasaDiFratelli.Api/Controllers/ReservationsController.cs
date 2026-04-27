@@ -117,7 +117,7 @@ public class ReservationsController : ControllerBase
         if (request.GuestCount <= 0)
             return new BadRequestObjectResult("Guest count must be greater than zero.");
 
-        if (string.IsNullOrWhiteSpace(request.ReservedDate))
+        if (request.ReservedDate == default)
             return new BadRequestObjectResult("Reservation date is required.");
 
         if (string.IsNullOrWhiteSpace(request.ReservedTime))
