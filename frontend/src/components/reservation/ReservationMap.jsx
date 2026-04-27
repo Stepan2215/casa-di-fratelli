@@ -2,6 +2,32 @@ import TableButton from "./TableButton";
 import TimeChip from "./TimeChip";
 import { tables, sectionMeta } from "../../data/tablesData";
 
+function WindowMarker({ className = "", label = "Прозорец", vertical = false }) {
+  return (
+    <div
+      className={`pointer-events-none absolute z-10 flex items-center justify-center ${className}`}
+    >
+      <div
+        className={`relative overflow-hidden rounded-2xl border border-sky-200/40 bg-sky-200/10 shadow-[0_0_30px_rgba(125,211,252,0.25)] backdrop-blur-sm ${
+          vertical ? "h-48 w-12" : "h-12 w-48"
+        }`}
+      >
+        <div className="absolute inset-0 bg-gradient-to-br from-white/25 via-sky-100/10 to-transparent" />
+        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-sky-100/30" />
+        <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-sky-100/30" />
+
+        <div
+          className={`relative flex h-full w-full items-center justify-center text-[10px] font-semibold uppercase tracking-[0.25em] text-sky-100/90 ${
+            vertical ? "-rotate-90 whitespace-nowrap" : ""
+          }`}
+        >
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ReservationMap({
   t,
   selectedSection,
@@ -94,6 +120,14 @@ export default function ReservationMap({
             <div
               className={`relative min-h-[520px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-br ${sectionMeta[selectedSection].gradient}`}
             >
+              <WindowMarker className="left-8 top-6" />
+              <WindowMarker className="right-8 top-6" />
+              <WindowMarker className="left-4 top-1/2 -translate-y-1/2" vertical />
+              <WindowMarker className="right-4 top-1/2 -translate-y-1/2" vertical />
+
+              <div className="pointer-events-none absolute inset-x-12 top-24 z-0 h-px bg-gradient-to-r from-transparent via-sky-100/20 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-16 left-24 z-0 w-px bg-gradient-to-b from-transparent via-sky-100/15 to-transparent" />
+
               {visibleTables.map((table) => (
                 <TableButton
                   key={table.id}
