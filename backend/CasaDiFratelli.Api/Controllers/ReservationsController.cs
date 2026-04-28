@@ -33,6 +33,8 @@ public class ReservationsController : ControllerBase
                 x.Area,
                 x.ReservedDate,
                 x.ReservedTime,
+                x.BirthDate,
+                x.MarketingConsent,
                 x.Notes,
                 x.Status,
                 x.CreatedAtUtc,
@@ -53,8 +55,6 @@ public class ReservationsController : ControllerBase
             {
                 x.ReservedDate,
                 x.ReservedTime,
-                x.BirthDate,
-                x.MarketingConsent,
                 TableIds = x.Tables.Select(t => t.TableCode).ToList()
             })
             .ToListAsync();
@@ -72,7 +72,7 @@ public class ReservationsController : ControllerBase
             return BadRequest("Phone is required.");
 
         if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest("Email is required.");    
+            return BadRequest("Email is required.");
 
         if (request.GuestCount <= 0)
             return BadRequest("Invalid guests.");
@@ -83,7 +83,7 @@ public class ReservationsController : ControllerBase
         var tableIds = request.TableIds
             .Where(id => !string.IsNullOrWhiteSpace(id))
             .Select(id => id.Trim())
-            .Distinct()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         if (tableIds.Count == 0)
@@ -110,12 +110,12 @@ public class ReservationsController : ControllerBase
             GuestName = request.GuestName.Trim(),
             Phone = request.Phone.Trim(),
             Email = request.Email.Trim(),
-            BirthDate = request.BirthDate,
-            MarketingConsent = request.MarketingConsent,
             GuestCount = request.GuestCount,
             Area = request.Area,
             ReservedDate = request.ReservedDate,
             ReservedTime = request.ReservedTime,
+            BirthDate = request.BirthDate,
+            MarketingConsent = request.MarketingConsent,
             Notes = request.Notes,
             Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow,
@@ -138,6 +138,8 @@ public class ReservationsController : ControllerBase
             reservation.Area,
             reservation.ReservedDate,
             reservation.ReservedTime,
+            reservation.BirthDate,
+            reservation.MarketingConsent,
             reservation.Notes,
             reservation.Status,
             reservation.CreatedAtUtc,
