@@ -28,4 +28,8 @@ public class Reservation
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     public List<ReservationTable> Tables { get; set; } = new();
+
+    public DateOnly? BirthDate { get; set; }
+
+    public bool MarketingConsent { get; set; } = false;
 }

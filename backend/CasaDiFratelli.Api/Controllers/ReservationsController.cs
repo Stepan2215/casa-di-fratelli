@@ -53,6 +53,8 @@ public class ReservationsController : ControllerBase
             {
                 x.ReservedDate,
                 x.ReservedTime,
+                x.BirthDate,
+                x.MarketingConsent,
                 TableIds = x.Tables.Select(t => t.TableCode).ToList()
             })
             .ToListAsync();
@@ -68,6 +70,9 @@ public class ReservationsController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(request.Phone))
             return BadRequest("Phone is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return BadRequest("Email is required.");    
 
         if (request.GuestCount <= 0)
             return BadRequest("Invalid guests.");
@@ -104,7 +109,9 @@ public class ReservationsController : ControllerBase
         {
             GuestName = request.GuestName.Trim(),
             Phone = request.Phone.Trim(),
-            Email = request.Email,
+            Email = request.Email.Trim(),
+            BirthDate = request.BirthDate,
+            MarketingConsent = request.MarketingConsent,
             GuestCount = request.GuestCount,
             Area = request.Area,
             ReservedDate = request.ReservedDate,

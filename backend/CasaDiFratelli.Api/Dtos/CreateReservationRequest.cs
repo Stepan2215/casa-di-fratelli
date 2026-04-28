@@ -4,7 +4,7 @@ public class CreateReservationRequest
 {
     public string GuestName { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
-    public string? Email { get; set; }
+    public string Email { get; set; } = string.Empty;
 
     public int GuestCount { get; set; }
 
@@ -15,4 +15,7 @@ public class CreateReservationRequest
     public string? Notes { get; set; }
 
     public List<string> TableIds { get; set; } = new List<string>();
+
+    public DateOnly? BirthDate { get; set; }
+    public bool MarketingConsent { get; set; }
 }

@@ -642,6 +642,8 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       guestName: String(formData.get("guestName") || ""),
       phone: String(formData.get("phone") || ""),
       email: String(formData.get("email") || ""),
+      birthDate: String(formData.get("birthDate") || "") || null,
+      marketingConsent: formData.get("marketingConsent") === "on",
       guestCount: Number(formData.get("guestCount") || 0),
       area: selectedArea,
       reservedTime: selectedTime,
