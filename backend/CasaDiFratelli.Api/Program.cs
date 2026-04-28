@@ -14,8 +14,7 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins("https://casa-di-fratelli.vercel.app")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+            db.Database.Migrate();
     });
 });
 
