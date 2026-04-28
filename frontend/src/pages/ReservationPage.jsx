@@ -413,7 +413,7 @@ function BookingModal({
   return (
     <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm">
       <div className="h-full overflow-y-auto overscroll-contain px-4 py-6">
-      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8"></div>
+      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
@@ -570,6 +570,7 @@ function BookingModal({
         <div className="h-10" />
       </div>
     </div>
+  </div>
 );
 }
 
