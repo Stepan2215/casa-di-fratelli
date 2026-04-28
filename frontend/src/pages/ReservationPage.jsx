@@ -697,7 +697,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       tableIds: selectedTables.map((table) => table.id),
     };
 
-    setIsSubmitting(true);Ы
+    setIsSubmitting(true);
     setSubmitError("");
     setSubmitSuccess("");
 
