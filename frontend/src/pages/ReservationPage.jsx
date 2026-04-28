@@ -411,8 +411,8 @@ function BookingModal({
   const areaLabel = selectedArea === "garden" ? t.smokingSection : t.familySection;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-8 text-stone-100 shadow-2xl">
+    <div className="fixed inset-0 z-[70] overflow-y-auto bg-black/70 p-4 backdrop-blur-sm">
+      <div className="mx-auto my-6 w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
             <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
@@ -445,7 +445,7 @@ function BookingModal({
           </button>
         </div>
 
-       <form onSubmit={onSubmit} className="grid gap-5 sm:grid-cols-2">
+       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
   <div>
     <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
     <input
