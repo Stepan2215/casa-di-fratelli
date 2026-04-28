@@ -445,82 +445,127 @@ function BookingModal({
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
-            <input name="guestName" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderName} />
-          </div>
+       <form onSubmit={onSubmit} className="grid gap-5 sm:grid-cols-2">
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
+    <input
+      name="guestName"
+      required
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+      placeholder={t.placeholderName}
+    />
+  </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formPhone}</label>
-            <input name="phone" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderPhone} />
-          </div>
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formPhone}</label>
+    <input
+      name="phone"
+      required
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+      placeholder={t.placeholderPhone}
+    />
+  </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formEmail}</label>
-            <input name="email" type="email" className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderEmail} />
-          </div>
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formEmail}</label>
+    <input
+      name="email"
+      type="email"
+      required
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+      placeholder={t.placeholderEmail}
+    />
+  </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formGuests}</label>
-            <select name="guestCount" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300">
-              <option value="">{t.selectGuests}</option>
-              {guestOptions.map((count) => (
-                <option key={count} value={count}>
-                  {count}
-                </option>
-              ))}
-            </select>
-          </div>
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formGuests}</label>
+    <select
+      name="guestCount"
+      required
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+    >
+      <option value="">{t.selectGuests}</option>
+      <option value="1">{t.one}</option>
+      <option value="2">{t.two}</option>
+      <option value="3">{t.three}</option>
+      <option value="4">{t.four}</option>
+      <option value="5">{t.five}</option>
+    </select>
+  </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formDate}</label>
-            <input name="reservedDate" type="date" required className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" />
-          </div>
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formDate}</label>
+    <input
+      name="reservedDate"
+      type="date"
+      required
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+    />
+  </div>
 
-          <div>
-            <label className="mb-2 block text-sm text-stone-300">{t.formTime}</label>
-            <input readOnly value={selectedTime} className="w-full rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-100 outline-none" />
-          </div>
+  <div>
+    <label className="mb-2 block text-sm text-stone-300">{t.formTime}</label>
+    <input
+      readOnly
+      value={selectedTime}
+      className="w-full rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-100 outline-none"
+    />
+  </div>
 
-          <div className="sm:col-span-2">
-            <label className="mb-2 block text-sm text-stone-300">{t.formRequests}</label>
-            <textarea name="notes" rows={4} className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300" placeholder={t.placeholderRequests} />
-          </div>
+  {/* 🎂 ДАТА РОЖДЕНИЯ */}
+  <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
+    <label className="mb-2 block text-sm text-amber-100">
+      {language === "bg" ? "Дата на раждане" : "Date of birth"}
+    </label>
+    <input
+      name="birthDate"
+      type="date"
+      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
+    />
+    <p className="mt-3 text-sm text-amber-100/80">
+      {language === "bg"
+        ? "Очаква ви приятен бонус за вашия рожден ден."
+        : "A special birthday bonus is waiting for you."}
+    </p>
+  </div>
 
-          <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
-            <div className="mb-2 text-xs uppercase tracking-[0.28em] text-amber-300">{latePolicyTitle}</div>
-            <p className="text-sm leading-7 text-amber-100/90">{latePolicyText}</p>
-          </div>
+  <div className="sm:col-span-2">
+    <label className="mb-2 block text-sm text-stone-300">
+      {t.formRequests}
+    </label>
+    <textarea
+      name="notes"
+      rows={4}
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+      placeholder={t.placeholderRequests}
+    />
+  </div>
 
-          {submitError && (
-            <div className="sm:col-span-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-              {submitError}
-            </div>
-          )}
+  {/* ✅ MARKETING */}
+  <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+    <label className="flex items-start gap-3 text-sm text-stone-300">
+      <input
+        name="marketingConsent"
+        type="checkbox"
+        className="mt-1"
+      />
+      <span>
+        {language === "bg"
+          ? "Съгласявам се да получавам нови предложения и оферти по имейл."
+          : "I agree to receive offers and promotions by email."}
+      </span>
+    </label>
+  </div>
 
-          {submitSuccess && (
-            <div className="sm:col-span-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-              {submitSuccess}
-            </div>
-          )}
+  <button
+    type="submit"
+    className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-4 font-medium text-stone-950 transition hover:scale-[1.01] sm:col-span-2"
+  >
+    {t.submit}
+  </button>
+</form>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
-              isSubmitting ? "cursor-not-allowed bg-white/10 text-white/40" : "bg-[#c9a56a] text-black transition hover:scale-[1.01]"
-            }`}
-          >
-            {isSubmitting
-              ? language === "bg"
-                ? "Изпращане..."
-                : "Submitting..."
-              : selectedTables.length > 1
-              ? languageSafe(t, "submitGroup", "Reserve selected tables")
-              : t.submit}
-          </button>
-        </form>
+  
       </div>
     </div>
   );
@@ -652,7 +697,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       tableIds: selectedTables.map((table) => table.id),
     };
 
-    setIsSubmitting(true);
+    setIsSubmitting(true);Ы
     setSubmitError("");
     setSubmitSuccess("");
 
