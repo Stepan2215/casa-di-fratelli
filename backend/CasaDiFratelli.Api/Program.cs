@@ -1,9 +1,11 @@
 using CasaDiFratelli.Api.Data;
 using Microsoft.EntityFrameworkCore;
+using CasaDiFratelli.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpClient<EmailService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

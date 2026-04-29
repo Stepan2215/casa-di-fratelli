@@ -3,6 +3,7 @@ using CasaDiFratelli.Api.Dtos;
 using CasaDiFratelli.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using CasaDiFratelli.Api.Services;
 
 namespace CasaDiFratelli.Api.Controllers;
 
@@ -10,12 +11,19 @@ namespace CasaDiFratelli.Api.Controllers;
 [Route("api/[controller]")]
 public class ReservationsController : ControllerBase
 {
-    private readonly AppDbContext _db;
+private readonly AppDbContext _db;
+private readonly EmailService _emailService;
+private readonly IConfiguration _configuration;
 
-    public ReservationsController(AppDbContext db)
-    {
-        _db = db;
-    }
+public ReservationsController(
+    AppDbContext db,
+    EmailService emailService,
+    IConfiguration configuration)
+{
+    _db = db;
+    _emailService = emailService;
+    _configuration = configuration;
+}
 
     [HttpGet]
     public async Task<IActionResult> GetAll()
@@ -128,6 +136,35 @@ public class ReservationsController : ControllerBase
         _db.Reservations.Add(reservation);
         await _db.SaveChangesAsync();
 
+        var adminEmail = _configuration["ADMIN_EMAIL"];
+var adminUrl = _configuration["ADMIN_URL"] ?? "https://casa-di-fratelli.vercel.app/admin";
+
+if (!string.IsNullOrWhiteSpace(adminEmail))
+{
+    await _emailService.SendAsync(
+        adminEmail,
+        $"Нова резервация: {reservation.GuestName} · {reservation.ReservedDate} {reservation.ReservedTime}",
+        $"""
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+          <h2>Нова резервация в Casa di Fratelli</h2>
+          <p><strong>Гост:</strong> {reservation.GuestName}</p>
+          <p><strong>Телефон:</strong> {reservation.Phone}</p>
+          <p><strong>Email:</strong> {reservation.Email}</p>
+          <p><strong>Дата:</strong> {reservation.ReservedDate}</p>
+          <p><strong>Час:</strong> {reservation.ReservedTime}</p>
+          <p><strong>Маси:</strong> {string.Join(", ", reservation.Tables.Select(t => t.TableCode))}</p>
+          <p><strong>Гости:</strong> {reservation.GuestCount}</p>
+          <p><strong>Специални изисквания:</strong> {reservation.Notes}</p>
+          <p>
+            <a href="{adminUrl}" style="display:inline-block;background:#c9a56a;color:#111827;padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700">
+              Отвори админ панела
+            </a>
+          </p>
+        </div>
+        """
+    );
+}
+
         return Ok(new
         {
             reservation.Id,
@@ -179,6 +216,26 @@ public class ReservationsController : ControllerBase
         reservation.Status = "Approved";
         await _db.SaveChangesAsync();
 
+        if (!string.IsNullOrWhiteSpace(reservation.Email))
+{
+    await _emailService.SendAsync(
+        reservation.Email,
+        "Вашата резервация е потвърдена · Casa di Fratelli",
+        $"""
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+          <h2>Вашата резервация е потвърдена</h2>
+          <p>Здравейте, {reservation.GuestName},</p>
+          <p>С радост потвърждаваме Вашата резервация в <strong>Casa di Fratelli</strong>.</p>
+          <p><strong>Дата:</strong> {reservation.ReservedDate}</p>
+          <p><strong>Час:</strong> {reservation.ReservedTime}</p>
+          <p><strong>Маси:</strong> {string.Join(", ", reservation.Tables.Select(t => t.TableCode))}</p>
+          <p>Очакваме Ви!</p>
+          <p style="color:#6b7280">Ако закъснеете с повече от 15 минути, резервацията може да бъде освободена.</p>
+        </div>
+        """
+    );
+}
+
         return Ok(new
         {
             reservation.Id,
@@ -189,13 +246,33 @@ public class ReservationsController : ControllerBase
     [HttpPatch("{id}/cancel")]
     public async Task<IActionResult> Cancel(int id)
     {
-        var reservation = await _db.Reservations.FindAsync(id);
+        var reservation = await _db.Reservations
+        .Include(x => x.Tables)
+        .FirstOrDefaultAsync(x => x.Id == id);
 
         if (reservation == null)
             return NotFound();
 
         reservation.Status = "Cancelled";
         await _db.SaveChangesAsync();
+
+        if (!string.IsNullOrWhiteSpace(reservation.Email))
+{
+    await _emailService.SendAsync(
+        reservation.Email,
+        "Вашата резервация е отменена · Casa di Fratelli",
+        $"""
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+          <h2>Вашата резервация е отменена</h2>
+          <p>Здравейте, {reservation.GuestName},</p>
+          <p>Информираме Ви, че резервацията Ви в <strong>Casa di Fratelli</strong> беше отменена.</p>
+          <p><strong>Дата:</strong> {reservation.ReservedDate}</p>
+          <p><strong>Час:</strong> {reservation.ReservedTime}</p>
+          <p>Ако желаете, можете да направите нова резервация през сайта.</p>
+        </div>
+        """
+    );
+}
 
         return Ok(new
         {
