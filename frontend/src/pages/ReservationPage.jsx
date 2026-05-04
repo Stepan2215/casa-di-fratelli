@@ -621,8 +621,6 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     status: language === "bg" ? "Статус" : "Status",
     available: language === "bg" ? "Свободна" : "Available",
     reserved: language === "bg" ? "Резервирана" : "Reserved",
-    freeSlots: language === "bg" ? "Свободни часове" : "Available times",
-    busySlots: language === "bg" ? "Заети часове" : "Busy times",
     chooseTime: language === "bg" ? "Избери свободен час" : "Select an available time",
     reserveSelected: language === "bg" ? "Резервирай избрания час" : "Reserve selected time",
     groupMode: language === "bg" ? "Групова резервация" : "Group booking",
@@ -674,6 +672,36 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const selectedIds = selectedTables.map((table) => table.id);
   const totalSeats = selectedTables.reduce((sum, table) => sum + table.seats, 0);
   const availability = getDynamicAvailabilityForTables(selectedTables, blockedSlots);
+
+  const canShowMap = Boolean(reservationDate && selectedTime && guestCount);
+
+const selectedDateBlockedSlots = blockedSlots.filter((slot) => {
+  const slotDate = slot.reservedDate || slot.ReservedDate;
+  const slotTime = slot.reservedTime || slot.ReservedTime;
+
+  return slotDate === reservationDate && slotTime === selectedTime;
+});
+
+const blockedTableIds = new Set(
+  selectedDateBlockedSlots.flatMap((slot) => slot.tableIds || slot.TableIds || [])
+);
+
+const requestedGuests = Number(guestCount || 0);
+
+const canShowTable = (table) => {
+  if (!requestedGuests) return true;
+
+  if (blockedTableIds.has(table.id)) return false;
+
+  if (bookingMode === "single") {
+    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+  }
+
+  return true;
+};
+
+const visibleGardenTables = gardenTables.filter(canShowTable);
+const visibleIndoorTables = indoorTables.filter(canShowTable);
 
   const isReserved =
     bookingMode === "single" && selectedTables.length === 1
@@ -854,13 +882,45 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1.15fr_0.95fr]">
-            <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
-              <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
-            </ZoneCard>
+{canShowMap ? (
+  <>
+    <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
+      <GardenMap
+        tables={visibleGardenTables}
+        selectedIds={selectedIds}
+        onSelect={handleSelect}
+        labels={labels}
+      />
+    </ZoneCard>
 
-            <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
-              <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
-            </ZoneCard>
+    <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
+      <IndoorMap
+        tables={visibleIndoorTables}
+        selectedIds={selectedIds}
+        onSelect={handleSelect}
+        labels={labels}
+      />
+    </ZoneCard>
+  </>
+) : (
+  <div className="lg:col-span-2 flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
+    <div>
+      <div className="mb-3 text-xs uppercase tracking-[0.3em] text-[#c9a56a]">
+        {language === "bg" ? "Първа стъпка" : "First step"}
+      </div>
+      <h2 className="text-2xl font-serif">
+        {language === "bg"
+          ? "Изберете дата, час и брой гости"
+          : "Select date, time and number of guests"}
+      </h2>
+      <p className="mt-3 max-w-md text-sm leading-7 text-white/60">
+        {language === "bg"
+          ? "След това ще покажем само подходящите свободни маси."
+          : "Then we will show only suitable available tables."}
+      </p>
+    </div>
+  </div>
+)}
 
             <div ref={timeSelectionRef} className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6">
               <div className="mb-2 text-xs uppercase tracking-[0.28em] text-[#c9a56a]">
@@ -926,28 +986,6 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
                 <InfoRow label={labels.table} value={selectedTables.map((table) => table.id).join(", ")} />
                 <InfoRow label={labels.capacity} value={`${totalSeats} ${t.people}`} />
                 <InfoRow label={labels.status} value={isReserved ? labels.reserved : labels.available} />
-              </div>
-
-              <div className="mt-6">
-                <h4 className="mb-3 text-sm uppercase tracking-[0.3em] text-emerald-300">
-                  {labels.freeSlots}
-                </h4>
-                <div className="flex flex-wrap gap-3">
-                  {availability.free.map((time) => (
-                    <TimeChip key={time} time={time} active={selectedTime === time} onClick={() => setSelectedTime(time)} />
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6">
-                <h4 className="mb-3 text-sm uppercase tracking-[0.3em] text-red-300">
-                  {labels.busySlots}
-                </h4>
-                <div className="flex flex-wrap gap-3">
-                  {availability.busy.map((time) => (
-                    <TimeChip key={time} time={time} busy />
-                  ))}
-                </div>
               </div>
 
               <button
