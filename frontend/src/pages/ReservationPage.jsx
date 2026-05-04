@@ -54,73 +54,24 @@ const gardenOrder = [
   "30", "31", "32", "33",
 ];
 
+const reservationTimes = [
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
+  "22:00",
+];
+
 const reservedGardenIds = new Set([]);
 const reservedIndoorIds = new Set([]);
 
-const availabilityByTable = {
-  42: { free: ["18:00", "19:30", "21:00"], busy: ["20:30"] },
-  43: { free: ["18:30", "20:00"], busy: ["19:00", "21:30"] },
-  44: { free: ["17:30", "19:30", "22:00"], busy: ["18:30"] },
-  45: { free: ["18:00", "20:30"], busy: ["19:00", "21:00"] },
-  38: { free: ["17:00", "18:30"], busy: ["20:00", "21:30"] },
-  41: { free: ["18:00", "19:00", "22:00"], busy: ["20:30"] },
-  1: { free: ["18:00", "20:00", "22:00"], busy: ["19:00"] },
-  2: { free: ["17:30", "19:30", "21:30"], busy: ["18:30"] },
-  4: { free: ["18:00", "20:30"], busy: ["19:30"] },
-  5: { free: ["17:00", "18:30", "21:00"], busy: ["20:00"] },
-  6: { free: ["18:00", "19:30"], busy: ["21:00"] },
-  7: { free: ["18:30", "20:00"], busy: ["19:00"] },
-  8: { free: ["17:30", "19:30", "22:00"], busy: ["18:30"] },
-  9: { free: ["18:00", "20:00"], busy: ["19:00", "21:30"] },
-  11: { free: ["18:30", "20:30"], busy: ["19:30"] },
-  20: { free: ["17:30", "19:30", "21:30"], busy: ["18:30"] },
-  21: { free: ["18:00", "20:00"], busy: ["19:00"] },
-  23: { free: ["18:30", "21:00"], busy: ["19:30"] },
-  24: { free: ["17:00", "19:00", "22:00"], busy: ["20:30"] },
-  25: { free: ["18:00", "20:30"], busy: ["19:30"] },
-  26: { free: ["17:30", "19:30"], busy: ["21:00"] },
-  27: { free: ["18:00", "20:00", "22:00"], busy: ["19:00"] },
-  29: { free: ["18:30", "20:30"], busy: ["19:30"] },
-};
-
 function languageSafe(t, key, fallback) {
   return t?.[key] || fallback;
-}
-
-function getAvailabilityForTable(tableId) {
-  return availabilityByTable[tableId] || { free: ["18:00", "19:30", "21:00"], busy: ["20:30"] };
-}
-
-function intersectFreeTimes(selectedTables) {
-  if (!selectedTables.length) return [];
-  const freeSets = selectedTables.map((table) => getAvailabilityForTable(table.id).free);
-  return freeSets.reduce((acc, current) => acc.filter((time) => current.includes(time)));
-}
-
-function unionBusyTimes(selectedTables) {
-  const allBusy = selectedTables.flatMap((table) => getAvailabilityForTable(table.id).busy);
-  return [...new Set(allBusy)];
-}
-
-function getDynamicAvailabilityForTables(selectedTables, blockedSlots) {
-  if (!selectedTables.length) return { free: [], busy: [] };
-
-  const baseFreeTimes = intersectFreeTimes(selectedTables);
-  const baseBusyTimes = unionBusyTimes(selectedTables);
-  const selectedIds = selectedTables.map((table) => table.id);
-
-  const backendBusyTimes = blockedSlots
-    .filter((slot) => {
-      const tableIds = slot.tableIds || slot.TableIds || [];
-      return selectedIds.some((id) => tableIds.includes(id));
-    })
-    .map((slot) => slot.reservedTime || slot.ReservedTime)
-    .filter(Boolean);
-
-  const busy = [...new Set([...baseBusyTimes, ...backendBusyTimes])];
-  const free = baseFreeTimes.filter((time) => !busy.includes(time));
-
-  return { free, busy };
 }
 
 function getDefaultTableForArea(area) {
@@ -188,25 +139,6 @@ function InfoRow({ label, value }) {
       <span className="text-white/55">{label}</span>
       <span className="text-white">{value}</span>
     </div>
-  );
-}
-
-function TimeChip({ time, active, onClick, busy = false }) {
-  return (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={onClick}
-      className={`rounded-2xl border px-4 py-2 text-sm transition ${
-        busy
-          ? "cursor-not-allowed border-red-400/30 bg-red-500/10 text-red-200 opacity-80"
-          : active
-          ? "border-[#d7b57f] bg-[#d7b57f] text-black"
-          : "border-emerald-400/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
-      }`}
-    >
-      {time}
-    </button>
   );
 }
 
@@ -292,7 +224,7 @@ function GardenMap({ tables, selectedIds, onSelect, labels }) {
           key={table.id}
           table={table}
           selected={selectedIds.includes(table.id)}
-          reserved={reservedGardenIds.has(table.id)}
+          reserved={false}
           onSelect={onSelect}
         />
       ))}
@@ -380,7 +312,7 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
           key={table.id}
           table={table}
           selected={selectedIds.includes(table.id)}
-          reserved={reservedIndoorIds.has(table.id)}
+          reserved={false}
           onSelect={onSelect}
         />
       ))}
@@ -395,195 +327,167 @@ function BookingModal({
   selectedArea,
   selectedTime,
   totalSeats,
+  reservationDate,
+  guestCount,
   onClose,
   onSubmit,
   isSubmitting,
   submitError,
   submitSuccess,
 }) {
-  const guestOptions = Array.from({ length: totalSeats }, (_, index) => index + 1);
-  const latePolicyTitle = languageSafe(t, "latePolicyTitle", "Important reservation policy");
-  const latePolicyText = languageSafe(
-    t,
-    "latePolicyText",
-    "If you are more than 15 minutes late, the reservation is automatically released and the restaurant is not obliged to call you."
-  );
   const areaLabel = selectedArea === "garden" ? t.smokingSection : t.familySection;
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm">
       <div className="h-full overflow-y-auto overscroll-contain px-4 py-6">
-      <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8">
-        <div className="mb-6 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
-              {selectedTables.length > 1 ? languageSafe(t, "groupBookingTitle", "Group reservation") : t.bookingFormTitle}
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold">
-              {selectedTables.length > 1
-                ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables.map((table) => table.id).join(", ")}`
-                : `${t.selectedTable}: ${selectedTables[0]?.id}`}
-            </h2>
+        <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
+                {selectedTables.length > 1
+                  ? languageSafe(t, "groupBookingTitle", "Group reservation")
+                  : t.bookingFormTitle}
+              </p>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-              <p className="text-sm text-stone-300">
+              <h2 className="mt-3 text-3xl font-semibold">
                 {selectedTables.length > 1
                   ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables.map((table) => table.id).join(", ")}`
                   : `${t.selectedTable}: ${selectedTables[0]?.id}`}
-              </p>
-              <p className="mt-2 text-sm text-stone-300">
-                {areaLabel} · {totalSeats} {t.people} · {selectedTime}
-              </p>
+              </h2>
+
+              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                <p className="text-sm text-stone-300">
+                  {areaLabel} · {guestCount} {t.people} · {reservationDate} · {selectedTime}
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-2xl border border-white/15 px-4 py-2 text-sm transition hover:border-amber-300 hover:text-amber-300"
+            >
+              {t.closeForm}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-white/15 px-4 py-2 text-sm transition hover:border-amber-300 hover:text-amber-300"
-          >
-            {t.closeForm}
-          </button>
+          <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
+              <input
+                name="guestName"
+                required
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                placeholder={t.placeholderName}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm text-stone-300">{t.formPhone}</label>
+              <input
+                name="phone"
+                required
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                placeholder={t.placeholderPhone}
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm text-stone-300">{t.formEmail}</label>
+              <input
+                name="email"
+                type="email"
+                required
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                placeholder={t.placeholderEmail}
+              />
+            </div>
+
+            <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
+              <label className="mb-2 block text-sm text-amber-100">
+                {language === "bg" ? "Дата на раждане" : "Date of birth"}
+              </label>
+              <input
+                name="birthDate"
+                type="date"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
+              />
+              <p className="mt-3 text-sm text-amber-100/80">
+                {language === "bg"
+                  ? "Очаква ви приятен бонус за вашия рожден ден."
+                  : "A special birthday bonus is waiting for you."}
+              </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="mb-2 block text-sm text-stone-300">
+                {t.formRequests}
+              </label>
+              <textarea
+                name="notes"
+                rows={4}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                placeholder={t.placeholderRequests}
+              />
+            </div>
+
+            <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <label className="flex items-start gap-3 text-sm text-stone-300">
+                <input name="marketingConsent" type="checkbox" className="mt-1" />
+                <span>
+                  {language === "bg"
+                    ? "Съгласявам се да получавам нови предложения и оферти по имейл."
+                    : "I agree to receive offers and promotions by email."}
+                </span>
+              </label>
+            </div>
+
+            {submitError && (
+              <div className="sm:col-span-2 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {submitError}
+              </div>
+            )}
+
+            {submitSuccess && (
+              <div className="sm:col-span-2 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                {submitSuccess}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
+                isSubmitting
+                  ? "cursor-not-allowed bg-white/10 text-white/40"
+                  : "bg-[#c9a56a] text-black transition hover:scale-[1.01]"
+              }`}
+            >
+              {isSubmitting
+                ? language === "bg"
+                  ? "Изпращане..."
+                  : "Submitting..."
+                : t.submit}
+            </button>
+          </form>
+
+          <div className="h-10" />
         </div>
-
-       <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
-    <input
-      name="guestName"
-      required
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-      placeholder={t.placeholderName}
-    />
-  </div>
-
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formPhone}</label>
-    <input
-      name="phone"
-      required
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-      placeholder={t.placeholderPhone}
-    />
-  </div>
-
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formEmail}</label>
-    <input
-      name="email"
-      type="email"
-      required
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-      placeholder={t.placeholderEmail}
-    />
-  </div>
-
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formGuests}</label>
-    <select
-      name="guestCount"
-      required
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-    >
-      <option value="">{t.selectGuests}</option>
-      <option value="1">{t.one}</option>
-      <option value="2">{t.two}</option>
-      <option value="3">{t.three}</option>
-      <option value="4">{t.four}</option>
-      <option value="5">{t.five}</option>
-    </select>
-  </div>
-
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formDate}</label>
-    <input
-      name="reservedDate"
-      type="date"
-      required
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-    />
-  </div>
-
-  <div>
-    <label className="mb-2 block text-sm text-stone-300">{t.formTime}</label>
-    <input
-      readOnly
-      value={selectedTime}
-      className="w-full rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-100 outline-none"
-    />
-  </div>
-
-  {/* 🎂 ДАТА РОЖДЕНИЯ */}
-  <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
-    <label className="mb-2 block text-sm text-amber-100">
-      {language === "bg" ? "Дата на раждане" : "Date of birth"}
-    </label>
-    <input
-      name="birthDate"
-      type="date"
-      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
-    />
-    <p className="mt-3 text-sm text-amber-100/80">
-      {language === "bg"
-        ? "Очаква ви приятен бонус за вашия рожден ден."
-        : "A special birthday bonus is waiting for you."}
-    </p>
-  </div>
-
-  <div className="sm:col-span-2">
-    <label className="mb-2 block text-sm text-stone-300">
-      {t.formRequests}
-    </label>
-    <textarea
-      name="notes"
-      rows={4}
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
-      placeholder={t.placeholderRequests}
-    />
-  </div>
-
-  {/* ✅ MARKETING */}
-  <div className="sm:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-4">
-    <label className="flex items-start gap-3 text-sm text-stone-300">
-      <input
-        name="marketingConsent"
-        type="checkbox"
-        className="mt-1"
-      />
-      <span>
-        {language === "bg"
-          ? "Съгласявам се да получавам нови предложения и оферти по имейл."
-          : "I agree to receive offers and promotions by email."}
-      </span>
-    </label>
-  </div>
-
-  <button
-    type="submit"
-    className="mt-2 w-full rounded-2xl bg-amber-400 px-6 py-4 font-medium text-stone-950 transition hover:scale-[1.01] sm:col-span-2"
-  >
-    {t.submit}
-  </button>
-</form>
-
-  
-        <div className="h-10" />
       </div>
     </div>
-  </div>
-);
+  );
 }
 
 export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [reservationDate, setReservationDate] = React.useState("");
   const [guestCount, setGuestCount] = React.useState("");
+  const [selectedTime, setSelectedTime] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
   const [submitSuccess, setSubmitSuccess] = React.useState("");
   const [bookingMode, setBookingMode] = React.useState("single");
   const [selectedArea, setSelectedArea] = React.useState("indoor");
-  const [selectedTables, setSelectedTables] = React.useState([indoorTables[11]]);
-  const [selectedTime, setSelectedTime] = React.useState("");
+  const [selectedTables, setSelectedTables] = React.useState([]);
   const [showBookingForm, setShowBookingForm] = React.useState(false);
   const [blockedSlots, setBlockedSlots] = React.useState([]);
   const timeSelectionRef = React.useRef(null);
@@ -614,22 +518,50 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     indoorSubtitle: language === "bg" ? "Комбинация от маси за 4 и 6 души" : "Mix of 4-seat and 6-seat tables",
     selectedTable: language === "bg" ? "Избрана маса" : "Selected table",
     selectedTables: language === "bg" ? "Избрани маси" : "Selected tables",
-    reservationPreview: language === "bg" ? "Преглед на резервацията" : "Reservation preview",
+    reservationPreview: language === "bg" ? "Детайли за резервацията" : "Reservation details",
     area: language === "bg" ? "Зона" : "Area",
     table: language === "bg" ? "Маса" : "Table",
     capacity: language === "bg" ? "Капацитет" : "Capacity",
     status: language === "bg" ? "Статус" : "Status",
     available: language === "bg" ? "Свободна" : "Available",
     reserved: language === "bg" ? "Резервирана" : "Reserved",
-    chooseTime: language === "bg" ? "Избери свободен час" : "Select an available time",
-    reserveSelected: language === "bg" ? "Резервирай избрания час" : "Reserve selected time",
+    chooseTime: language === "bg" ? "Избери час" : "Select time",
+    reserveSelected: language === "bg" ? "Резервирай" : "Reserve",
     groupMode: language === "bg" ? "Групова резервация" : "Group booking",
     singleMode: language === "bg" ? "Една маса" : "Single table",
     groupHint:
       language === "bg"
-        ? "На терасата можете да комбинирате всички маси. В залата могат да се комбинират само: 5-6, 20-21-22-23 и 28-29."
-        : "On the terrace, all tables can be combined. In the indoor hall, only these combinations are allowed: 5-6, 20-21-22-23, and 28-29.",
+        ? "Първо изберете дата, час и брой гости. След това ще покажем подходящите свободни маси."
+        : "First select date, time, and number of guests. Then we will show suitable available tables.",
   };
+
+  const canShowMap = Boolean(reservationDate && selectedTime && guestCount);
+  const requestedGuests = Number(guestCount || 0);
+
+  const selectedDateBlockedSlots = blockedSlots.filter((slot) => {
+    const slotDate = slot.reservedDate || slot.ReservedDate;
+    const slotTime = slot.reservedTime || slot.ReservedTime;
+
+    return slotDate === reservationDate && slotTime === selectedTime;
+  });
+
+  const blockedTableIds = new Set(
+    selectedDateBlockedSlots.flatMap((slot) => slot.tableIds || slot.TableIds || [])
+  );
+
+  const canShowTable = (table) => {
+    if (!canShowMap) return false;
+    if (blockedTableIds.has(table.id)) return false;
+
+    if (bookingMode === "single") {
+      return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+    }
+
+    return true;
+  };
+
+  const visibleGardenTables = gardenTables.filter(canShowTable);
+  const visibleIndoorTables = indoorTables.filter(canShowTable);
 
   const handleSelect = (table, area) => {
     const isReserved = area === "garden" ? reservedGardenIds.has(table.id) : reservedIndoorIds.has(table.id);
@@ -638,27 +570,22 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     if (bookingMode === "single") {
       setSelectedArea(area);
       setSelectedTables([table]);
-      setSelectedTime("");
     } else {
       if (area !== selectedArea) {
         setSelectedArea(area);
         setSelectedTables([table]);
-        setSelectedTime("");
       } else {
         setSelectedTables((prev) => {
           const exists = prev.some((item) => item.id === table.id);
 
           if (exists) {
-            const next = prev.filter((item) => item.id !== table.id);
-            return next.length ? next : [table];
+            return prev.filter((item) => item.id !== table.id);
           }
 
           if (!canCombineTables(area, prev, table)) return prev;
 
           return [...prev, table];
         });
-
-        setSelectedTime("");
       }
     }
 
@@ -671,44 +598,8 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
   const selectedIds = selectedTables.map((table) => table.id);
   const totalSeats = selectedTables.reduce((sum, table) => sum + table.seats, 0);
-  const availability = getDynamicAvailabilityForTables(selectedTables, blockedSlots);
-
-  const canShowMap = Boolean(reservationDate && selectedTime && guestCount);
-
-const selectedDateBlockedSlots = blockedSlots.filter((slot) => {
-  const slotDate = slot.reservedDate || slot.ReservedDate;
-  const slotTime = slot.reservedTime || slot.ReservedTime;
-
-  return slotDate === reservationDate && slotTime === selectedTime;
-});
-
-const blockedTableIds = new Set(
-  selectedDateBlockedSlots.flatMap((slot) => slot.tableIds || slot.TableIds || [])
-);
-
-const requestedGuests = Number(guestCount || 0);
-
-const canShowTable = (table) => {
-  if (!requestedGuests) return true;
-
-  if (blockedTableIds.has(table.id)) return false;
-
-  if (bookingMode === "single") {
-    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
-  }
-
-  return true;
-};
-
-const visibleGardenTables = gardenTables.filter(canShowTable);
-const visibleIndoorTables = indoorTables.filter(canShowTable);
-
-  const isReserved =
-    bookingMode === "single" && selectedTables.length === 1
-      ? selectedArea === "garden"
-        ? reservedGardenIds.has(selectedTables[0].id)
-        : reservedIndoorIds.has(selectedTables[0].id)
-      : false;
+  const hasEnoughSeats = totalSeats >= requestedGuests;
+  const canOpenForm = canShowMap && selectedTables.length > 0 && hasEnoughSeats;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -769,7 +660,7 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
 
       setTimeout(() => {
         setShowBookingForm(false);
-        setSelectedTime("");
+        setSelectedTables([]);
         setSubmitSuccess("");
         setSubmitError("");
       }, 1200);
@@ -781,21 +672,6 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
       setIsSubmitting(false);
     }
   };
-  const requestedGuests = Number(guestCount || 0);
-
-const canShowTable = (table) => {
-  if (!requestedGuests) return true;
-
-  if (bookingMode === "single") {
-    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
-  }
-
-  return true;
-};
-
-const visibleGardenTables = gardenTables.filter(canShowTable);
-const visibleIndoorTables = indoorTables.filter(canShowTable);
-
 
   return (
     <>
@@ -809,8 +685,8 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
               <h1 className="text-4xl font-serif md:text-6xl">Casa di Fratelli</h1>
               <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-base">
                 {language === "bg"
-                  ? "Избери една маса или комбинирай няколко за по-голяма компания."
-                  : "Choose a single table or combine several tables for a larger group."}
+                  ? "Изберете дата, час и брой гости, след което ще видите подходящите свободни маси."
+                  : "Select date, time and number of guests, then view suitable available tables."}
               </p>
             </div>
 
@@ -834,10 +710,7 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
               type="button"
               onClick={() => {
                 setBookingMode("single");
-                if (selectedTables.length > 1) {
-                  setSelectedTables([selectedTables[0]]);
-                  setSelectedTime("");
-                }
+                setSelectedTables([]);
               }}
               className={`rounded-full px-4 py-2 text-sm ${bookingMode === "single" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
             >
@@ -846,7 +719,10 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
 
             <button
               type="button"
-              onClick={() => setBookingMode("group")}
+              onClick={() => {
+                setBookingMode("group");
+                setSelectedTables([]);
+              }}
               className={`rounded-full px-4 py-2 text-sm ${bookingMode === "group" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
             >
               {labels.groupMode}
@@ -857,8 +733,7 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
                 type="button"
                 onClick={() => {
                   setSelectedArea("garden");
-                  setSelectedTables([getDefaultTableForArea("garden")]);
-                  setSelectedTime("");
+                  setSelectedTables([]);
                 }}
                 className={`rounded-full px-4 py-2 text-sm ${selectedArea === "garden" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
               >
@@ -869,8 +744,7 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
                 type="button"
                 onClick={() => {
                   setSelectedArea("indoor");
-                  setSelectedTables([getDefaultTableForArea("indoor")]);
-                  setSelectedTime("");
+                  setSelectedTables([]);
                 }}
                 className={`rounded-full px-4 py-2 text-sm ${selectedArea === "indoor" ? "bg-[#c9a56a] text-black" : "border border-white/10 bg-white/5 text-white/80"}`}
               >
@@ -882,154 +756,187 @@ const visibleIndoorTables = indoorTables.filter(canShowTable);
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1.15fr_0.95fr]">
-{canShowMap ? (
-  <>
-    <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
-      <GardenMap
-        tables={visibleGardenTables}
-        selectedIds={selectedIds}
-        onSelect={handleSelect}
-        labels={labels}
-      />
-    </ZoneCard>
+            {canShowMap ? (
+              <>
+                <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
+                  <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                </ZoneCard>
 
-    <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
-      <IndoorMap
-        tables={visibleIndoorTables}
-        selectedIds={selectedIds}
-        onSelect={handleSelect}
-        labels={labels}
-      />
-    </ZoneCard>
-  </>
-) : (
-  <div className="lg:col-span-2 flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
-    <div>
-      <div className="mb-3 text-xs uppercase tracking-[0.3em] text-[#c9a56a]">
-        {language === "bg" ? "Първа стъпка" : "First step"}
-      </div>
-      <h2 className="text-2xl font-serif">
-        {language === "bg"
-          ? "Изберете дата, час и брой гости"
-          : "Select date, time and number of guests"}
-      </h2>
-      <p className="mt-3 max-w-md text-sm leading-7 text-white/60">
-        {language === "bg"
-          ? "След това ще покажем само подходящите свободни маси."
-          : "Then we will show only suitable available tables."}
-      </p>
-    </div>
-  </div>
-)}
+                <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
+                  <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                </ZoneCard>
+              </>
+            ) : (
+              <div className="lg:col-span-2 flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
+                <div>
+                  <div className="mb-3 text-xs uppercase tracking-[0.3em] text-[#c9a56a]">
+                    {language === "bg" ? "Първа стъпка" : "First step"}
+                  </div>
+                  <h2 className="text-2xl font-serif">
+                    {language === "bg"
+                      ? "Изберете дата, час и брой гости"
+                      : "Select date, time and number of guests"}
+                  </h2>
+                  <p className="mt-3 max-w-md text-sm leading-7 text-white/60">
+                    {language === "bg"
+                      ? "След това ще покажем само подходящите свободни маси."
+                      : "Then we will show only suitable available tables."}
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div ref={timeSelectionRef} className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6">
               <div className="mb-2 text-xs uppercase tracking-[0.28em] text-[#c9a56a]">
                 {labels.reservationPreview}
               </div>
-              <h3 className="mb-4 text-2xl font-serif">
-                {selectedTables.length > 1 ? labels.selectedTables : labels.selectedTable}
-              </h3>
-                  <div className="mb-5 grid gap-3">
-  <div>
-    <label className="mb-2 block text-sm text-white/60">
-      {language === "bg" ? "Дата" : "Date"}
-    </label>
-    <input
-      type="date"
-      value={reservationDate}
-      onChange={(e) => {
-        setReservationDate(e.target.value);
-        setSelectedTime("");
-      }}
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
-    />
-  </div>
 
-  <div>
-    <label className="mb-2 block text-sm text-white/60">
-      {language === "bg" ? "Брой гости" : "Guests"}
-    </label>
-    <select
-      value={guestCount}
-      onChange={(e) => {
-        setGuestCount(e.target.value);
-        setSelectedTables([]);
-        setSelectedTime("");
-      }}
-      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
-    >
-      <option value="">{language === "bg" ? "Избери" : "Select"}</option>
-      {Array.from({ length: 12 }, (_, i) => i + 1).map((count) => (
-        <option key={count} value={count}>
-          {count}
-        </option>
-      ))}
-    </select>
-  </div>
-</div>
+              <h3 className="mb-4 text-2xl font-serif">
+                {language === "bg" ? "Данни за посещението" : "Visit details"}
+              </h3>
+
+              <div className="mb-5 grid gap-3">
+                <div>
+                  <label className="mb-2 block text-sm text-white/60">
+                    {language === "bg" ? "Дата" : "Date"}
+                  </label>
+                  <input
+                    type="date"
+                    value={reservationDate}
+                    onChange={(e) => {
+                      setReservationDate(e.target.value);
+                      setSelectedTables([]);
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm text-white/60">
+                    {language === "bg" ? "Час" : "Time"}
+                  </label>
+                  <select
+                    value={selectedTime}
+                    onChange={(e) => {
+                      setSelectedTime(e.target.value);
+                      setSelectedTables([]);
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
+                  >
+                    <option value="">{language === "bg" ? "Избери час" : "Select time"}</option>
+                    {reservationTimes.map((time) => (
+                      <option key={time} value={time}>
+                        {time}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm text-white/60">
+                    {language === "bg" ? "Брой гости" : "Guests"}
+                  </label>
+                  <select
+                    value={guestCount}
+                    onChange={(e) => {
+                      setGuestCount(e.target.value);
+                      setSelectedTables([]);
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
+                  >
+                    <option value="">{language === "bg" ? "Избери" : "Select"}</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((count) => (
+                      <option key={count} value={count}>
+                        {count}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411]">
                 <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full object-cover opacity-60" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="mb-2 text-xs uppercase tracking-[0.25em] text-[#d8b377]">
-                    {language === "bg" ? "Концепция за сайта" : "Website concept"}
+                    {canShowMap
+                      ? language === "bg"
+                        ? "Свободни маси"
+                        : "Available tables"
+                      : language === "bg"
+                      ? "Първо изберете детайли"
+                      : "Select details first"}
                   </div>
-                  <div className="text-2xl font-serif">{selectedTables.map((table) => table.id).join(", ")}</div>
+                  <div className="text-2xl font-serif">
+                    {selectedTables.length
+                      ? selectedTables.map((table) => table.id).join(", ")
+                      : language === "bg"
+                      ? "Няма избрана маса"
+                      : "No table selected"}
+                  </div>
                   <div className="mt-1 text-sm text-white/70">
-                    {selectedArea === "garden" ? t.smokingSection : t.familySection} · {totalSeats} {t.people}
+                    {selectedArea === "garden" ? t.smokingSection : t.familySection} · {guestCount || "—"} {t.people}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-3 text-sm">
-                <InfoRow label={labels.area} value={selectedArea === "garden" ? t.smokingSection : t.familySection} />
-                <InfoRow label={labels.table} value={selectedTables.map((table) => table.id).join(", ")} />
-                <InfoRow label={labels.capacity} value={`${totalSeats} ${t.people}`} />
-                <InfoRow label={labels.status} value={isReserved ? labels.reserved : labels.available} />
+                <InfoRow label={language === "bg" ? "Дата" : "Date"} value={reservationDate || "—"} />
+                <InfoRow label={language === "bg" ? "Час" : "Time"} value={selectedTime || "—"} />
+                <InfoRow label={labels.table} value={selectedTables.length ? selectedTables.map((table) => table.id).join(", ") : "—"} />
+                <InfoRow label={labels.capacity} value={`${totalSeats || 0} / ${guestCount || 0} ${t.people}`} />
               </div>
+
+              {!hasEnoughSeats && selectedTables.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                  {language === "bg"
+                    ? "Избраните маси не са достатъчни за броя гости."
+                    : "Selected tables are not enough for the number of guests."}
+                </div>
+              )}
 
               <button
                 type="button"
-                disabled={
-  isReserved ||
-  !reservationDate ||
-  !guestCount ||
-  !selectedTime ||
-  !selectedTables.length
-}
+                disabled={!canOpenForm}
                 onClick={() => {
                   setSubmitError("");
                   setSubmitSuccess("");
                   setShowBookingForm(true);
                 }}
                 className={`mt-6 w-full rounded-2xl py-3 font-medium transition-transform ${
-                  isReserved || !selectedTime || !selectedTables.length
+                  !canOpenForm
                     ? "cursor-not-allowed bg-white/10 text-white/40"
                     : "bg-[#c9a56a] text-black hover:scale-[1.01]"
                 }`}
               >
-{!reservationDate || !guestCount
-  ? language === "bg"
-    ? "Избери дата и гости"
-    : "Choose date and guests"
-  : selectedTime
-  ? selectedTables.length > 1
-    ? languageSafe(t, "submitGroup", "Reserve selected tables")
-    : labels.reserveSelected
-  : labels.chooseTime}
+                {!canShowMap
+                  ? language === "bg"
+                    ? "Избери дата, час и гости"
+                    : "Choose date, time and guests"
+                  : !selectedTables.length
+                  ? language === "bg"
+                    ? "Избери маса"
+                    : "Choose table"
+                  : !hasEnoughSeats
+                  ? language === "bg"
+                    ? "Избери още маси"
+                    : "Choose more tables"
+                  : labels.reserveSelected}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {showBookingForm && selectedTime && selectedTables.length > 0 && !isReserved && (
+      {showBookingForm && canOpenForm && (
         <BookingModal
           t={t}
           language={language}
           selectedTables={selectedTables}
           selectedArea={selectedArea}
           selectedTime={selectedTime}
+          reservationDate={reservationDate}
+          guestCount={guestCount}
           totalSeats={totalSeats}
           onClose={() => {
             setShowBookingForm(false);
