@@ -54,6 +54,8 @@ const gardenOrder = [
   "30", "31", "32", "33",
 ];
 
+const groupableIndoorIds = ["5", "6", "20", "21", "22", "23", "28", "29"];
+
 const reservationTimes = [
   "17:30",
   "18:00",
@@ -66,9 +68,6 @@ const reservationTimes = [
   "21:30",
   "22:00",
 ];
-
-const reservedGardenIds = new Set([]);
-const reservedIndoorIds = new Set([]);
 
 function languageSafe(t, key, fallback) {
   return t?.[key] || fallback;
@@ -344,7 +343,6 @@ function BookingModal({
   selectedTables,
   selectedArea,
   selectedTime,
-  totalSeats,
   reservationDate,
   guestCount,
   onClose,
@@ -362,14 +360,12 @@ function BookingModal({
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
               <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
-                {selectedTables.length > 1
-                  ? languageSafe(t, "groupBookingTitle", "Group reservation")
-                  : t.bookingFormTitle}
+                {t.bookingFormTitle}
               </p>
 
               <h2 className="mt-3 text-3xl font-semibold">
                 {selectedTables.length > 1
-                  ? `${languageSafe(t, "selectedTables", "Selected tables")}: ${selectedTables.map((table) => table.id).join(", ")}`
+                  ? `${language === "bg" ? "Маси" : "Tables"}: ${selectedTables.map((table) => table.id).join(", ")}`
                   : `${t.selectedTable}: ${selectedTables[0]?.id}`}
               </h2>
 
@@ -505,7 +501,6 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
   const [submitSuccess, setSubmitSuccess] = React.useState("");
-  const [bookingMode, setBookingMode] = React.useState("single");
   const [selectedArea, setSelectedArea] = React.useState("indoor");
   const [selectedTables, setSelectedTables] = React.useState([]);
   const [showBookingForm, setShowBookingForm] = React.useState(false);
@@ -529,24 +524,6 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     return () => clearInterval(intervalId);
   }, []);
 
-React.useEffect(() => {
-  const guests = Number(guestCount || 0);
-
-  const shouldUseGroup =
-    (selectedArea === "garden" && guests > 4) ||
-    (selectedArea === "indoor" && guests >= 7);
-
-  if (shouldUseGroup && bookingMode !== "group") {
-    setBookingMode("group");
-    setSelectedTables([]);
-  }
-
-  if (!shouldUseGroup && bookingMode === "group" && guests > 0) {
-    setBookingMode("single");
-    setSelectedTables([]);
-  }
-}, [guestCount, selectedArea, bookingMode]);
-
   React.useEffect(() => {
     if (reservationDate && selectedTime && isPastTimeForDate(reservationDate, selectedTime)) {
       setSelectedTime("");
@@ -557,30 +534,28 @@ React.useEffect(() => {
   const labels = {
     perimeter: language === "bg" ? "Периметър" : "Garden perimeter",
     entrance: language === "bg" ? "Вход" : "Entrance",
-    gardenTitle: language === "bg" ? "Градина / Пушачи" : "Garden / Smoking",
-    gardenSubtitle: language === "bg" ? "Всички маси са за 4 души" : "All tables seat 4 guests",
-    indoorTitle: language === "bg" ? "Вътре / Непушачи" : "Indoor / Non-smoking",
+    gardenTitle: language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking",
+    gardenSubtitle: language === "bg" ? "Подходяща зона за пушачи" : "Smoking area",
+    indoorTitle: language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking",
     indoorSubtitle: language === "bg" ? "Комбинация от маси за 4 и 6 души" : "Mix of 4-seat and 6-seat tables",
     selectedTable: language === "bg" ? "Избрана маса" : "Selected table",
-    selectedTables: language === "bg" ? "Избрани маси" : "Selected tables",
     reservationPreview: language === "bg" ? "Детайли за резервацията" : "Reservation details",
-    area: language === "bg" ? "Зона" : "Area",
     table: language === "bg" ? "Маса" : "Table",
     capacity: language === "bg" ? "Капацитет" : "Capacity",
     reserveSelected: language === "bg" ? "Резервирай" : "Reserve",
-    groupMode: language === "bg" ? "Групова резервация" : "Group booking",
-    singleMode: language === "bg" ? "Една маса" : "Single table",
-    groupHint:
-      language === "bg"
-        ? "Първо изберете дата, час и брой гости. След това ще покажем подходящите свободни маси."
-        : "First select date, time, and number of guests. Then we will show suitable available tables.",
   };
 
-  const canShowSearchParams = Boolean(reservationDate && selectedTime && guestCount);
   const requestedGuests = Number(guestCount || 0);
-  const forceGroupMode =
-  (selectedArea === "garden" && requestedGuests > 4) ||
-  (selectedArea === "indoor" && requestedGuests >= 7);
+  const canShowSearchParams = Boolean(selectedArea && reservationDate && selectedTime && guestCount);
+
+  const bookingMode =
+    selectedArea === "garden"
+      ? requestedGuests > 4
+        ? "group"
+        : "single"
+      : requestedGuests >= 7
+      ? "group"
+      : "single";
 
   const selectedDateBlockedSlots = blockedSlots.filter((slot) => {
     const slotDate = slot.reservedDate || slot.ReservedDate;
@@ -593,76 +568,74 @@ React.useEffect(() => {
     selectedDateBlockedSlots.flatMap((slot) => slot.tableIds || slot.TableIds || [])
   );
 
-const canShowTable = (table, area) => {
-  if (!canShowSearchParams) return false;
-  if (blockedTableIds.has(table.id)) return false;
-  if (area !== selectedArea) return false;
+  const selectedIds = selectedTables.map((table) => table.id);
+  const totalSeats = selectedTables.reduce((sum, table) => sum + table.seats, 0);
+  const hasEnoughSeats = totalSeats >= requestedGuests;
+  const shouldHideUnselectedTables = bookingMode === "group" && selectedTables.length > 0 && hasEnoughSeats;
 
-  if (bookingMode === "single") {
-    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
-  }
+  const canShowTable = (table, area) => {
+    if (!canShowSearchParams) return false;
+    if (area !== selectedArea) return false;
+    if (blockedTableIds.has(table.id)) return false;
 
-  if (selectedTables.length === 0) {
-    if (area === "garden") return !table.special;
-    return true;
-  }
+    const isSelected = selectedTables.some((selected) => selected.id === table.id);
 
-  if (totalSeats >= requestedGuests) {
-    return selectedTables.some((selected) => selected.id === table.id);
-  }
+    if (shouldHideUnselectedTables) {
+      return isSelected;
+    }
 
-  const isAlreadySelected = selectedTables.some((selected) => selected.id === table.id);
-  if (isAlreadySelected) return true;
+    if (bookingMode === "single") {
+      return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+    }
 
-  return canCombineTables(area, selectedTables, table);
-};
+    if (selectedTables.length === 0) {
+      if (area === "garden") return !table.special;
+      return groupableIndoorIds.includes(table.id);
+    }
 
-const visibleGardenTables = gardenTables.filter((table) =>
-  canShowTable(table, "garden")
-);
+    if (isSelected) return true;
 
-const visibleIndoorTables = indoorTables.filter((table) =>
-  canShowTable(table, "indoor")
-);
+    return canCombineTables(area, selectedTables, table);
+  };
+
+  const visibleGardenTables = gardenTables.filter((table) => canShowTable(table, "garden"));
+  const visibleIndoorTables = indoorTables.filter((table) => canShowTable(table, "indoor"));
 
   const handleSelect = (table, area) => {
     if (!canShowSearchParams) return;
-
-    const isReserved = area === "garden" ? reservedGardenIds.has(table.id) : reservedIndoorIds.has(table.id);
-    if (isReserved) return;
+    if (blockedTableIds.has(table.id)) return;
 
     if (bookingMode === "single") {
       setSelectedArea(area);
       setSelectedTables([table]);
-    } else {
-      if (area !== selectedArea) {
-        setSelectedArea(area);
-        setSelectedTables([table]);
-      } else {
-        setSelectedTables((prev) => {
-          const exists = prev.some((item) => item.id === table.id);
 
-          if (exists) {
-            return prev.filter((item) => item.id !== table.id);
-          }
-
-          if (!canCombineTables(area, prev, table)) return prev;
-
-          return [...prev, table];
-        });
+      if (window.innerWidth < 1024) {
+        setTimeout(() => {
+          timeSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 250);
       }
+
+      return;
     }
 
-    if (bookingMode === "single" && window.innerWidth < 1024) {
-      setTimeout(() => {
-        timeSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 250);
-    }
+    setSelectedArea(area);
+
+    setSelectedTables((prev) => {
+      const exists = prev.some((item) => item.id === table.id);
+
+      if (exists) {
+        return prev.filter((item) => item.id !== table.id);
+      }
+
+      const currentSeats = prev.reduce((sum, item) => sum + item.seats, 0);
+      if (currentSeats >= requestedGuests) return prev;
+
+      if (!canCombineTables(area, prev, table)) return prev;
+
+      return [...prev, table];
+    });
   };
 
-  const selectedIds = selectedTables.map((table) => table.id);
-  const totalSeats = selectedTables.reduce((sum, table) => sum + table.seats, 0);
-  const hasEnoughSeats = totalSeats >= requestedGuests;
   const canOpenForm = canShowSearchParams && selectedTables.length > 0 && hasEnoughSeats;
 
   const handleSubmit = async (event) => {
@@ -719,7 +692,12 @@ const visibleIndoorTables = indoorTables.filter((table) =>
       }
 
       setSubmitError("");
-      setSubmitSuccess(language === "bg" ? "Резервацията беше изпратена успешно." : "Reservation submitted successfully.");
+      setSubmitSuccess(
+        language === "bg"
+          ? "Резервацията беше изпратена успешно."
+          : "Reservation submitted successfully."
+      );
+
       form?.reset?.();
 
       setTimeout(() => {
@@ -731,11 +709,19 @@ const visibleIndoorTables = indoorTables.filter((table) =>
     } catch (error) {
       console.error(error);
       setSubmitSuccess("");
-      setSubmitError(language === "bg" ? "Възникна проблем при връзката със сървъра." : "There was a problem connecting to the server.");
+      setSubmitError(
+        language === "bg"
+          ? "Възникна проблем при връзката със сървъра."
+          : "There was a problem connecting to the server."
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const zoneTitle = selectedArea === "garden" ? labels.gardenTitle : labels.indoorTitle;
+  const zoneSubtitle = selectedArea === "garden" ? labels.gardenSubtitle : labels.indoorSubtitle;
+  const zoneAccent = selectedArea === "garden" ? t.smokeLabel : t.mainLabel;
 
   return (
     <>
@@ -749,8 +735,8 @@ const visibleIndoorTables = indoorTables.filter((table) =>
               <h1 className="text-4xl font-serif md:text-6xl">Casa di Fratelli</h1>
               <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-base">
                 {language === "bg"
-                  ? "Изберете дата, час и брой гости, след което ще видите подходящите свободни маси."
-                  : "Select date, time and number of guests, then view suitable available tables."}
+                  ? "Изберете зона, дата, час и брой гости, след което ще видите подходящите свободни маси."
+                  : "Select area, date, time and number of guests, then view suitable available tables."}
               </p>
             </div>
 
@@ -769,78 +755,8 @@ const visibleIndoorTables = indoorTables.filter((table) =>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 rounded-[24px] border border-[#c9a56a]/20 bg-white/5 p-4">
-            <button
-              type="button"
-              disabled={!canShowSearchParams || forceGroupMode}
-              onClick={() => {
-                setBookingMode("single");
-                setSelectedTables([]);
-              }}
-              className={`rounded-full px-4 py-2 text-sm transition ${
-                bookingMode === "single"
-                  ? "bg-[#c9a56a] text-black"
-                  : "border border-white/10 bg-white/5 text-white/80"
-              } ${!canShowSearchParams || forceGroupMode ? "cursor-not-allowed opacity-40" : ""}`}
-            >
-              {labels.singleMode}
-            </button>
-
-            <button
-              type="button"
-              
-              onClick={() => {
-                setBookingMode("group");
-                setSelectedTables([]);
-              }}
-              className={`rounded-full px-4 py-2 text-sm transition ${
-                bookingMode === "group"
-                  ? "bg-[#c9a56a] text-black"
-                  : "border border-white/10 bg-white/5 text-white/80"
-              } ${!canShowSearchParams ? "cursor-not-allowed opacity-40" : ""}`}
-            >
-              {labels.groupMode}
-            </button>
-
-            <div className="ml-0 flex flex-wrap gap-2 md:ml-2">
-              <button
-                type="button"
-                
-                onClick={() => {
-                  setSelectedArea("garden");
-                  setSelectedTables([]);
-                }}
-                className={`rounded-full px-4 py-2 text-sm transition ${
-                  selectedArea === "garden"
-                    ? "bg-[#c9a56a] text-black"
-                    : "border border-white/10 bg-white/5 text-white/80"
-                }`}
-              >
-                {language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking"}
-              </button>
-
-              <button
-                type="button"
-                disabled={!canShowSearchParams}
-                onClick={() => {
-                  setSelectedArea("indoor");
-                  setSelectedTables([]);
-                }}
-                className={`rounded-full px-4 py-2 text-sm transition ${
-                  selectedArea === "indoor"
-                    ? "bg-[#c9a56a] text-black"
-                    : "border border-white/10 bg-white/5 text-white/80"
-                } ${!canShowSearchParams ? "cursor-not-allowed opacity-40" : ""}`}
-              >
-                {language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking"}
-              </button>
-            </div>
-
-            <div className="text-sm text-white/65">{labels.groupHint}</div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_1.15fr_0.95fr]">
-            <div ref={timeSelectionRef} className="order-first rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6 lg:col-start-3 lg:row-start-1">
+          <div className="grid gap-6 lg:grid-cols-[1.3fr_0.8fr]">
+            <div ref={timeSelectionRef} className="order-first rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6 lg:order-last">
               <div className="mb-2 text-xs uppercase tracking-[0.28em] text-[#c9a56a]">
                 {labels.reservationPreview}
               </div>
@@ -850,6 +766,27 @@ const visibleIndoorTables = indoorTables.filter((table) =>
               </h3>
 
               <div className="mb-5 grid gap-3">
+                <div>
+                  <label className="mb-2 block text-sm text-white/60">
+                    {language === "bg" ? "Зона" : "Area"}
+                  </label>
+                  <select
+                    value={selectedArea}
+                    onChange={(e) => {
+                      setSelectedArea(e.target.value);
+                      setSelectedTables([]);
+                    }}
+                    className="w-full cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#c9a56a] [color-scheme:dark]"
+                  >
+                    <option value="indoor">
+                      {language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking"}
+                    </option>
+                    <option value="garden">
+                      {language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking"}
+                    </option>
+                  </select>
+                </div>
+
                 <div>
                   <label className="mb-2 block text-sm text-white/60">
                     {language === "bg" ? "Дата" : "Date"}
@@ -914,11 +851,11 @@ const visibleIndoorTables = indoorTables.filter((table) =>
                 </div>
               </div>
 
-              {forceGroupMode && (
+              {bookingMode === "group" && (
                 <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                   {language === "bg"
-                    ? "За 7 или повече гости автоматично използваме групова резервация."
-                    : "For 7 or more guests, group booking is selected automatically."}
+                    ? "За този брой гости ще изберем комбинирани маси."
+                    : "For this number of guests, combined tables will be used."}
                 </div>
               )}
 
@@ -949,6 +886,7 @@ const visibleIndoorTables = indoorTables.filter((table) =>
               </div>
 
               <div className="space-y-3 text-sm">
+                <InfoRow label={language === "bg" ? "Зона" : "Area"} value={selectedArea === "garden" ? t.smokingSection : t.familySection} />
                 <InfoRow label={language === "bg" ? "Дата" : "Date"} value={reservationDate || "—"} />
                 <InfoRow label={language === "bg" ? "Час" : "Time"} value={selectedTime || "—"} />
                 <InfoRow label={labels.table} value={selectedTables.length ? selectedTables.map((table) => table.id).join(", ") : "—"} />
@@ -979,8 +917,8 @@ const visibleIndoorTables = indoorTables.filter((table) =>
               >
                 {!canShowSearchParams
                   ? language === "bg"
-                    ? "Избери дата, час и гости"
-                    : "Choose date, time and guests"
+                    ? "Избери зона, дата, час и гости"
+                    : "Choose area, date, time and guests"
                   : !selectedTables.length
                   ? language === "bg"
                     ? "Избери маса"
@@ -993,48 +931,26 @@ const visibleIndoorTables = indoorTables.filter((table) =>
               </button>
             </div>
 
-{canShowSearchParams ? (
-  selectedArea === "garden" ? (
-    <div className="lg:col-span-2">
-      <ZoneCard
-        title={labels.gardenTitle}
-        subtitle={labels.gardenSubtitle}
-        accent={t.smokeLabel}
-      >
-        <GardenMap
-          tables={visibleGardenTables}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          labels={labels}
-        />
-      </ZoneCard>
-    </div>
-  ) : (
-    <div className="lg:col-span-2">
-      <ZoneCard
-        title={labels.indoorTitle}
-        subtitle={labels.indoorSubtitle}
-        accent={t.mainLabel}
-      >
-        <IndoorMap
-          tables={visibleIndoorTables}
-          selectedIds={selectedIds}
-          onSelect={handleSelect}
-          labels={labels}
-        />
-      </ZoneCard>
-    </div>
-  )
-) : (
-              <div className="lg:col-span-2 flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
+            {canShowSearchParams ? (
+              <div>
+                <ZoneCard title={zoneTitle} subtitle={zoneSubtitle} accent={zoneAccent}>
+                  {selectedArea === "garden" ? (
+                    <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                  ) : (
+                    <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                  )}
+                </ZoneCard>
+              </div>
+            ) : (
+              <div className="flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
                 <div>
                   <div className="mb-3 text-xs uppercase tracking-[0.3em] text-[#c9a56a]">
                     {language === "bg" ? "Първа стъпка" : "First step"}
                   </div>
                   <h2 className="text-2xl font-serif">
                     {language === "bg"
-                      ? "Изберете дата, час и брой гости"
-                      : "Select date, time and number of guests"}
+                      ? "Изберете зона, дата, час и брой гости"
+                      : "Select area, date, time and number of guests"}
                   </h2>
                   <p className="mt-3 max-w-md text-sm leading-7 text-white/60">
                     {language === "bg"
