@@ -575,6 +575,8 @@ function BookingModal({
 }
 
 export default function ReservationPage({ t, language, setLanguage, onBack }) {
+  const [reservationDate, setReservationDate] = React.useState("");
+  const [guestCount, setGuestCount] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
   const [submitSuccess, setSubmitSuccess] = React.useState("");
@@ -662,7 +664,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       }
     }
 
-    if (window.innerWidth < 1024) {
+    if (bookingMode === "single" && window.innerWidth < 1024) {
       setTimeout(() => {
         timeSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 250);
@@ -692,10 +694,10 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       email: String(formData.get("email") || ""),
       birthDate: String(formData.get("birthDate") || "") || null,
       marketingConsent: formData.get("marketingConsent") === "on",
-      guestCount: Number(formData.get("guestCount") || 0),
+      guestCount: Number(guestCount || 0),
       area: selectedArea,
       reservedTime: selectedTime,
-      reservedDate: String(formData.get("reservedDate") || ""),
+      reservedDate: reservationDate,
       notes: String(formData.get("notes") || ""),
       tableIds: selectedTables.map((table) => table.id),
     };
@@ -751,6 +753,21 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       setIsSubmitting(false);
     }
   };
+  const requestedGuests = Number(guestCount || 0);
+
+const canShowTable = (table) => {
+  if (!requestedGuests) return true;
+
+  if (bookingMode === "single") {
+    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+  }
+
+  return true;
+};
+
+const visibleGardenTables = gardenTables.filter(canShowTable);
+const visibleIndoorTables = indoorTables.filter(canShowTable);
+
 
   return (
     <>
@@ -838,11 +855,11 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1.15fr_0.95fr]">
             <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
-              <GardenMap tables={gardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+              <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
             </ZoneCard>
 
             <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
-              <IndoorMap tables={indoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+              <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
             </ZoneCard>
 
             <div ref={timeSelectionRef} className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6">
@@ -852,7 +869,44 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
               <h3 className="mb-4 text-2xl font-serif">
                 {selectedTables.length > 1 ? labels.selectedTables : labels.selectedTable}
               </h3>
+                  <div className="mb-5 grid gap-3">
+  <div>
+    <label className="mb-2 block text-sm text-white/60">
+      {language === "bg" ? "Дата" : "Date"}
+    </label>
+    <input
+      type="date"
+      value={reservationDate}
+      onChange={(e) => {
+        setReservationDate(e.target.value);
+        setSelectedTime("");
+      }}
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
+    />
+  </div>
 
+  <div>
+    <label className="mb-2 block text-sm text-white/60">
+      {language === "bg" ? "Брой гости" : "Guests"}
+    </label>
+    <select
+      value={guestCount}
+      onChange={(e) => {
+        setGuestCount(e.target.value);
+        setSelectedTables([]);
+        setSelectedTime("");
+      }}
+      className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#c9a56a]"
+    >
+      <option value="">{language === "bg" ? "Избери" : "Select"}</option>
+      {Array.from({ length: 12 }, (_, i) => i + 1).map((count) => (
+        <option key={count} value={count}>
+          {count}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411]">
                 <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full object-cover opacity-60" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
@@ -898,7 +952,13 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
               <button
                 type="button"
-                disabled={isReserved || !selectedTime || !selectedTables.length}
+                disabled={
+  isReserved ||
+  !reservationDate ||
+  !guestCount ||
+  !selectedTime ||
+  !selectedTables.length
+}
                 onClick={() => {
                   setSubmitError("");
                   setSubmitSuccess("");
@@ -910,11 +970,15 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
                     : "bg-[#c9a56a] text-black hover:scale-[1.01]"
                 }`}
               >
-                {selectedTime
-                  ? selectedTables.length > 1
-                    ? languageSafe(t, "submitGroup", "Reserve selected tables")
-                    : labels.reserveSelected
-                  : labels.chooseTime}
+{!reservationDate || !guestCount
+  ? language === "bg"
+    ? "Избери дата и гости"
+    : "Choose date and guests"
+  : selectedTime
+  ? selectedTables.length > 1
+    ? languageSafe(t, "submitGroup", "Reserve selected tables")
+    : labels.reserveSelected
+  : labels.chooseTime}
               </button>
             </div>
           </div>
