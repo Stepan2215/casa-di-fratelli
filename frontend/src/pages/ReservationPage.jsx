@@ -529,14 +529,23 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     return () => clearInterval(intervalId);
   }, []);
 
-  React.useEffect(() => {
-    const guests = Number(guestCount || 0);
+React.useEffect(() => {
+  const guests = Number(guestCount || 0);
 
-    if (guests >= 7 && bookingMode !== "group") {
-      setBookingMode("group");
-      setSelectedTables([]);
-    }
-  }, [guestCount, bookingMode]);
+  const shouldUseGroup =
+    (selectedArea === "garden" && guests > 4) ||
+    (selectedArea === "indoor" && guests >= 7);
+
+  if (shouldUseGroup && bookingMode !== "group") {
+    setBookingMode("group");
+    setSelectedTables([]);
+  }
+
+  if (!shouldUseGroup && bookingMode === "group" && guests > 0) {
+    setBookingMode("single");
+    setSelectedTables([]);
+  }
+}, [guestCount, selectedArea, bookingMode]);
 
   React.useEffect(() => {
     if (reservationDate && selectedTime && isPastTimeForDate(reservationDate, selectedTime)) {
@@ -569,7 +578,9 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
   const canShowSearchParams = Boolean(reservationDate && selectedTime && guestCount);
   const requestedGuests = Number(guestCount || 0);
-  const forceGroupMode = requestedGuests >= 7;
+  const forceGroupMode =
+  (selectedArea === "garden" && requestedGuests > 4) ||
+  (selectedArea === "indoor" && requestedGuests >= 7);
 
   const selectedDateBlockedSlots = blockedSlots.filter((slot) => {
     const slotDate = slot.reservedDate || slot.ReservedDate;
@@ -582,19 +593,37 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     selectedDateBlockedSlots.flatMap((slot) => slot.tableIds || slot.TableIds || [])
   );
 
-  const canShowTable = (table) => {
-    if (!canShowSearchParams) return false;
-    if (blockedTableIds.has(table.id)) return false;
+const canShowTable = (table, area) => {
+  if (!canShowSearchParams) return false;
+  if (blockedTableIds.has(table.id)) return false;
+  if (area !== selectedArea) return false;
 
-    if (bookingMode === "single") {
-      return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
-    }
+  if (bookingMode === "single") {
+    return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+  }
 
+  if (selectedTables.length === 0) {
+    if (area === "garden") return !table.special;
     return true;
-  };
+  }
 
-  const visibleGardenTables = gardenTables.filter(canShowTable);
-  const visibleIndoorTables = indoorTables.filter(canShowTable);
+  if (totalSeats >= requestedGuests) {
+    return selectedTables.some((selected) => selected.id === table.id);
+  }
+
+  const isAlreadySelected = selectedTables.some((selected) => selected.id === table.id);
+  if (isAlreadySelected) return true;
+
+  return canCombineTables(area, selectedTables, table);
+};
+
+const visibleGardenTables = gardenTables.filter((table) =>
+  canShowTable(table, "garden")
+);
+
+const visibleIndoorTables = indoorTables.filter((table) =>
+  canShowTable(table, "indoor")
+);
 
   const handleSelect = (table, area) => {
     if (!canShowSearchParams) return;
@@ -759,7 +788,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
             <button
               type="button"
-              disabled={!canShowSearchParams}
+              
               onClick={() => {
                 setBookingMode("group");
                 setSelectedTables([]);
@@ -776,7 +805,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
             <div className="ml-0 flex flex-wrap gap-2 md:ml-2">
               <button
                 type="button"
-                disabled={!canShowSearchParams}
+                
                 onClick={() => {
                   setSelectedArea("garden");
                   setSelectedTables([]);
@@ -785,7 +814,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
                   selectedArea === "garden"
                     ? "bg-[#c9a56a] text-black"
                     : "border border-white/10 bg-white/5 text-white/80"
-                } ${!canShowSearchParams ? "cursor-not-allowed opacity-40" : ""}`}
+                }`}
               >
                 {language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking"}
               </button>
@@ -964,17 +993,39 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
               </button>
             </div>
 
-            {canShowSearchParams ? (
-              <>
-                <ZoneCard title={labels.gardenTitle} subtitle={labels.gardenSubtitle} accent={t.smokeLabel}>
-                  <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
-                </ZoneCard>
-
-                <ZoneCard title={labels.indoorTitle} subtitle={labels.indoorSubtitle} accent={t.mainLabel}>
-                  <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
-                </ZoneCard>
-              </>
-            ) : (
+{canShowSearchParams ? (
+  selectedArea === "garden" ? (
+    <div className="lg:col-span-2">
+      <ZoneCard
+        title={labels.gardenTitle}
+        subtitle={labels.gardenSubtitle}
+        accent={t.smokeLabel}
+      >
+        <GardenMap
+          tables={visibleGardenTables}
+          selectedIds={selectedIds}
+          onSelect={handleSelect}
+          labels={labels}
+        />
+      </ZoneCard>
+    </div>
+  ) : (
+    <div className="lg:col-span-2">
+      <ZoneCard
+        title={labels.indoorTitle}
+        subtitle={labels.indoorSubtitle}
+        accent={t.mainLabel}
+      >
+        <IndoorMap
+          tables={visibleIndoorTables}
+          selectedIds={selectedIds}
+          onSelect={handleSelect}
+          labels={labels}
+        />
+      </ZoneCard>
+    </div>
+  )
+) : (
               <div className="lg:col-span-2 flex min-h-[520px] items-center justify-center rounded-[28px] border border-[#c9a56a]/20 bg-white/5 p-8 text-center">
                 <div>
                   <div className="mb-3 text-xs uppercase tracking-[0.3em] text-[#c9a56a]">
