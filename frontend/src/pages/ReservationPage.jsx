@@ -47,11 +47,11 @@ const indoorTables = [
   { id: "29", x: 16, y: 80, seats: 6, wide: true },
 ];
 
-const gardenOrder = [
-  "42", "43", "44", "45",
-  "38", "39", "40", "41",
-  "34", "35", "36", "37",
-  "30", "31", "32", "33",
+const gardenGroups = [
+  ["42", "43", "44", "45"],
+  ["38", "39", "40", "41"],
+  ["34", "35", "36", "37"],
+  ["30", "31", "32", "33"],
 ];
 
 const groupableIndoorIds = ["5", "6", "20", "21", "22", "23", "28", "29"];
@@ -96,14 +96,17 @@ function isPastTimeForDate(dateValue, timeValue) {
 }
 
 function isContinuousTerraceSelection(selectedTables, nextTable) {
-  const ids = [...selectedTables.map((table) => table.id), nextTable.id].filter((id) =>
-    gardenOrder.includes(id)
+  const ids = [...selectedTables.map((table) => table.id), nextTable.id];
+
+  const matchingGroup = gardenGroups.find((group) =>
+    ids.every((id) => group.includes(id))
   );
 
-  const uniqueIds = [...new Set(ids)];
-  const indexes = uniqueIds.map((id) => gardenOrder.indexOf(id)).sort((a, b) => a - b);
+  if (!matchingGroup) return false;
 
-  if (!indexes.length) return true;
+  const indexes = [...new Set(ids)]
+    .map((id) => matchingGroup.indexOf(id))
+    .sort((a, b) => a - b);
 
   for (let i = 1; i < indexes.length; i += 1) {
     if (indexes[i] - indexes[i - 1] !== 1) return false;
@@ -281,7 +284,7 @@ function FourSeatChairs({ reserved }) {
   );
 }
 
-function IndoorTable({ table, selected, reserved, onSelect }) {
+function IndoorTable({ table, selected, reserved, onSelect, labels }) {
   return (
     <button
       type="button"
@@ -310,7 +313,9 @@ function IndoorTable({ table, selected, reserved, onSelect }) {
           {table.id}
         </div>
 
-        <div className="mt-2 text-center text-[10px] text-white/45">{table.seats} seats</div>
+        <div className="mt-2 text-center text-[10px] text-white/45">
+  {table.seats} {labels.seats}
+</div>
       </div>
     </button>
   );
@@ -331,6 +336,7 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
           selected={selectedIds.includes(table.id)}
           reserved={false}
           onSelect={onSelect}
+          labels={labels}
         />
       ))}
     </div>
@@ -506,6 +512,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [showBookingForm, setShowBookingForm] = React.useState(false);
   const [blockedSlots, setBlockedSlots] = React.useState([]);
   const timeSelectionRef = React.useRef(null);
+  const mapSectionRef = React.useRef(null);
 
   React.useEffect(() => {
     async function loadBlockedSlots() {
@@ -543,10 +550,23 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     table: language === "bg" ? "Маса" : "Table",
     capacity: language === "bg" ? "Капацитет" : "Capacity",
     reserveSelected: language === "bg" ? "Резервирай" : "Reserve",
+    seats: language === "bg" ? "места" : "seats",
   };
 
   const requestedGuests = Number(guestCount || 0);
   const canShowSearchParams = Boolean(selectedArea && reservationDate && selectedTime && guestCount);
+
+  React.useEffect(() => {
+  if (canShowSearchParams && window.innerWidth < 1024) {
+    setTimeout(() => {
+      mapSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 250);
+  }
+}, [canShowSearchParams]);
+
 
   const bookingMode =
     selectedArea === "garden"
@@ -584,9 +604,10 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
       return isSelected;
     }
 
-    if (bookingMode === "single") {
-      return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
-    }
+if (bookingMode === "single") {
+  if (requestedGuests <= 2) return table.seats <= 4;
+  return table.seats >= requestedGuests && table.seats <= requestedGuests + 2;
+}
 
     if (selectedTables.length === 0) {
       if (area === "garden") return !table.special;
@@ -909,7 +930,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
                   setSubmitSuccess("");
                   setShowBookingForm(true);
                 }}
-                className={`mt-6 w-full rounded-2xl py-3 font-medium transition-transform ${
+                className={`mt-6 hidden w-full rounded-2xl lg:block py-3 font-medium transition-transform ${
                   !canOpenForm
                     ? "cursor-not-allowed bg-white/10 text-white/40"
                     : "bg-[#c9a56a] text-black hover:scale-[1.01]"
@@ -932,7 +953,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
             </div>
 
             {canShowSearchParams ? (
-              <div>
+              <div ref={mapSectionRef}>
                 <ZoneCard title={zoneTitle} subtitle={zoneSubtitle} accent={zoneAccent}>
                   {selectedArea === "garden" ? (
                     <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
@@ -963,6 +984,24 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
           </div>
         </div>
       </div>
+
+      {canOpenForm && !showBookingForm && (
+  <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-white/10 bg-[#0f0b08]/95 p-4 shadow-2xl backdrop-blur lg:hidden">
+    <button
+      type="button"
+      onClick={() => {
+        setSubmitError("");
+        setSubmitSuccess("");
+        setShowBookingForm(true);
+      }}
+      className="w-full rounded-2xl bg-[#c9a56a] py-4 font-semibold text-black"
+    >
+      {language === "bg"
+        ? `Резервирай маса ${selectedTables.map((table) => table.id).join(", ")}`
+        : `Reserve table ${selectedTables.map((table) => table.id).join(", ")}`}
+    </button>
+  </div>
+)}
 
       {showBookingForm && canOpenForm && (
         <BookingModal
