@@ -81,8 +81,6 @@ const translations = {
     selectedTable: "Избрана маса",
     tableFor: "Подходяща за",
     people: "души",
-    freeSlots: "Свободни часове",
-    busySlots: "Заети часове",
     reserveSelected: "Резервирай избрания час",
     chooseTimeFirst: "Първо избери свободен час",
     bookingFormTitle: "Форма за резервация",

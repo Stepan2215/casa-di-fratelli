@@ -32,4 +32,14 @@ public class Reservation
     public DateOnly? BirthDate { get; set; }
 
     public bool MarketingConsent { get; set; } = false;
+
+    public bool CreatedByAdmin { get; set; } = false;
+
+    public string? InternalNote { get; set; }
+
+    public bool IsNoShow { get; set; } = false;
+
+    public bool IsBlacklisted { get; set; } = false;
+    
+    public bool IsRegularCustomer { get; set; } = false;
 }

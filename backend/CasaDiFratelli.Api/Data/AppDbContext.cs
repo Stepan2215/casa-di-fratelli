@@ -11,6 +11,9 @@ public class AppDbContext : DbContext
 
     public DbSet<Reservation> Reservations => Set<Reservation>();
     public DbSet<ReservationTable> ReservationTables => Set<ReservationTable>();
+    public DbSet<MenuItem> MenuItems => Set<MenuItem>();
+    public DbSet<BlacklistEntry> BlacklistEntries => Set<BlacklistEntry>();
+    public DbSet<CustomerProfile> CustomerProfiles => Set<CustomerProfile>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
