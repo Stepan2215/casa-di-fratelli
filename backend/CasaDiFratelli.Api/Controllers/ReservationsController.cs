@@ -136,6 +136,50 @@ public ReservationsController(
         _db.Reservations.Add(reservation);
         await _db.SaveChangesAsync();
 
+        var customer = await _db.CustomerProfiles.FirstOrDefaultAsync(x =>
+    (!string.IsNullOrWhiteSpace(request.Email) && x.Email == request.Email)
+    ||
+    (!string.IsNullOrWhiteSpace(request.Phone) && x.Phone == request.Phone)
+);
+
+if (customer == null)
+{
+    customer = new CustomerProfile
+    {
+        GuestName = request.GuestName,
+        Email = request.Email,
+        Phone = request.Phone,
+        BirthDate = request.BirthDate,
+        MarketingConsent = request.MarketingConsent,
+        ReservationCount = 1,
+        FirstReservationAtUtc = DateTime.UtcNow,
+        LastReservationAtUtc = DateTime.UtcNow
+    };
+
+    _db.CustomerProfiles.Add(customer);
+}
+else
+{
+    customer.ReservationCount += 1;
+    customer.LastReservationAtUtc = DateTime.UtcNow;
+
+    if (customer.ReservationCount >= 5)
+    {
+        customer.IsRegularCustomer = true;
+        reservation.IsRegularCustomer = true;
+    }
+}
+
+var isBlacklisted = await _db.BlacklistEntries.AnyAsync(x =>
+    (!string.IsNullOrWhiteSpace(x.Email) && x.Email == request.Email)
+    ||
+    (!string.IsNullOrWhiteSpace(x.Phone) && x.Phone == request.Phone)
+);
+
+reservation.IsBlacklisted = isBlacklisted;
+
+await _db.SaveChangesAsync();
+
         var adminEmail = _configuration["ADMIN_EMAIL"];
 var adminUrl = _configuration["ADMIN_URL"] ?? "https://casa-di-fratelli.vercel.app/admin";
 
