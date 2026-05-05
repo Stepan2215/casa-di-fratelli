@@ -79,7 +79,7 @@ public ReservationsController(
         if (string.IsNullOrWhiteSpace(request.Phone))
             return BadRequest("Phone is required.");
 
-        if (string.IsNullOrWhiteSpace(request.Email))
+        if (!request.CreatedByAdmin && string.IsNullOrWhiteSpace(request.Email))
             return BadRequest("Email is required.");
 
         if (request.GuestCount <= 0)
@@ -127,6 +127,8 @@ public ReservationsController(
             Notes = request.Notes,
             Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow,
+            CreatedByAdmin = request.CreatedByAdmin,
+            InternalNote = request.InternalNote,
             Tables = tableIds.Select(id => new ReservationTable
             {
                 TableCode = id
