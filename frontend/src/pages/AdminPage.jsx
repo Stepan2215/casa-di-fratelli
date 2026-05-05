@@ -109,6 +109,7 @@ export default function AdminPage() {
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
+  const [statsPeriod, setStatsPeriod] = React.useState("today");
   const [blacklistForm, setBlacklistForm] = React.useState({
     guestName: "",
     phone: "",
@@ -253,6 +254,37 @@ export default function AdminPage() {
     await loadAll();
   }
 
+  function isInStatsPeriod(dateValue) {
+  if (!dateValue) return false;
+
+  const reservationDate = new Date(dateValue);
+  const now = new Date();
+
+  const start = new Date(now);
+
+  if (statsPeriod === "today") {
+    start.setHours(0, 0, 0, 0);
+  }
+
+  if (statsPeriod === "week") {
+    start.setDate(now.getDate() - 7);
+  }
+
+  if (statsPeriod === "month") {
+    start.setMonth(now.getMonth() - 1);
+  }
+
+  if (statsPeriod === "year") {
+    start.setFullYear(now.getFullYear() - 1);
+  }
+
+  return reservationDate >= start;
+}
+
+const statsReservations = reservations.filter((r) =>
+  isInStatsPeriod(r.reservedDate)
+);
+
   const filteredReservations = reservations.filter((r) => {
     const matchesStatus = statusFilter === "All" || r.status === statusFilter;
     const haystack = `${r.guestName} ${r.phone} ${r.email} ${r.tableIds.join(" ")} ${r.reservedDate}`.toLowerCase();
@@ -260,8 +292,8 @@ export default function AdminPage() {
     return matchesStatus && haystack.includes(search.toLowerCase());
   });
 
-  const pendingCount = reservations.filter((r) => r.status === "Pending").length;
-  const approvedCount = reservations.filter((r) => r.status === "Approved").length;
+const pendingCount = statsReservations.filter((r) => r.status === "Pending").length;
+const approvedCount = statsReservations.filter((r) => r.status === "Approved").length;
   const blacklistCount = blacklist.length;
 
   const customers = Object.values(
@@ -322,24 +354,43 @@ export default function AdminPage() {
             Refresh
           </button>
         </div>
-
+        <div className="mb-4 flex flex-wrap gap-2">
+  {[
+    ["today", "Today"],
+    ["week", "Week"],
+    ["month", "Month"],
+    ["year", "Year"],
+  ].map(([key, label]) => (
+    <button
+      key={key}
+      onClick={() => setStatsPeriod(key)}
+      className={`rounded-full px-4 py-2 text-sm transition ${
+        statsPeriod === key
+          ? "bg-amber-400 text-black"
+          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+      }`}
+    >
+      {label}
+    </button>
+  ))}
+</div>
         <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <StatCard label="All reservations" value={reservations.length} />
+          <StatCard label="All reservations" value={statsReservations.length} />
           <StatCard label="Pending" value={pendingCount} />
           <StatCard label="Approved" value={approvedCount} />
           <StatCard label="Blacklist" value={blacklistCount} />
         </div>
 
-        <div className="mb-8 flex flex-wrap gap-2 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-2">
+        <div className="mb-8 grid grid-cols-2 gap-2 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-2 sm:grid-cols-3 lg:flex lg:flex-wrap">
           {tabs.map(([key, label]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`rounded-2xl px-5 py-3 text-sm transition ${
+              className={`rounded-2xl px-4 py-3 text-center text-sm transition ${
                 activeTab === key
-                  ? "bg-amber-400 text-black"
-                  : "text-white/70 hover:bg-white/10 hover:text-white"
-              }`}
+             ? "bg-amber-400 text-black"
+              : "text-white/70 hover:bg-white/10 hover:text-white"
+          }`}
             >
               {label}
             </button>
