@@ -69,10 +69,6 @@ const reservationTimes = [
   "22:00",
 ];
 
-function languageSafe(t, key, fallback) {
-  return t?.[key] || fallback;
-}
-
 function getTodayInputValue() {
   const now = new Date();
   const year = now.getFullYear();
