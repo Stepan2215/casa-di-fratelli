@@ -264,38 +264,56 @@ export default function AdminPage() {
     notes: "",
   });
 
-  async function loadAll() {
+  async function loadReservations() {
     setLoading(true);
     setAdminError("");
 
-    const loaders = [
-      fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, []).then((reservationsData) => {
-        setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
-      }),
-      fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, []).then((menuData) => {
-        setMenuItems(Array.isArray(menuData) ? menuData : []);
-      }),
-      fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, []).then((blacklistData) => {
-        setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
-      }),
-    ];
-
-    const results = await Promise.allSettled(loaders);
-    const errors = results
-      .filter((result) => result.status === "rejected")
-      .map((result) => result.reason?.message || "Failed to load admin data.");
-
-    if (errors.length > 0) {
-      console.error("Failed to load admin data", errors);
-      setAdminError(errors.join(" "));
+    try {
+      const reservationsData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, []);
+      setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
+    } catch (error) {
+      console.error("Failed to load reservations", error);
+      setAdminError(error?.message || "Failed to load reservations.");
+    } finally {
+      setLoading(false);
     }
+  }
 
-    setLoading(false);
+  async function loadMenuItems() {
+    try {
+      const menuData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, []);
+      setMenuItems(Array.isArray(menuData) ? menuData : []);
+    } catch (error) {
+      console.error("Failed to load menu", error);
+      setAdminError(error?.message || "Failed to load menu.");
+    }
+  }
+
+  async function loadBlacklist() {
+    try {
+      const blacklistData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, []);
+      setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
+    } catch (error) {
+      console.error("Failed to load blacklist", error);
+      setAdminError(error?.message || "Failed to load blacklist.");
+    }
   }
 
   React.useEffect(() => {
-    loadAll();
+    loadReservations();
   }, []);
+
+  React.useEffect(() => {
+    setAdminError("");
+
+    if (activeTab === "menu") {
+      loadMenuItems();
+    }
+
+    if (activeTab === "blacklist") {
+      loadBlacklist();
+    }
+  }, [activeTab]);
 
   async function updateStatus(id, action) {
     setAdminNotice("");
@@ -310,7 +328,7 @@ export default function AdminPage() {
       return;
     }
 
-    await loadAll();
+    await loadReservations();
   }
 
   function getTableEdit(reservation) {
@@ -372,7 +390,7 @@ export default function AdminPage() {
       return next;
     });
     setAdminNotice("Tables updated.");
-    await loadAll();
+    await loadReservations();
   }
 
   async function addToBlacklist(reservation) {
@@ -388,7 +406,7 @@ export default function AdminPage() {
       }),
     });
 
-    await loadAll();
+    await loadBlacklist();
   }
 
   async function saveMenuItem(event) {
@@ -411,7 +429,7 @@ export default function AdminPage() {
 
     setMenuForm(emptyMenuItem);
     setEditingMenuId(null);
-    await loadAll();
+    await loadMenuItems();
   }
 
   async function deleteMenuItem(id) {
@@ -419,7 +437,7 @@ export default function AdminPage() {
       method: "DELETE",
     });
 
-    await loadAll();
+    await loadMenuItems();
   }
 
   async function createAdminReservation(event) {
@@ -452,7 +470,7 @@ export default function AdminPage() {
 
     setAdminReservation(emptyAdminReservation);
     setAdminNotice("Reservation created.");
-    await loadAll();
+    await loadReservations();
     setActiveTab("reservations");
   }
 
@@ -488,7 +506,7 @@ export default function AdminPage() {
 
     setHallBlock(emptyHallBlock);
     setAdminNotice(`Blocked ${times.length} time slots.`);
-    await loadAll();
+    await loadReservations();
     setActiveTab("reservations");
   }
 
@@ -509,7 +527,7 @@ export default function AdminPage() {
       notes: "",
     });
 
-    await loadAll();
+    await loadBlacklist();
   }
 
   async function deleteBlacklistEntry(id) {
@@ -517,7 +535,7 @@ export default function AdminPage() {
       method: "DELETE",
     });
 
-    await loadAll();
+    await loadBlacklist();
   }
 
   function isInStatsPeriod(dateValue) {
@@ -598,6 +616,20 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["customers", "Customers"],
   ];
 
+  async function refreshActiveTab() {
+    if (activeTab === "menu") {
+      await loadMenuItems();
+      return;
+    }
+
+    if (activeTab === "blacklist") {
+      await loadBlacklist();
+      return;
+    }
+
+    await loadReservations();
+  }
+
   return (
     <div className="min-h-screen bg-[#0f0b08] text-white">
       <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
@@ -615,7 +647,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           </div>
 
           <button
-            onClick={loadAll}
+            onClick={refreshActiveTab}
             className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-sm font-medium text-amber-200 transition hover:bg-amber-400/20"
           >
             Refresh
