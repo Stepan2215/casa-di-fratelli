@@ -25,6 +25,82 @@ public ReservationsController(
     _configuration = configuration;
 }
 
+private const int TableBufferMinutes = 60;
+
+private sealed record TableConflict(int Id, string ReservedTime, List<string> TableIds);
+
+private static List<string> NormalizeTableIds(IEnumerable<string>? tableIds)
+{
+    return (tableIds ?? Enumerable.Empty<string>())
+        .Where(id => !string.IsNullOrWhiteSpace(id))
+        .Select(id => id.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+}
+
+private static List<string> NormalizeTimes(IEnumerable<string>? times)
+{
+    return (times ?? Enumerable.Empty<string>())
+        .Where(time => !string.IsNullOrWhiteSpace(time))
+        .Select(time => time.Trim())
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+}
+
+private async Task<TableConflict?> FindTableConflictAsync(
+    DateOnly reservedDate,
+    string reservedTime,
+    List<string> tableIds,
+    int? excludeReservationId = null)
+{
+    var candidates = await _db.Reservations
+        .Include(x => x.Tables)
+        .Where(x =>
+            x.Status == "Approved" &&
+            x.ReservedDate == reservedDate &&
+            (!excludeReservationId.HasValue || x.Id != excludeReservationId.Value) &&
+            x.Tables.Any(t => tableIds.Contains(t.TableCode)))
+        .ToListAsync();
+
+    if (!TimeOnly.TryParse(reservedTime, out var targetTime))
+    {
+        var sameTimeConflict = candidates.FirstOrDefault(x => x.ReservedTime == reservedTime);
+        return sameTimeConflict == null
+            ? null
+            : new TableConflict(
+                sameTimeConflict.Id,
+                sameTimeConflict.ReservedTime,
+                sameTimeConflict.Tables.Select(t => t.TableCode).ToList());
+    }
+
+    foreach (var candidate in candidates)
+    {
+        if (!TimeOnly.TryParse(candidate.ReservedTime, out var candidateTime))
+            continue;
+
+        var minutes = Math.Abs((candidateTime - targetTime).TotalMinutes);
+        if (minutes < TableBufferMinutes)
+        {
+            return new TableConflict(
+                candidate.Id,
+                candidate.ReservedTime,
+                candidate.Tables.Select(t => t.TableCode).ToList());
+        }
+    }
+
+    return null;
+}
+
+private static object ConflictResponse(TableConflict conflict)
+{
+    return new
+    {
+        message = "One or more selected tables are reserved less than one hour from this time.",
+        conflict.ReservedTime,
+        conflict.TableIds
+    };
+}
+
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -44,6 +120,11 @@ public ReservationsController(
                 x.BirthDate,
                 x.MarketingConsent,
                 x.Notes,
+                x.CreatedByAdmin,
+                x.InternalNote,
+                x.IsNoShow,
+                x.IsBlacklisted,
+                x.IsRegularCustomer,
                 x.Status,
                 x.CreatedAtUtc,
                 TableIds = x.Tables.Select(t => t.TableCode).ToList()
@@ -88,29 +169,16 @@ public ReservationsController(
         if (request.TableIds is null || request.TableIds.Count == 0)
             return BadRequest("At least one table must be selected.");
 
-        var tableIds = request.TableIds
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Select(id => id.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var tableIds = NormalizeTableIds(request.TableIds);
 
         if (tableIds.Count == 0)
             return BadRequest("At least one valid table must be selected.");
 
-        var hasConflict = await _db.Reservations
-            .Include(x => x.Tables)
-            .AnyAsync(x =>
-                x.Status == "Approved" &&
-                x.ReservedDate == request.ReservedDate &&
-                x.ReservedTime == request.ReservedTime &&
-                x.Tables.Any(t => tableIds.Contains(t.TableCode)));
+        var conflict = await FindTableConflictAsync(request.ReservedDate, request.ReservedTime, tableIds);
 
-        if (hasConflict)
+        if (conflict != null)
         {
-            return Conflict(new
-            {
-                message = "One or more selected tables are already approved for this date and time."
-            });
+            return Conflict(ConflictResponse(conflict));
         }
 
         var reservation = new Reservation
@@ -242,21 +310,15 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
 
         var tableIds = reservation.Tables.Select(t => t.TableCode).ToList();
 
-        var hasConflict = await _db.Reservations
-            .Include(x => x.Tables)
-            .AnyAsync(x =>
-                x.Id != id &&
-                x.Status == "Approved" &&
-                x.ReservedDate == reservation.ReservedDate &&
-                x.ReservedTime == reservation.ReservedTime &&
-                x.Tables.Any(t => tableIds.Contains(t.TableCode)));
+        var conflict = await FindTableConflictAsync(
+            reservation.ReservedDate,
+            reservation.ReservedTime,
+            tableIds,
+            id);
 
-        if (hasConflict)
+        if (conflict != null)
         {
-            return Conflict(new
-            {
-                message = "This table/time is already approved by another reservation."
-            });
+            return Conflict(ConflictResponse(conflict));
         }
 
         reservation.Status = "Approved";
@@ -286,6 +348,108 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         {
             reservation.Id,
             reservation.Status
+        });
+    }
+
+    [HttpPatch("{id}/tables")]
+    public async Task<IActionResult> UpdateTables(int id, [FromBody] UpdateReservationTablesRequest request)
+    {
+        var reservation = await _db.Reservations
+            .Include(x => x.Tables)
+            .FirstOrDefaultAsync(x => x.Id == id);
+
+        if (reservation == null)
+            return NotFound();
+
+        if (reservation.Status == "Cancelled")
+            return BadRequest("Cancelled reservations cannot be moved.");
+
+        var tableIds = NormalizeTableIds(request.TableIds);
+
+        if (tableIds.Count == 0)
+            return BadRequest("At least one valid table must be selected.");
+
+        var conflict = await FindTableConflictAsync(
+            reservation.ReservedDate,
+            reservation.ReservedTime,
+            tableIds,
+            id);
+
+        if (conflict != null)
+            return Conflict(ConflictResponse(conflict));
+
+        _db.ReservationTables.RemoveRange(reservation.Tables);
+        reservation.Tables = tableIds.Select(tableId => new ReservationTable
+        {
+            TableCode = tableId,
+            ReservationId = reservation.Id
+        }).ToList();
+
+        if (!string.IsNullOrWhiteSpace(request.Area))
+            reservation.Area = request.Area.Trim();
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            reservation.Id,
+            reservation.Area,
+            TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
+        });
+    }
+
+    [HttpPost("block")]
+    public async Task<IActionResult> BlockTables([FromBody] CreateHallBlockRequest request)
+    {
+        var tableIds = NormalizeTableIds(request.TableIds);
+        var times = NormalizeTimes(request.Times);
+
+        if (tableIds.Count == 0)
+            return BadRequest("At least one table must be selected.");
+
+        if (times.Count == 0)
+            return BadRequest("At least one time must be selected.");
+
+        foreach (var time in times)
+        {
+            var conflict = await FindTableConflictAsync(request.ReservedDate, time, tableIds);
+            if (conflict != null)
+                return Conflict(ConflictResponse(conflict));
+        }
+
+        var note = string.IsNullOrWhiteSpace(request.Note)
+            ? "Admin block"
+            : request.Note.Trim();
+
+        var blocks = times.Select(time => new Reservation
+        {
+            GuestName = "Admin block",
+            Phone = "admin",
+            Email = string.Empty,
+            GuestCount = 0,
+            Area = string.IsNullOrWhiteSpace(request.Area) ? "all" : request.Area.Trim(),
+            ReservedDate = request.ReservedDate,
+            ReservedTime = time,
+            Notes = note,
+            InternalNote = "Hall/table block created from admin panel.",
+            Status = "Approved",
+            CreatedAtUtc = DateTime.UtcNow,
+            CreatedByAdmin = true,
+            Tables = tableIds.Select(tableId => new ReservationTable
+            {
+                TableCode = tableId
+            }).ToList()
+        }).ToList();
+
+        _db.Reservations.AddRange(blocks);
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            Created = blocks.Count,
+            request.ReservedDate,
+            Times = blocks.Select(x => x.ReservedTime).ToList(),
+            TableIds = tableIds
         });
     }
 

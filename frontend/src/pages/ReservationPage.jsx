@@ -91,6 +91,21 @@ function isPastTimeForDate(dateValue, timeValue) {
   return selected <= now;
 }
 
+function isWithinReservationBuffer(firstTime, secondTime) {
+  const toMinutes = (value) => {
+    const [hours, minutes] = String(value || "").split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const first = toMinutes(firstTime);
+  const second = toMinutes(secondTime);
+
+  if (first === null || second === null) return firstTime === secondTime;
+
+  return Math.abs(first - second) < 60;
+}
+
 function isContinuousTerraceSelection(selectedTables, nextTable) {
   const ids = [...selectedTables.map((table) => table.id), nextTable.id];
 
@@ -577,7 +592,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     const slotDate = slot.reservedDate || slot.ReservedDate;
     const slotTime = slot.reservedTime || slot.ReservedTime;
 
-    return slotDate === reservationDate && slotTime === selectedTime;
+    return slotDate === reservationDate && isWithinReservationBuffer(slotTime, selectedTime);
   });
 
   const blockedTableIds = new Set(

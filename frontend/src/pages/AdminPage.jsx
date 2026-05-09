@@ -26,8 +26,133 @@ const emptyAdminReservation = {
   internalNote: "",
 };
 
+const emptyHallBlock = {
+  area: "indoor",
+  reservedDate: "",
+  startTime: "17:30",
+  endTime: "22:00",
+  note: "",
+};
+
+const indoorTableIds = [
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "20",
+  "21",
+  "22",
+  "23",
+  "24",
+  "25",
+  "26",
+  "27",
+  "28",
+  "29",
+];
+
+const gardenTableIds = [
+  "30",
+  "31",
+  "32",
+  "33",
+  "34",
+  "35",
+  "36",
+  "37",
+  "38",
+  "39",
+  "40",
+  "41",
+  "42",
+  "43",
+  "44",
+  "45",
+  "30A",
+  "34A",
+  "45A",
+];
+
+const areaTableIds = {
+  indoor: indoorTableIds,
+  garden: gardenTableIds,
+  all: [...indoorTableIds, ...gardenTableIds],
+};
+
 function getValue(item, key) {
   return item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
+}
+
+function buildTimeRange(startTime, endTime) {
+  const toMinutes = (value) => {
+    const [hours, minutes] = String(value || "").split(":").map(Number);
+    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const fromMinutes = (value) => {
+    const hours = Math.floor(value / 60);
+    const minutes = value % 60;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+  };
+
+  const start = toMinutes(startTime);
+  const end = toMinutes(endTime);
+
+  if (start === null || end === null || start > end) return [];
+
+  const times = [];
+
+  for (let value = start; value <= end; value += 30) {
+    times.push(fromMinutes(value));
+  }
+
+  return times;
+}
+
+async function readErrorMessage(response, fallback) {
+  const rawText = await response.text();
+
+  try {
+    const result = rawText ? JSON.parse(rawText) : null;
+    return result?.message || rawText || fallback;
+  } catch {
+    return rawText || fallback;
+  }
+}
+
+function TableChipSelector({ area, selectedTableIds, onToggle }) {
+  const tableIds = areaTableIds[area] || indoorTableIds;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {tableIds.map((tableId) => {
+        const selected = selectedTableIds.includes(tableId);
+
+        return (
+          <button
+            key={tableId}
+            type="button"
+            onClick={() => onToggle(tableId)}
+            className={`rounded-xl border px-3 py-2 text-xs transition ${
+              selected
+                ? "border-amber-300 bg-amber-400 text-black"
+                : "border-white/10 bg-black/20 text-white/65 hover:border-amber-300/50 hover:text-white"
+            }`}
+          >
+            {tableId}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function normalizeReservation(r) {
@@ -109,6 +234,10 @@ export default function AdminPage() {
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
+  const [tableEdits, setTableEdits] = React.useState({});
+  const [hallBlock, setHallBlock] = React.useState(emptyHallBlock);
+  const [adminNotice, setAdminNotice] = React.useState("");
+  const [adminError, setAdminError] = React.useState("");
   const [statsPeriod, setStatsPeriod] = React.useState("today");
   const [blacklistForm, setBlacklistForm] = React.useState({
     guestName: "",
@@ -147,10 +276,80 @@ export default function AdminPage() {
   }, []);
 
   async function updateStatus(id, action) {
-    await fetch(`${API_BASE_URL}/api/reservations/${id}/${action}`, {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${id}/${action}`, {
       method: "PATCH",
     });
 
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to update reservation status."));
+      return;
+    }
+
+    await loadAll();
+  }
+
+  function getTableEdit(reservation) {
+    return (
+      tableEdits[reservation.id] || {
+        area: reservation.area === "garden" ? "garden" : "indoor",
+        tableIds: reservation.tableIds,
+      }
+    );
+  }
+
+  function setTableEditArea(reservation, area) {
+    setTableEdits((prev) => ({
+      ...prev,
+      [reservation.id]: {
+        area,
+        tableIds: [],
+      },
+    }));
+  }
+
+  function toggleTableEdit(reservation, tableId) {
+    const current = getTableEdit(reservation);
+
+    setTableEdits((prev) => ({
+      ...prev,
+      [reservation.id]: {
+        ...current,
+        tableIds: current.tableIds.includes(tableId)
+          ? current.tableIds.filter((id) => id !== tableId)
+          : [...current.tableIds, tableId],
+      },
+    }));
+  }
+
+  async function saveReservationTables(reservation) {
+    const edit = getTableEdit(reservation);
+
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        area: edit.area,
+        tableIds: edit.tableIds,
+      }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Selected table is not available."));
+      return;
+    }
+
+    setTableEdits((prev) => {
+      const next = { ...prev };
+      delete next[reservation.id];
+      return next;
+    });
+    setAdminNotice("Tables updated.");
     await loadAll();
   }
 
@@ -215,13 +414,58 @@ export default function AdminPage() {
       createdByAdmin: true,
     };
 
-    await fetch(`${API_BASE_URL}/api/reservations`, {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to create reservation."));
+      return;
+    }
+
     setAdminReservation(emptyAdminReservation);
+    setAdminNotice("Reservation created.");
+    await loadAll();
+    setActiveTab("reservations");
+  }
+
+  async function createHallBlock(event) {
+    event.preventDefault();
+
+    const times = buildTimeRange(hallBlock.startTime, hallBlock.endTime);
+
+    setAdminNotice("");
+    setAdminError("");
+
+    if (!hallBlock.reservedDate || times.length === 0) {
+      setAdminError("Choose a valid date and time range.");
+      return;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/block`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reservedDate: hallBlock.reservedDate,
+        area: hallBlock.area,
+        times,
+        tableIds: areaTableIds[hallBlock.area] || indoorTableIds,
+        note: hallBlock.note,
+      }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to block tables."));
+      return;
+    }
+
+    setHallBlock(emptyHallBlock);
+    setAdminNotice(`Blocked ${times.length} time slots.`);
     await loadAll();
     setActiveTab("reservations");
   }
@@ -326,6 +570,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   const tabs = [
     ["reservations", "Reservations"],
     ["create", "Create"],
+    ["block", "Block hall"],
     ["menu", "Menu"],
     ["blacklist", "Blacklist"],
     ["customers", "Customers"],
@@ -397,6 +642,18 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           ))}
         </div>
 
+        {adminError && (
+          <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {adminError}
+          </div>
+        )}
+
+        {adminNotice && (
+          <div className="mb-6 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+            {adminNotice}
+          </div>
+        )}
+
         {loading ? (
           <Panel title="Loading">Loading...</Panel>
         ) : (
@@ -444,6 +701,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     <tbody>
                       {filteredReservations.map((r) => {
                         const expanded = expandedId === r.id;
+                        const tableEdit = getTableEdit(r);
 
                         return (
                           <React.Fragment key={r.id}>
@@ -550,6 +808,48 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                       </div>
                                     </div>
                                   </div>
+
+                                  <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
+                                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                                      <div>
+                                        <div className="text-xs uppercase tracking-[0.25em] text-amber-300">
+                                          Change tables
+                                        </div>
+                                        <p className="mt-2 text-sm text-stone-400">
+                                          Save checks approved reservations with a 60 minute buffer.
+                                        </p>
+                                      </div>
+
+                                      <div className="flex flex-col gap-2 sm:flex-row">
+                                        <select
+                                          value={tableEdit.area}
+                                          onChange={(e) => setTableEditArea(r, e.target.value)}
+                                          disabled={r.status === "Cancelled"}
+                                          className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                        >
+                                          <option value="indoor">Hall / Non-smoking</option>
+                                          <option value="garden">Terrace / Smoking</option>
+                                        </select>
+
+                                        <button
+                                          type="button"
+                                          onClick={() => saveReservationTables(r)}
+                                          disabled={r.status === "Cancelled" || tableEdit.tableIds.length === 0}
+                                          className="rounded-2xl bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:opacity-40"
+                                        >
+                                          Save tables
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="mt-4">
+                                      <TableChipSelector
+                                        area={tableEdit.area}
+                                        selectedTableIds={tableEdit.tableIds}
+                                        onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                      />
+                                    </div>
+                                  </div>
                                 </td>
                               </tr>
                             )}
@@ -628,6 +928,108 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
                   <button className="rounded-2xl bg-amber-400 px-6 py-4 font-semibold text-black md:col-span-3">
                     Create reservation
+                  </button>
+                </form>
+              </Panel>
+            )}
+
+            {activeTab === "block" && (
+              <Panel
+                title="Block hall"
+                subtitle="Затваря избраната зона за ден или диапазон от часове. Създава approved блокиращи резервации."
+              >
+                <form onSubmit={createHallBlock} className="grid gap-4 md:grid-cols-4">
+                  <div>
+                    <label className="mb-2 block text-sm text-stone-400">Area</label>
+                    <select
+                      value={hallBlock.area}
+                      onChange={(e) =>
+                        setHallBlock((prev) => ({
+                          ...prev,
+                          area: e.target.value,
+                        }))
+                      }
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                    >
+                      <option value="indoor">Hall / Non-smoking</option>
+                      <option value="garden">Terrace / Smoking</option>
+                      <option value="all">Whole restaurant</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-stone-400">Date</label>
+                    <input
+                      type="date"
+                      value={hallBlock.reservedDate}
+                      onChange={(e) =>
+                        setHallBlock((prev) => ({
+                          ...prev,
+                          reservedDate: e.target.value,
+                        }))
+                      }
+                      required
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-stone-400">From</label>
+                    <input
+                      type="time"
+                      step="1800"
+                      value={hallBlock.startTime}
+                      onChange={(e) =>
+                        setHallBlock((prev) => ({
+                          ...prev,
+                          startTime: e.target.value,
+                        }))
+                      }
+                      required
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm text-stone-400">To</label>
+                    <input
+                      type="time"
+                      step="1800"
+                      value={hallBlock.endTime}
+                      onChange={(e) =>
+                        setHallBlock((prev) => ({
+                          ...prev,
+                          endTime: e.target.value,
+                        }))
+                      }
+                      required
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                    />
+                  </div>
+
+                  <div className="md:col-span-4">
+                    <label className="mb-2 block text-sm text-stone-400">Note</label>
+                    <textarea
+                      value={hallBlock.note}
+                      onChange={(e) =>
+                        setHallBlock((prev) => ({
+                          ...prev,
+                          note: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      placeholder="Private event, maintenance, full buyout..."
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none placeholder:text-white/30 focus:border-amber-300"
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300 md:col-span-4">
+                    {buildTimeRange(hallBlock.startTime, hallBlock.endTime).length} slots ·{" "}
+                    {(areaTableIds[hallBlock.area] || indoorTableIds).length} tables
+                  </div>
+
+                  <button className="rounded-2xl bg-amber-400 px-6 py-4 font-semibold text-black md:col-span-4">
+                    Block selected area
                   </button>
                 </form>
               </Panel>
