@@ -128,6 +128,23 @@ async function readErrorMessage(response, fallback) {
   }
 }
 
+async function fetchJsonOrEmpty(url, fallback) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response, `Failed to load ${url}.`));
+  }
+
+  const rawText = await response.text();
+  if (!rawText) return fallback;
+
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    throw new Error(`Invalid JSON from ${url}.`);
+  }
+}
+
 function TableChipSelector({ area, selectedTableIds, onToggle }) {
   const tableIds = areaTableIds[area] || indoorTableIds;
 
@@ -249,26 +266,31 @@ export default function AdminPage() {
 
   async function loadAll() {
     setLoading(true);
+    setAdminError("");
 
-    try {
-      const [reservationsResponse, menuResponse, blacklistResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/reservations`),
-        fetch(`${API_BASE_URL}/api/menu`),
-        fetch(`${API_BASE_URL}/api/blacklist`),
-      ]);
+    const loaders = [
+      fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, []).then((reservationsData) => {
+        setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
+      }),
+      fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, []).then((menuData) => {
+        setMenuItems(Array.isArray(menuData) ? menuData : []);
+      }),
+      fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, []).then((blacklistData) => {
+        setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
+      }),
+    ];
 
-      const reservationsData = await reservationsResponse.json();
-      const menuData = await menuResponse.json();
-      const blacklistData = await blacklistResponse.json();
+    const results = await Promise.allSettled(loaders);
+    const errors = results
+      .filter((result) => result.status === "rejected")
+      .map((result) => result.reason?.message || "Failed to load admin data.");
 
-      setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
-      setMenuItems(Array.isArray(menuData) ? menuData : []);
-      setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
-    } catch (error) {
-      console.error("Failed to load admin data", error);
-    } finally {
-      setLoading(false);
+    if (errors.length > 0) {
+      console.error("Failed to load admin data", errors);
+      setAdminError(errors.join(" "));
     }
+
+    setLoading(false);
   }
 
   React.useEffect(() => {
