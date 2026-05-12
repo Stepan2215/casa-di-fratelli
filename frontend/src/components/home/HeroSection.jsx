@@ -1,19 +1,25 @@
 export default function HeroSection({ t, onOpenReservation, onOpenMenu, language }) {
   return (
-    <section className="relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.18),transparent_35%)]" />
+    <section className="relative min-h-[calc(100vh-92px)] overflow-hidden">
+      <img
+        src="https://69c72778a9fb0ef7c011fcd6.imgix.net/edited_0.jpg"
+        alt={t.interiorAlt}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,5,4,0.94)_0%,rgba(9,7,5,0.82)_38%,rgba(9,7,5,0.38)_70%,rgba(9,7,5,0.5)_100%)]" />
+      <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#090705] to-transparent" />
 
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-20 md:grid-cols-2 md:py-28">
-        <div className="relative z-10">
-          <p className="mb-4 text-sm uppercase tracking-[0.4em] text-amber-300">
+      <div className="relative z-10 mx-auto flex min-h-[calc(100vh-92px)] max-w-7xl items-center px-6 py-16 md:py-20">
+        <div className="max-w-3xl">
+          <p className="section-kicker mb-5">
             {t.heroTag}
           </p>
 
-          <h1 className="max-w-xl text-5xl font-semibold leading-tight md:text-7xl">
+          <h1 className="max-w-3xl text-5xl font-semibold leading-[1.02] text-[#fff4df] md:text-7xl">
             {t.heroTitle}
           </h1>
 
-          <p className="mt-6 max-w-lg text-base leading-7 text-stone-300 md:text-lg">
+          <p className="mt-6 max-w-2xl text-base leading-8 text-stone-200 md:text-lg">
             {t.heroText}
           </p>
 
@@ -21,7 +27,7 @@ export default function HeroSection({ t, onOpenReservation, onOpenMenu, language
             <button
               type="button"
               onClick={onOpenMenu}
-              className="rounded-2xl border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-6 py-3 font-medium text-[#f2d3a0] transition hover:bg-[#c9a56a]/20"
+              className="ghost-button rounded-full px-6 py-3 font-semibold"
             >
               {language === "bg" ? "Виж менюто" : "View menu"}
             </button>
@@ -29,37 +35,40 @@ export default function HeroSection({ t, onOpenReservation, onOpenMenu, language
             <button
               type="button"
               onClick={onOpenReservation}
-              className="rounded-2xl bg-amber-400 px-6 py-3 font-medium text-stone-950 transition hover:scale-[1.02]"
+              className="luxury-button rounded-full px-7 py-3 font-semibold"
             >
               {t.openTableMap}
             </button>
           </div>
 
-          <div className="mt-10 grid max-w-md grid-cols-3 gap-4 text-center">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-2xl font-semibold">4.9</div>
-              <div className="text-sm text-stone-400">{t.rating}</div>
+          <div className="mt-12 grid max-w-xl grid-cols-3 gap-3 text-center sm:gap-4">
+            <div className="luxury-panel rounded-2xl p-4">
+              <div className="text-2xl font-semibold text-[#fff4df]">4.9</div>
+              <div className="mt-1 text-xs text-stone-400">{t.rating}</div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-2xl font-semibold">40+</div>
-              <div className="text-sm text-stone-400">{t.dishes}</div>
+            <div className="luxury-panel rounded-2xl p-4">
+              <div className="text-2xl font-semibold text-[#fff4df]">40+</div>
+              <div className="mt-1 text-xs text-stone-400">{t.dishes}</div>
             </div>
 
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="text-2xl font-semibold">7/7</div>
-              <div className="text-sm text-stone-400">{t.openDays}</div>
+            <div className="luxury-panel rounded-2xl p-4">
+              <div className="text-2xl font-semibold text-[#fff4df]">7/7</div>
+              <div className="mt-1 text-xs text-stone-400">{t.openDays}</div>
             </div>
           </div>
-        </div>
 
-        <div className="relative">
-          <div className="absolute -inset-6 rounded-[2rem] bg-amber-400/10 blur-3xl" />
-          <img
-            src="https://69c72778a9fb0ef7c011fcd6.imgix.net/edited_0.jpg"
-            alt={t.interiorAlt}
-            className="relative h-[520px] w-full rounded-[2rem] object-cover shadow-2xl"
-          />
+          <div className="mt-10 flex max-w-2xl flex-wrap gap-3 text-sm text-stone-300">
+            <span className="rounded-full border border-emerald-300/20 bg-emerald-400/10 px-4 py-2 text-emerald-100">
+              Plovdiv
+            </span>
+            <span className="rounded-full border border-[#c9a56a]/24 bg-[#c9a56a]/10 px-4 py-2 text-[#f4dfbd]">
+              Grill · Pizza · Pasta
+            </span>
+            <span className="rounded-full border border-red-300/20 bg-red-500/10 px-4 py-2 text-red-100">
+              Sul N' Mir
+            </span>
+          </div>
         </div>
       </div>
     </section>

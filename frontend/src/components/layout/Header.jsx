@@ -7,33 +7,32 @@ export default function Header({
   onGoHome,
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-stone-950/85 backdrop-blur">
-      <div className="mx-auto max-w-7xl px-4 py-3 md:px-6 md:py-4">
-        <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090705]/78 backdrop-blur-2xl">
+      <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
+        <div className="flex items-center justify-between gap-4">
           <button
   type="button"
   onClick={onGoHome}
-  className="min-w-0 text-left transition hover:opacity-90"
+  className="group min-w-0 text-left transition hover:opacity-95"
 >
-  <div className="truncate text-lg font-semibold tracking-[0.06em] md:text-2xl">
+  <div className="truncate text-lg font-semibold tracking-[0.06em] text-[#fff4df] md:text-2xl">
     {t.brand}
   </div>
-  <div className="truncate text-[10px] uppercase tracking-[0.25em] text-stone-400 md:text-xs md:tracking-[0.35em]">
-    {t.subtitle}
-  </div>
-  <div className="mt-1 text-[9px] uppercase tracking-[0.28em] text-red-400 md:text-[10px] md:tracking-[0.4em]">
-    By Sul N’ Mir
+  <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[0.22em] text-stone-400 md:text-[10px]">
+    <span>{t.subtitle}</span>
+    <span className="h-1 w-1 rounded-full bg-[#c9a56a]" />
+    <span className="text-[#d8b377]">By Sul N' Mir</span>
   </div>
 </button>
 
           <div className="flex items-center gap-2">
-            <div className="flex rounded-xl border border-white/10 bg-white/5 p-1 md:rounded-2xl">
+            <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1 shadow-inner">
               <button
                 type="button"
                 onClick={() => setLanguage("bg")}
-                className={`rounded-lg px-2.5 py-1.5 text-xs transition md:rounded-xl md:px-3 md:py-2 md:text-sm ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition md:px-4 md:py-2 ${
                   language === "bg"
-                    ? "bg-amber-400 text-stone-950"
+                    ? "bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/20"
                     : "text-stone-300 hover:text-white"
                 }`}
               >
@@ -42,9 +41,9 @@ export default function Header({
               <button
                 type="button"
                 onClick={() => setLanguage("en")}
-                className={`rounded-lg px-2.5 py-1.5 text-xs transition md:rounded-xl md:px-3 md:py-2 md:text-sm ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition md:px-4 md:py-2 ${
                   language === "en"
-                    ? "bg-amber-400 text-stone-950"
+                    ? "bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/20"
                     : "text-stone-300 hover:text-white"
                 }`}
               >
@@ -55,21 +54,21 @@ export default function Header({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-4 md:justify-between">
-          <nav className="hidden gap-8 text-sm md:flex">
-            <a href="#about" className="transition hover:text-amber-300">
+          <nav className="hidden gap-7 text-sm text-stone-300 md:flex">
+            <a href="#about" className="transition hover:text-[#f2d39a]">
               {t.navAbout}
             </a>
             <button
               type="button"
               onClick={onOpenMenu}
-              className="transition hover:text-amber-300"
+              className="transition hover:text-[#f2d39a]"
             >
               {language === "bg" ? "Меню" : "Menu"}
             </button>
-            <a href="#gallery" className="transition hover:text-amber-300">
+            <a href="#gallery" className="transition hover:text-[#f2d39a]">
               {t.navGallery}
             </a>
-            <a href="#reservation" className="transition hover:text-amber-300">
+            <a href="#reservation" className="transition hover:text-[#f2d39a]">
               {t.navReservation}
             </a>
           </nav>
@@ -78,7 +77,7 @@ export default function Header({
             <button
               type="button"
               onClick={onOpenMenu}
-              className="rounded-xl border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-4 py-2.5 text-sm font-medium text-[#f2d3a0] transition hover:bg-[#c9a56a]/20 md:rounded-2xl md:px-5 md:py-3"
+              className="ghost-button rounded-full px-4 py-2.5 text-sm font-medium md:px-5 md:py-3"
             >
               {language === "bg" ? "Меню" : "Menu"}
             </button>
@@ -86,7 +85,7 @@ export default function Header({
             <button
               type="button"
               onClick={onOpenReservation}
-              className="rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-medium text-stone-950 shadow-lg transition hover:scale-[1.02] md:rounded-2xl md:px-5 md:py-3"
+              className="luxury-button rounded-full px-4 py-2.5 text-sm font-semibold md:px-5 md:py-3"
             >
               {t.reserveNow}
             </button>

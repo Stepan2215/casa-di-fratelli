@@ -149,13 +149,13 @@ function canCombineTables(area, selectedTables, nextTable) {
 
 function ZoneCard({ title, subtitle, accent, children }) {
   return (
-    <div className="rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#1d1510] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6">
+    <div className="luxury-panel rounded-[28px] p-5 md:p-6">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-serif">{title}</h2>
+          <h2 className="text-2xl font-semibold text-[#fff4df]">{title}</h2>
           <p className="mt-1 text-sm text-white/60">{subtitle}</p>
         </div>
-        <div className="rounded-full border border-[#c9a56a]/30 px-3 py-1.5 text-[10px] uppercase tracking-[0.24em] text-[#c9a56a]">
+        <div className="rounded-full border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.2em] text-[#f2d39a]">
           {accent}
         </div>
       </div>
@@ -241,7 +241,7 @@ function GardenTable({ table, selected, reserved, onSelect }) {
 
 function GardenMap({ tables, selectedIds, onSelect, labels }) {
   return (
-    <div className="relative min-h-[570px] overflow-hidden rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.13),_transparent_38%),linear-gradient(180deg,rgba(49,37,25,0.95),rgba(24,18,13,0.95))]">
+    <div className="relative min-h-[570px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))]">
       <div className="absolute inset-5 rounded-[22px] border border-dashed border-[#c9a56a]/15" />
       <div className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.25em] text-white/35">
         {labels.perimeter}
@@ -334,7 +334,7 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
 
 function IndoorMap({ tables, selectedIds, onSelect, labels }) {
   return (
-    <div className="relative min-h-[640px] overflow-hidden rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.12),_transparent_34%),linear-gradient(180deg,rgba(46,34,24,0.96),rgba(20,15,12,0.96))]">
+    <div className="relative min-h-[640px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.14),_transparent_34%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]">
       <div className="absolute inset-5 rounded-[22px] border border-dashed border-[#c9a56a]/15" />
       <div className="absolute left-[16%] top-[88%] w-[18%] text-center text-[10px] uppercase tracking-[0.22em] text-[#d6b278]">
         {labels.entrance}
@@ -371,22 +371,22 @@ function BookingModal({
   const areaLabel = selectedArea === "garden" ? t.smokingSection : t.familySection;
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] bg-black/78 backdrop-blur-md">
       <div className="h-full overflow-y-auto overscroll-contain px-4 py-6">
-        <div className="mx-auto w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-5 text-stone-100 shadow-2xl sm:p-8">
+        <div className="luxury-panel mx-auto w-full max-w-2xl rounded-[28px] p-5 text-stone-100 sm:p-8">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
+              <p className="section-kicker">
                 {t.bookingFormTitle}
               </p>
 
-              <h2 className="mt-3 text-3xl font-semibold">
+              <h2 className="mt-3 text-3xl font-semibold text-[#fff4df]">
                 {selectedTables.length > 1
                   ? `${language === "bg" ? "Маси" : "Tables"}: ${selectedTables.map((table) => table.id).join(", ")}`
                   : `${t.selectedTable}: ${selectedTables[0]?.id}`}
               </h2>
 
-              <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
                 <p className="text-sm text-stone-300">
                   {areaLabel} · {guestCount} {t.people} · {reservationDate} · {selectedTime}
                 </p>
@@ -396,7 +396,7 @@ function BookingModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-2xl border border-white/15 px-4 py-2 text-sm transition hover:border-amber-300 hover:text-amber-300"
+              className="ghost-button rounded-full px-4 py-2 text-sm"
             >
               {t.closeForm}
             </button>
@@ -408,7 +408,7 @@ function BookingModal({
               <input
                 name="guestName"
                 required
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderName}
               />
             </div>
@@ -418,7 +418,7 @@ function BookingModal({
               <input
                 name="phone"
                 required
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderPhone}
               />
             </div>
@@ -429,7 +429,7 @@ function BookingModal({
                 name="email"
                 type="email"
                 required
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderEmail}
               />
             </div>
@@ -441,7 +441,7 @@ function BookingModal({
               <input
                 name="birthDate"
                 type="date"
-                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300 [color-scheme:dark]"
+                className="quiet-input w-full rounded-2xl px-4 py-3 [color-scheme:dark]"
               />
               <p className="mt-3 text-sm text-amber-100/80">
                 {language === "bg"
@@ -457,7 +457,7 @@ function BookingModal({
               <textarea
                 name="notes"
                 rows={4}
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 outline-none transition focus:border-amber-300"
+                className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderRequests}
               />
             </div>
@@ -491,7 +491,7 @@ function BookingModal({
               className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
                 isSubmitting
                   ? "cursor-not-allowed bg-white/10 text-white/40"
-                  : "bg-[#c9a56a] text-black transition hover:scale-[1.01]"
+                  : "luxury-button"
               }`}
             >
               {isSubmitting
@@ -757,14 +757,14 @@ if (bookingMode === "single") {
 
   return (
     <>
-      <div className="min-h-screen bg-[#0f0b08] p-6 text-white md:p-10">
+      <div className="luxury-shell min-h-screen p-4 text-white md:p-8">
         <div className="mx-auto max-w-7xl space-y-8">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="luxury-panel rounded-[28px] p-5 md:p-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
-              <div className="mb-3 text-xs uppercase tracking-[0.35em] text-[#c9a56a]">
+              <div className="section-kicker mb-3">
                 Luxury reservation map
               </div>
-              <h1 className="text-4xl font-serif md:text-6xl">Casa di Fratelli</h1>
+              <h1 className="text-4xl font-semibold leading-tight text-[#fff4df] md:text-6xl">Casa di Fratelli</h1>
               <p className="mt-3 max-w-2xl text-sm text-white/70 md:text-base">
                 {language === "bg"
                   ? "Изберете зона, дата, час и брой гости, след което ще видите подходящите свободни маси."
@@ -781,19 +781,19 @@ if (bookingMode === "single") {
                 EN
               </button>
 
-              <button type="button" onClick={onBack} className="rounded-full border border-white/15 px-4 py-2 hover:border-[#c9a56a]/40 hover:text-[#d8b377]">
+              <button type="button" onClick={onBack} className="ghost-button rounded-full px-4 py-2">
                 {t.backToSite}
               </button>
             </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1.3fr_0.8fr]">
-            <div ref={timeSelectionRef} className="order-first rounded-[28px] border border-[#c9a56a]/20 bg-gradient-to-b from-[#201711] to-[#120d0a] p-5 shadow-2xl shadow-black/30 md:p-6 lg:order-last">
-              <div className="mb-2 text-xs uppercase tracking-[0.28em] text-[#c9a56a]">
+            <div ref={timeSelectionRef} className="luxury-panel order-first rounded-[28px] p-5 md:p-6 lg:order-last">
+              <div className="section-kicker mb-2">
                 {labels.reservationPreview}
               </div>
 
-              <h3 className="mb-4 text-2xl font-serif">
+              <h3 className="mb-4 text-2xl font-semibold text-[#fff4df]">
                 {language === "bg" ? "Данни за посещението" : "Visit details"}
               </h3>
 
@@ -808,7 +808,7 @@ if (bookingMode === "single") {
                       setSelectedArea(e.target.value);
                       setSelectedTables([]);
                     }}
-                    className="w-full cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#c9a56a] [color-scheme:dark]"
+                    className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   >
                     <option value="indoor">
                       {language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking"}
@@ -832,7 +832,7 @@ if (bookingMode === "single") {
                       setSelectedTime("");
                       setSelectedTables([]);
                     }}
-                    className="w-full cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#c9a56a] [color-scheme:dark]"
+                    className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   />
                 </div>
 
@@ -846,7 +846,7 @@ if (bookingMode === "single") {
                       setSelectedTime(e.target.value);
                       setSelectedTables([]);
                     }}
-                    className="w-full cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#c9a56a] [color-scheme:dark]"
+                    className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   >
                     <option value="">{language === "bg" ? "Избери час" : "Select time"}</option>
                     {reservationTimes.map((time) => (
@@ -871,7 +871,7 @@ if (bookingMode === "single") {
                       setGuestCount(e.target.value);
                       setSelectedTables([]);
                     }}
-                    className="w-full cursor-pointer rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-[#c9a56a] [color-scheme:dark]"
+                    className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   >
                     <option value="">{language === "bg" ? "Избери" : "Select"}</option>
                     {Array.from({ length: 12 }, (_, i) => i + 1).map((count) => (
@@ -891,7 +891,7 @@ if (bookingMode === "single") {
                 </div>
               )}
 
-              <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411]">
+              <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411] shadow-2xl shadow-black/25">
                 <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full object-cover opacity-60" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
@@ -944,7 +944,7 @@ if (bookingMode === "single") {
                 className={`mt-6 hidden w-full rounded-2xl lg:block py-3 font-medium transition-transform ${
                   !canOpenForm
                     ? "cursor-not-allowed bg-white/10 text-white/40"
-                    : "bg-[#c9a56a] text-black hover:scale-[1.01]"
+                    : "luxury-button"
                 }`}
               >
                 {!canShowSearchParams

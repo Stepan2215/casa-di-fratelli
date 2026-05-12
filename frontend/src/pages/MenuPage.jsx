@@ -55,7 +55,7 @@ export default function MenuPage({
   };
 
   return (
-    <div className="min-h-screen bg-[#0f0b08] text-white">
+    <div className="luxury-shell min-h-screen text-white">
       <Header
         t={t}
         language={language}
@@ -71,7 +71,7 @@ export default function MenuPage({
         language={language}
         />
 
-      <div className="sticky top-[78px] md:top-[160px] z-40 border-b border-white/10 bg-[#0f0b08]/95 backdrop-blur-xl">
+      <div className="sticky top-[78px] md:top-[146px] z-40 border-b border-white/10 bg-[#090705]/88 backdrop-blur-2xl">
         <div className="mx-auto max-w-7xl px-4 py-3 md:px-6 md:py-4">
           <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
             {data.categories.map((category) => {
@@ -96,7 +96,7 @@ export default function MenuPage({
             <button
               type="button"
               onClick={onBackHome}
-              className="whitespace-nowrap rounded-full border border-[#c9a56a]/30 bg-[#c9a56a]/10 px-4 py-2 text-sm font-medium text-[#f2d3a0] transition hover:bg-[#c9a56a]/20"
+              className="ghost-button whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium"
             >
               {language === "bg" ? "Начало" : "Home"}
             </button>

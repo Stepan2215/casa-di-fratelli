@@ -6,29 +6,32 @@ export default function MenuSection({ t, language }) {
   const previewCategories = data.categories.slice(0, 3);
 
   return (
-    <section id="menu" className="mx-auto max-w-7xl px-6 py-20">
+    <section id="menu" className="mx-auto max-w-7xl px-6 py-24">
       <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
+          <p className="section-kicker">
             {t.menuTag}
           </p>
-          <h2 className="mt-3 text-3xl font-semibold md:text-4xl">
+          <h2 className="mt-3 text-3xl font-semibold text-[#fff4df] md:text-5xl">
             {t.menuTitle}
           </h2>
         </div>
 
-        <p className="max-w-xl text-stone-400">{t.menuText}</p>
+        <p className="max-w-xl leading-7 text-stone-400">{t.menuText}</p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-3">
-        {previewCategories.map((category) => (
+      <div className="grid gap-5 md:grid-cols-3">
+        {previewCategories.map((category, index) => (
           <div
             key={category.id}
-            className="rounded-[2rem] border border-white/10 bg-white/5 p-7 shadow-lg"
+            className="luxury-panel group rounded-[28px] p-6 transition hover:-translate-y-1 md:p-7"
           >
-            <h3 className="mb-6 text-2xl font-semibold text-amber-300">
-              {category.title}
-            </h3>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <h3 className="text-2xl font-semibold text-[#f2d39a]">
+                {category.title}
+              </h3>
+              <span className={`h-3 w-3 rounded-full ${index === 1 ? "bg-emerald-300" : index === 2 ? "bg-red-300" : "bg-[#c9a56a]"}`} />
+            </div>
 
             <div className="space-y-5">
               {category.items.slice(0, 3).map((item) => (
@@ -38,7 +41,7 @@ export default function MenuSection({ t, language }) {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <div className="text-lg font-medium text-white">
+                      <div className="text-lg font-medium text-[#fff4df]">
                         {item.name}
                       </div>
                       <div className="mt-1 text-sm text-stone-400">
@@ -49,7 +52,7 @@ export default function MenuSection({ t, language }) {
                       </div>
                     </div>
 
-                    <div className="whitespace-nowrap text-base font-semibold text-amber-300">
+                    <div className="whitespace-nowrap rounded-full border border-[#c9a56a]/20 bg-[#c9a56a]/10 px-3 py-1 text-sm font-semibold text-[#f2d39a]">
                       {item.price}
                     </div>
                   </div>

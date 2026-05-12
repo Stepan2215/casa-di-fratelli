@@ -202,9 +202,9 @@ function normalizeReservation(r) {
 
 function StatCard({ label, value, hint }) {
   return (
-    <div className="rounded-[1.6rem] border border-white/10 bg-white/[0.06] p-5 shadow-xl">
+    <div className="luxury-panel rounded-[22px] p-5">
       <div className="text-sm text-stone-400">{label}</div>
-      <div className="mt-2 text-3xl font-semibold text-white">{value}</div>
+      <div className="mt-2 text-3xl font-semibold text-[#fff4df]">{value}</div>
       {hint && <div className="mt-2 text-xs text-stone-500">{hint}</div>}
     </div>
   );
@@ -226,10 +226,10 @@ function StatusBadge({ status }) {
 
 function Panel({ title, subtitle, children, right }) {
   return (
-    <div className="rounded-[2rem] border border-white/10 bg-[#15100c] p-5 shadow-2xl md:p-6">
+    <div className="luxury-panel rounded-[26px] p-5 md:p-6">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h2 className="text-2xl font-semibold text-white">{title}</h2>
+          <h2 className="text-2xl font-semibold text-[#fff4df]">{title}</h2>
           {subtitle && <p className="mt-2 text-sm text-stone-400">{subtitle}</p>}
         </div>
         {right}
@@ -631,14 +631,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   }
 
   return (
-    <div className="min-h-screen bg-[#0f0b08] text-white">
+    <div className="luxury-shell min-h-screen text-white">
       <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
-        <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className="luxury-panel mb-8 rounded-[28px] p-6 md:p-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm uppercase tracking-[0.35em] text-amber-300">
+            <p className="section-kicker">
               Casa di Fratelli Admin OS
             </p>
-            <h1 className="mt-3 text-4xl font-semibold md:text-5xl">
+            <h1 className="mt-3 text-4xl font-semibold text-[#fff4df] md:text-5xl">
               Restaurant CRM
             </h1>
             <p className="mt-3 text-stone-400">
@@ -648,7 +648,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
           <button
             onClick={refreshActiveTab}
-            className="rounded-2xl border border-amber-300/30 bg-amber-400/10 px-5 py-3 text-sm font-medium text-amber-200 transition hover:bg-amber-400/20"
+            className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
           >
             Refresh
           </button>
@@ -665,8 +665,8 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
       onClick={() => setStatsPeriod(key)}
       className={`rounded-full px-4 py-2 text-sm transition ${
         statsPeriod === key
-          ? "bg-amber-400 text-black"
-          : "border border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
+          ? "luxury-button"
+          : "ghost-button"
       }`}
     >
       {label}
@@ -680,15 +680,15 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           <StatCard label="Blacklist" value={blacklistCount} />
         </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-2 rounded-[1.5rem] border border-white/10 bg-white/[0.04] p-2 sm:grid-cols-3 lg:flex lg:flex-wrap">
+        <div className="mb-8 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-black/20 p-2 sm:grid-cols-3 lg:flex lg:flex-wrap">
           {tabs.map(([key, label]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
               className={`rounded-2xl px-4 py-3 text-center text-sm transition ${
                 activeTab === key
-             ? "bg-amber-400 text-black"
-              : "text-white/70 hover:bg-white/10 hover:text-white"
+             ? "luxury-button"
+              : "ghost-button text-white/80"
           }`}
             >
               {label}

@@ -15,7 +15,7 @@ export default function HomePage({
   onOpenMenu,
 }) {
   return (
-    <div className="min-h-screen bg-stone-950 text-stone-100">
+    <div className="luxury-shell min-h-screen overflow-hidden text-stone-100">
       <Header
         t={t}
         language={language}

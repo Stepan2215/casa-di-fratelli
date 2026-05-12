@@ -1,9 +1,10 @@
 export default function Footer({ t }) {
   return (
-    <footer className="border-t border-white/10 px-6 py-8 text-center text-sm text-stone-400">
-      <div className="mb-2 text-xs uppercase tracking-[0.35em] text-red-400">
+    <footer className="border-t border-white/10 bg-black/20 px-6 py-10 text-center text-sm text-stone-400">
+      <div className="mb-3 text-xs uppercase tracking-[0.24em] text-[#d8b377]">
         Grill, Pizza, Pasta
       </div>
+      <div className="mx-auto mb-5 h-px max-w-sm bg-gradient-to-r from-transparent via-[#c9a56a]/40 to-transparent" />
       {t.footer}
     </footer>
   );
