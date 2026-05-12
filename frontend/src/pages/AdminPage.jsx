@@ -13,6 +13,9 @@ const emptyMenuItem = {
   notifySubscribers: false,
 };
 
+const priceHelperText =
+  "Stored in BGN. The public site converts it to EUR and rounds up to the next 10 cents.";
+
 const emptyAdminReservation = {
   guestName: "",
   phone: "",
@@ -1104,12 +1107,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     ["nameBg", "Name BG"],
                     ["nameEn", "Name EN"],
                     ["weight", "Weight"],
-                    ["price", "Price"],
+                    ["price", "Price BGN"],
                     ["category", "Category"],
                   ].map(([key, label]) => (
                     <div key={key}>
                       <label className="mb-2 block text-sm text-stone-400">{label}</label>
                       <input
+                        type={key === "price" ? "number" : "text"}
+                        step={key === "price" ? "0.01" : undefined}
                         value={menuForm[key]}
                         onChange={(e) =>
                           setMenuForm((prev) => ({
@@ -1120,6 +1125,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         required={["nameBg", "price"].includes(key)}
                         className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                       />
+                      {key === "price" && (
+                        <p className="mt-2 text-xs leading-5 text-stone-500">
+                          {priceHelperText}
+                        </p>
+                      )}
                     </div>
                   ))}
 

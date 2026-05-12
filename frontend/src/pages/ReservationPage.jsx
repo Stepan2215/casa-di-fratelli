@@ -902,7 +902,7 @@ if (bookingMode === "single") {
               )}
 
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411] shadow-2xl shadow-black/25">
-                <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full object-cover opacity-60" />
+                <img src="/restaurant-interior.webp" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full scale-[1.03] object-cover opacity-55 blur-[1px]" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="mb-2 text-xs uppercase tracking-[0.25em] text-[#d8b377]">

@@ -31,9 +31,9 @@ export default function ReservationPreviewSection({ t, onOpenReservation }) {
 
         <div className="reveal-up relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0d1511] p-3 shadow-2xl shadow-black/30">
           <img
-            src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80"
+            src="/restaurant-interior.webp"
             alt="Restaurant table"
-            className="absolute inset-0 h-full w-full object-cover opacity-35"
+            className="absolute inset-0 h-full w-full scale-[1.03] object-cover opacity-40 blur-[1px]"
           />
           <div className="relative rounded-[22px] border border-white/10 bg-black/45 p-6 backdrop-blur-md md:p-8">
             <div className="mb-4 inline-flex rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-amber-200">

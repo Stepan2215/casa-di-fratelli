@@ -1,7 +1,8 @@
 import menuPageData from "../../data/menuPageData";
+import { buildMenuDataFromCms } from "../../utils/menuUtils";
 
-export default function MenuSection({ t, language, onOpenMenu }) {
-  const data = menuPageData[language];
+export default function MenuSection({ t, language, onOpenMenu, cmsMenuItems }) {
+  const data = buildMenuDataFromCms(cmsMenuItems, language, menuPageData[language]);
 
   const previewCategories = data.categories.slice(0, 3);
 

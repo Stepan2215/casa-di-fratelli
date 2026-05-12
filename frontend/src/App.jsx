@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import ReservationPage from "./pages/ReservationPage";
 import MenuPage from "./pages/MenuPage";
 import AdminPage from "./pages/AdminPage";
+import { API_BASE_URL } from "./config/api";
 
 const safeReadStoredLanguage = () => {
   if (typeof window === "undefined") return "bg";
@@ -35,6 +36,7 @@ runSanityChecks();
 export default function App() {
   const [language, setLanguage] = React.useState(safeReadStoredLanguage);
   const [currentPage, setCurrentPage] = React.useState(getInitialPage);
+  const [cmsMenuItems, setCmsMenuItems] = React.useState([]);
 
   const t = translations[language];
 
@@ -68,6 +70,22 @@ export default function App() {
     };
   }, []);
 
+  React.useEffect(() => {
+    async function loadMenuItems() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/menu`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        setCmsMenuItems(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error("Failed to load public menu", error);
+      }
+    }
+
+    loadMenuItems();
+  }, []);
+
   if (currentPage === "admin") {
     return <AdminPage />;
   }
@@ -91,6 +109,7 @@ export default function App() {
         setLanguage={setLanguage}
         onOpenReservation={() => setCurrentPage("reservation-map")}
         onBackHome={() => setCurrentPage("home")}
+        cmsMenuItems={cmsMenuItems}
       />
     );
   }
@@ -102,6 +121,7 @@ export default function App() {
       setLanguage={setLanguage}
       onOpenReservation={() => setCurrentPage("reservation-map")}
       onOpenMenu={() => setCurrentPage("menu")}
+      cmsMenuItems={cmsMenuItems}
     />
   );
 }

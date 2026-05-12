@@ -5,6 +5,7 @@ import MenuHero from "../components/menu/MenuHero";
 import ChefHighlight from "../components/menu/ChefHighlight";
 import MenuCategorySection from "../components/menu/MenuCategorySection";
 import menuPageData from "../data/menuPageData";
+import { buildMenuDataFromCms } from "../utils/menuUtils";
 
 export default function MenuPage({
   t,
@@ -12,8 +13,12 @@ export default function MenuPage({
   setLanguage,
   onOpenReservation,
   onBackHome,
+  cmsMenuItems,
 }) {
-  const data = menuPageData[language];
+  const data = React.useMemo(
+    () => buildMenuDataFromCms(cmsMenuItems, language, menuPageData[language]),
+    [cmsMenuItems, language]
+  );
   const [activeCategory, setActiveCategory] = React.useState(
     data.categories[0]?.id || ""
   );

@@ -13,6 +13,7 @@ export default function HomePage({
   setLanguage,
   onOpenReservation,
   onOpenMenu,
+  cmsMenuItems,
 }) {
   return (
     <div className="luxury-shell min-h-screen overflow-hidden text-stone-100">
@@ -33,7 +34,12 @@ export default function HomePage({
       />
 
       <AboutSection t={t} />
-      <MenuSection t={t} language={language} onOpenMenu={onOpenMenu} />
+      <MenuSection
+        t={t}
+        language={language}
+        onOpenMenu={onOpenMenu}
+        cmsMenuItems={cmsMenuItems}
+      />
       <GallerySection t={t} />
       <ReservationPreviewSection t={t} onOpenReservation={onOpenReservation} />
       <ReviewsSection language={language} />
