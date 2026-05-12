@@ -12,22 +12,35 @@ public class MenuController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly EmailService _emailService;
+    private readonly ILogger<MenuController> _logger;
 
-    public MenuController(AppDbContext db, EmailService emailService)
+    public MenuController(
+        AppDbContext db,
+        EmailService emailService,
+        ILogger<MenuController> logger)
     {
         _db = db;
         _emailService = emailService;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var items = await _db.MenuItems
-            .OrderBy(x => x.Category)
-            .ThenBy(x => x.NameBg)
-            .ToListAsync();
+        try
+        {
+            var items = await _db.MenuItems
+                .OrderBy(x => x.Category)
+                .ThenBy(x => x.NameBg)
+                .ToListAsync();
 
-        return Ok(items);
+            return Ok(items);
+        }
+        catch (Exception error)
+        {
+            _logger.LogError(error, "Failed to load menu items.");
+            return Ok(Array.Empty<MenuItem>());
+        }
     }
 
     [HttpPost]
