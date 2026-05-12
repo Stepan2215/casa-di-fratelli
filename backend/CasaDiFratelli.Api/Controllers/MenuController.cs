@@ -29,6 +29,8 @@ public class MenuController : ControllerBase
     {
         try
         {
+            await MenuSeedData.SeedAsync(_db);
+
             var items = await _db.MenuItems
                 .OrderBy(x => x.Category)
                 .ThenBy(x => x.NameBg)
