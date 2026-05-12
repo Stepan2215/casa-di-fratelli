@@ -1,13 +1,13 @@
 import menuPageData from "../../data/menuPageData";
 
-export default function MenuSection({ t, language }) {
+export default function MenuSection({ t, language, onOpenMenu }) {
   const data = menuPageData[language];
 
   const previewCategories = data.categories.slice(0, 3);
 
   return (
     <section id="menu" className="mx-auto max-w-7xl px-6 py-24">
-      <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+      <div className="mb-12 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="section-kicker">
             {t.menuTag}
@@ -17,7 +17,16 @@ export default function MenuSection({ t, language }) {
           </h2>
         </div>
 
-        <p className="max-w-xl leading-7 text-stone-400">{t.menuText}</p>
+        <div className="max-w-xl">
+          <p className="leading-7 text-stone-400">{t.menuText}</p>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="ghost-button mt-5 rounded-full px-5 py-3 text-sm font-semibold"
+          >
+            {language === "bg" ? "Отвори цялото меню" : "Open full menu"}
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-3">
@@ -61,6 +70,16 @@ export default function MenuSection({ t, language }) {
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-8 flex justify-center">
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          className="luxury-button rounded-full px-8 py-4 text-sm font-semibold"
+        >
+          {language === "bg" ? "Виж всички категории" : "View all categories"}
+        </button>
       </div>
     </section>
   );

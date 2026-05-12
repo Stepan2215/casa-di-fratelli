@@ -7,6 +7,11 @@ export default function MenuHero({ data, onOpenReservation, language }) {
 
       <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 md:grid-cols-2 md:py-24">
         <div className="relative z-10">
+          <img
+            src="/casa-di-fratelli-logo.svg"
+            alt="Casa di Fratelli"
+            className="brand-logo mb-7 h-20 w-[260px] object-left"
+          />
           <div className="section-kicker mb-4">
             {data.heroBadge}
           </div>

@@ -15,14 +15,11 @@ export default function Header({
   onClick={onGoHome}
   className="group min-w-0 text-left transition hover:opacity-95"
 >
-  <div className="truncate text-lg font-semibold tracking-[0.06em] text-[#fff4df] md:text-2xl">
-    {t.brand}
-  </div>
-  <div className="mt-1 flex flex-wrap items-center gap-2 text-[9px] uppercase tracking-[0.22em] text-stone-400 md:text-[10px]">
-    <span>{t.subtitle}</span>
-    <span className="h-1 w-1 rounded-full bg-[#c9a56a]" />
-    <span className="text-[#d8b377]">By Sul N' Mir</span>
-  </div>
+  <img
+    src="/casa-di-fratelli-logo.svg"
+    alt={t.brand}
+    className="brand-logo h-12 w-[150px] object-left md:h-16 md:w-[210px]"
+  />
 </button>
 
           <div className="flex items-center gap-2">

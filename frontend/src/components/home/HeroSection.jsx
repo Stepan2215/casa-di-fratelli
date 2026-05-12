@@ -11,6 +11,11 @@ export default function HeroSection({ t, onOpenReservation, onOpenMenu, language
 
       <div className="relative z-10 mx-auto flex min-h-[calc(100vh-92px)] max-w-7xl items-center px-6 py-16 md:py-20">
         <div className="max-w-3xl">
+          <img
+            src="/casa-di-fratelli-logo.svg"
+            alt={t.brand}
+            className="brand-logo mb-8 h-24 w-[270px] object-left md:h-32 md:w-[390px]"
+          />
           <p className="section-kicker mb-5">
             {t.heroTag}
           </p>

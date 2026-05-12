@@ -766,6 +766,11 @@ if (bookingMode === "single") {
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="luxury-panel rounded-[28px] p-5 md:p-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
+              <img
+                src="/casa-di-fratelli-logo.svg"
+                alt="Casa di Fratelli"
+                className="brand-logo mb-4 h-16 w-[220px] object-left"
+              />
               <div className="section-kicker mb-3">
                 Luxury reservation map
               </div>

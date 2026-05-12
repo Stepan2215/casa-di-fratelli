@@ -2,7 +2,7 @@ export default function MenuCategorySection({ category, language }) {
   const featuredCount = category.items.filter((item) => item.featured).length;
 
   return (
-    <section id={category.id} className="reveal-up scroll-mt-40 md:scroll-mt-52">
+    <section id={category.id} className="reveal-up scroll-mt-44 md:scroll-mt-56">
       <div className="mb-8 overflow-hidden rounded-[28px] border border-white/10 bg-[linear-gradient(135deg,rgba(201,165,106,0.16),rgba(255,255,255,0.045)),radial-gradient(circle_at_90%_20%,rgba(52,211,153,0.14),transparent_16rem)] p-6 shadow-2xl shadow-black/20">
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>

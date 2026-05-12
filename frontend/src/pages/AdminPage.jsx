@@ -635,6 +635,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
       <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
         <div className="luxury-panel mb-8 rounded-[28px] p-6 md:p-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
           <div>
+            <img
+              src="/casa-di-fratelli-logo.svg"
+              alt="Casa di Fratelli"
+              className="brand-logo mb-5 h-16 w-[220px] object-left"
+            />
             <p className="section-kicker">
               Casa di Fratelli Admin OS
             </p>

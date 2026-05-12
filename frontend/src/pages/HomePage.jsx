@@ -33,7 +33,7 @@ export default function HomePage({
       />
 
       <AboutSection t={t} />
-      <MenuSection t={t} language={language} />
+      <MenuSection t={t} language={language} onOpenMenu={onOpenMenu} />
       <GallerySection t={t} />
       <ReservationPreviewSection t={t} onOpenReservation={onOpenReservation} />
       <ReviewsSection language={language} />
