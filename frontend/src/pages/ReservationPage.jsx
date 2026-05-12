@@ -56,18 +56,10 @@ const gardenGroups = [
 
 const groupableIndoorIds = ["5", "6", "20", "21", "22", "23", "28", "29"];
 
-const reservationTimes = [
-  "17:30",
-  "18:00",
-  "18:30",
-  "19:00",
-  "19:30",
-  "20:00",
-  "20:30",
-  "21:00",
-  "21:30",
-  "22:00",
-];
+const reservationTimes = Array.from({ length: 13 }, (_, index) => {
+  const hour = 10 + index;
+  return `${String(hour).padStart(2, "0")}:00`;
+});
 
 function getTodayInputValue() {
   const now = new Date();
@@ -436,7 +428,7 @@ function BookingModal({
 
             <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
               <label className="mb-2 block text-sm text-amber-100">
-                {language === "bg" ? "Дата на раждане" : "Date of birth"}
+                {language === "bg" ? "Дата на раждане (опционално)" : "Date of birth (optional)"}
               </label>
               <div className="relative">
                 <input
@@ -474,6 +466,17 @@ function BookingModal({
                   {language === "bg"
                     ? "Съгласявам се да получавам нови предложения и оферти по имейл."
                     : "I agree to receive offers and promotions by email."}
+                </span>
+              </label>
+            </div>
+
+            <div className="sm:col-span-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
+              <label className="flex items-start gap-3 text-sm leading-6 text-stone-200">
+                <input name="privacyConsent" type="checkbox" required className="mt-1" />
+                <span>
+                  {language === "bg"
+                    ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията. Политика за поверителност: използваме данните само за потвърждение, обслужване на резервацията и, ако сте отметнали, за оферти."
+                    : "I agree that Casa di Fratelli may process my data for this reservation. Privacy policy: we use the data only to confirm and manage the reservation and, if checked, to send offers."}
                 </span>
               </label>
             </div>
@@ -687,6 +690,7 @@ if (bookingMode === "single") {
       email: String(formData.get("email") || ""),
       birthDate: String(formData.get("birthDate") || "") || null,
       marketingConsent: formData.get("marketingConsent") === "on",
+      privacyConsent: formData.get("privacyConsent") === "on",
       guestCount: Number(guestCount || 0),
       area: selectedArea,
       reservedTime: selectedTime,
@@ -845,6 +849,36 @@ if (bookingMode === "single") {
                     }}
                     className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   />
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {[
+                      [today, language === "bg" ? "Днес" : "Today"],
+                      [
+                        (() => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(tomorrow.getDate()).padStart(2, "0")}`;
+                        })(),
+                        language === "bg" ? "Утре" : "Tomorrow",
+                      ],
+                    ].map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setReservationDate(value);
+                          setSelectedTime("");
+                          setSelectedTables([]);
+                        }}
+                        className={`rounded-xl px-3 py-2 text-sm transition ${
+                          reservationDate === value
+                            ? "luxury-button"
+                            : "border border-white/10 bg-white/[0.04] text-white/70 hover:border-[#c9a56a]/40"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>

@@ -102,7 +102,7 @@ export default function BookingModal({
 
           <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
             <label className="mb-2 block text-sm text-amber-100">
-              {language === "bg" ? "Дата на раждане" : "Date of birth"}
+              {language === "bg" ? "Дата на раждане (опционално)" : "Date of birth (optional)"}
             </label>
             <input
               name="birthDate"
@@ -139,6 +139,22 @@ export default function BookingModal({
                 {language === "bg"
                   ? "Съгласявам се да получавам нови предложения, сезонни менюта и специални оферти от Casa di Fratelli по имейл."
                   : "I agree to receive new offers, seasonal menus, and special promotions from Casa di Fratelli by email."}
+              </span>
+            </label>
+          </div>
+
+          <div className="sm:col-span-2 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 p-4">
+            <label className="flex items-start gap-3 text-sm leading-6 text-stone-200">
+              <input
+                name="privacyConsent"
+                type="checkbox"
+                required
+                className="mt-1 h-4 w-4 rounded border-white/20 bg-stone-900"
+              />
+              <span>
+                {language === "bg"
+                  ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията. Данните се използват за потвърждение и обслужване на резервацията."
+                  : "I agree that Casa di Fratelli may process my data for this reservation. The data is used to confirm and manage the reservation."}
               </span>
             </label>
           </div>

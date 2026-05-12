@@ -107,6 +107,7 @@ public class MenuController : ControllerBase
         item.Price = updated.Price;
         item.Category = updated.Category;
         item.IsActive = updated.IsActive;
+        item.NotifySubscribers = updated.NotifySubscribers;
         item.UpdatedAtUtc = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();

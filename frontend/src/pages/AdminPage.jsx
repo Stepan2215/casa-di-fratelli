@@ -191,7 +191,7 @@ const emptyAdminReservation = {
 const emptyHallBlock = {
   area: "indoor",
   reservedDate: "",
-  startTime: "17:30",
+  startTime: "10:00",
   endTime: "22:00",
   note: "",
 };
@@ -248,8 +248,56 @@ const areaTableIds = {
   all: [...indoorTableIds, ...gardenTableIds],
 };
 
+const adminReservationTimes = Array.from({ length: 13 }, (_, index) => {
+  const hour = 10 + index;
+  return `${String(hour).padStart(2, "0")}:00`;
+});
+
+const gardenGroups = [
+  ["42", "43", "44", "45"],
+  ["38", "39", "40", "41"],
+  ["34", "35", "36", "37"],
+  ["30", "31", "32", "33"],
+];
+
+const gardenSpecialIds = ["30A", "34A", "45A"];
+const indoorCombinationGroups = [
+  ["5", "6"],
+  ["20", "21", "22", "23"],
+  ["28", "29"],
+];
+
 function getValue(item, key) {
   return item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
+}
+
+function isContinuousGroup(group, tableIds) {
+  const indexes = tableIds
+    .map((id) => group.indexOf(id))
+    .sort((aIndex, bIndex) => aIndex - bIndex);
+
+  if (indexes.some((index) => index < 0)) return false;
+
+  for (let index = 1; index < indexes.length; index += 1) {
+    if (indexes[index] - indexes[index - 1] !== 1) return false;
+  }
+
+  return true;
+}
+
+function canUseAdminTableSelection(area, tableIds) {
+  const uniqueTableIds = [...new Set(tableIds.filter(Boolean))];
+
+  if (uniqueTableIds.length <= 1) return true;
+
+  if (area === "garden") {
+    if (uniqueTableIds.some((id) => gardenSpecialIds.includes(id))) return false;
+    return gardenGroups.some((group) =>
+      uniqueTableIds.every((id) => group.includes(id)) && isContinuousGroup(group, uniqueTableIds)
+    );
+  }
+
+  return indoorCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
 }
 
 function buildTimeRange(startTime, endTime) {
@@ -272,7 +320,7 @@ function buildTimeRange(startTime, endTime) {
 
   const times = [];
 
-  for (let value = start; value <= end; value += 30) {
+  for (let value = start; value <= end; value += 60) {
     times.push(fromMinutes(value));
   }
 
@@ -314,15 +362,19 @@ function TableChipSelector({ area, selectedTableIds, onToggle }) {
     <div className="flex flex-wrap gap-2">
       {tableIds.map((tableId) => {
         const selected = selectedTableIds.includes(tableId);
+        const allowed = selected || canUseAdminTableSelection(area, [...selectedTableIds, tableId]);
 
         return (
           <button
             key={tableId}
             type="button"
+            disabled={!allowed}
             onClick={() => onToggle(tableId)}
             className={`rounded-xl border px-3 py-2 text-xs transition ${
               selected
                 ? "border-amber-300 bg-amber-400 text-black"
+                : !allowed
+                ? "cursor-not-allowed border-white/5 bg-black/10 text-white/25"
                 : "border-white/10 bg-black/20 text-white/65 hover:border-amber-300/50 hover:text-white"
             }`}
           >
@@ -352,6 +404,7 @@ function normalizeReservation(r) {
     createdAtUtc: getValue(r, "createdAtUtc"),
     birthDate: getValue(r, "birthDate"),
     marketingConsent: Boolean(getValue(r, "marketingConsent")),
+    privacyConsent: Boolean(getValue(r, "privacyConsent")),
     isBlacklisted: Boolean(getValue(r, "isBlacklisted")),
     isRegularCustomer: Boolean(getValue(r, "isRegularCustomer")),
     isNoShow: Boolean(getValue(r, "isNoShow")),
@@ -416,6 +469,7 @@ export default function AdminPage() {
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
   const [tableEdits, setTableEdits] = React.useState({});
+  const [noteEdits, setNoteEdits] = React.useState({});
   const [hallBlock, setHallBlock] = React.useState(emptyHallBlock);
   const [adminNotice, setAdminNotice] = React.useState("");
   const [adminError, setAdminError] = React.useState("");
@@ -516,16 +570,59 @@ export default function AdminPage() {
 
   function toggleTableEdit(reservation, tableId) {
     const current = getTableEdit(reservation);
+    const exists = current.tableIds.includes(tableId);
+    const nextTableIds = exists
+      ? current.tableIds.filter((id) => id !== tableId)
+      : [...current.tableIds, tableId];
+
+    if (!canUseAdminTableSelection(current.area, nextTableIds)) {
+      return;
+    }
 
     setTableEdits((prev) => ({
       ...prev,
       [reservation.id]: {
         ...current,
-        tableIds: current.tableIds.includes(tableId)
-          ? current.tableIds.filter((id) => id !== tableId)
-          : [...current.tableIds, tableId],
+        tableIds: nextTableIds,
       },
     }));
+  }
+
+  function getNoteEdit(reservation) {
+    return noteEdits[reservation.id] ?? reservation.internalNote ?? "";
+  }
+
+  function setNoteEdit(reservation, value) {
+    setNoteEdits((prev) => ({
+      ...prev,
+      [reservation.id]: value,
+    }));
+  }
+
+  async function saveReservationNote(reservation) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/note`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        internalNote: getNoteEdit(reservation),
+      }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to update admin note."));
+      return;
+    }
+
+    setNoteEdits((prev) => {
+      const next = { ...prev };
+      delete next[reservation.id];
+      return next;
+    });
+    setAdminNotice("Admin note updated.");
+    await loadReservations();
   }
 
   async function saveReservationTables(reservation) {
@@ -1000,7 +1097,21 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   {a.reservations.notes}
                                 </div>
                                 <div className="mt-3 text-sm text-stone-300">{a.reservations.client}: {r.notes || "—"}</div>
-                                <div className="mt-2 text-sm text-stone-300">{a.reservations.internal}: {r.internalNote || "—"}</div>
+                                <label className="mt-3 block text-xs text-stone-500">{a.reservations.internal}</label>
+                                <textarea
+                                  value={getNoteEdit(r)}
+                                  onChange={(event) => setNoteEdit(r, event.target.value)}
+                                  rows={3}
+                                  className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+                                  placeholder={adminLanguage === "bg" ? "Вътрешна бележка за екипа..." : "Internal note for the team..."}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => saveReservationNote(r)}
+                                  className="ghost-button mt-3 rounded-xl px-4 py-2 text-xs font-semibold"
+                                >
+                                  {adminLanguage === "bg" ? "Запази бележка" : "Save note"}
+                                </button>
                               </div>
 
                               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -1010,6 +1121,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 <div className="mt-3 text-sm text-stone-300">Blacklist: {r.isBlacklisted ? "Yes" : "No"}</div>
                                 <div className="mt-2 text-sm text-stone-300">Regular: {r.isRegularCustomer ? "Yes" : "No"}</div>
                                 <div className="mt-2 text-sm text-stone-300">Marketing: {r.marketingConsent ? "Yes" : "No"}</div>
+                                <div className="mt-2 text-sm text-stone-300">Privacy: {r.privacyConsent ? "Yes" : "No"}</div>
                               </div>
                             </div>
 
@@ -1179,9 +1291,21 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                       <div className="mt-3 text-sm text-stone-300">
                                         {a.reservations.client}: {r.notes || "—"}
                                       </div>
-                                      <div className="mt-2 text-sm text-stone-300">
-                                        {a.reservations.internal}: {r.internalNote || "—"}
-                                      </div>
+                                      <label className="mt-3 block text-xs text-stone-500">{a.reservations.internal}</label>
+                                      <textarea
+                                        value={getNoteEdit(r)}
+                                        onChange={(event) => setNoteEdit(r, event.target.value)}
+                                        rows={3}
+                                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none focus:border-amber-300"
+                                        placeholder={adminLanguage === "bg" ? "Вътрешна бележка за екипа..." : "Internal note for the team..."}
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => saveReservationNote(r)}
+                                        className="ghost-button mt-3 rounded-xl px-4 py-2 text-xs font-semibold"
+                                      >
+                                        {adminLanguage === "bg" ? "Запази бележка" : "Save note"}
+                                      </button>
                                     </div>
 
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
@@ -1196,6 +1320,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                       </div>
                                       <div className="mt-2 text-sm text-stone-300">
                                         Marketing: {r.marketingConsent ? "Yes" : "No"}
+                                      </div>
+                                      <div className="mt-2 text-sm text-stone-300">
+                                        Privacy: {r.privacyConsent ? "Yes" : "No"}
                                       </div>
                                     </div>
                                   </div>
@@ -1270,18 +1397,39 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   ].map(([key, label]) => (
                     <div key={key}>
                       <label className="mb-2 block text-sm text-stone-400">{label}</label>
-                      <input
-                        type={key === "reservedDate" ? "date" : key === "guestCount" ? "number" : "text"}
-                        value={adminReservation[key]}
-                        onChange={(e) =>
-                          setAdminReservation((prev) => ({
-                            ...prev,
-                            [key]: e.target.value,
-                          }))
-                        }
-                        required={["phone", "reservedDate", "reservedTime", "guestCount", "tableIds"].includes(key)}
-                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                      />
+                      {key === "reservedTime" ? (
+                        <select
+                          value={adminReservation.reservedTime}
+                          onChange={(e) =>
+                            setAdminReservation((prev) => ({
+                              ...prev,
+                              reservedTime: e.target.value,
+                            }))
+                          }
+                          required
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        >
+                          <option value="">Select time</option>
+                          {adminReservationTimes.map((time) => (
+                            <option key={time} value={time}>
+                              {time}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={key === "reservedDate" ? "date" : key === "guestCount" ? "number" : "text"}
+                          value={adminReservation[key]}
+                          onChange={(e) =>
+                            setAdminReservation((prev) => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          required={["phone", "reservedDate", "guestCount", "tableIds"].includes(key)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      )}
                     </div>
                   ))}
 
@@ -1366,9 +1514,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
                   <div>
                     <label className="mb-2 block text-sm text-stone-400">From</label>
-                    <input
-                      type="time"
-                      step="1800"
+                    <select
                       value={hallBlock.startTime}
                       onChange={(e) =>
                         setHallBlock((prev) => ({
@@ -1378,14 +1524,18 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       }
                       required
                       className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
+                    >
+                      {adminReservationTimes.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
                     <label className="mb-2 block text-sm text-stone-400">To</label>
-                    <input
-                      type="time"
-                      step="1800"
+                    <select
                       value={hallBlock.endTime}
                       onChange={(e) =>
                         setHallBlock((prev) => ({
@@ -1395,7 +1545,13 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       }
                       required
                       className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
+                    >
+                      {adminReservationTimes.map((time) => (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="md:col-span-4">

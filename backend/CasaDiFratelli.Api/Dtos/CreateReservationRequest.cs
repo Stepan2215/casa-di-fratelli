@@ -18,6 +18,7 @@ public class CreateReservationRequest
 
     public DateOnly? BirthDate { get; set; }
     public bool MarketingConsent { get; set; }
+    public bool PrivacyConsent { get; set; }
 
     public bool CreatedByAdmin { get; set; } = false;
     public string? InternalNote { get; set; }

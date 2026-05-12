@@ -119,6 +119,7 @@ private static object ConflictResponse(TableConflict conflict)
                 x.ReservedTime,
                 x.BirthDate,
                 x.MarketingConsent,
+                x.PrivacyConsent,
                 x.Notes,
                 x.CreatedByAdmin,
                 x.InternalNote,
@@ -169,6 +170,9 @@ private static object ConflictResponse(TableConflict conflict)
         if (request.TableIds is null || request.TableIds.Count == 0)
             return BadRequest("At least one table must be selected.");
 
+        if (!request.CreatedByAdmin && !request.PrivacyConsent)
+            return BadRequest("Privacy policy consent is required.");
+
         var tableIds = NormalizeTableIds(request.TableIds);
 
         if (tableIds.Count == 0)
@@ -192,6 +196,7 @@ private static object ConflictResponse(TableConflict conflict)
             ReservedTime = request.ReservedTime,
             BirthDate = request.BirthDate,
             MarketingConsent = request.MarketingConsent,
+            PrivacyConsent = request.CreatedByAdmin || request.PrivacyConsent,
             Notes = request.Notes,
             Status = "Pending",
             CreatedAtUtc = DateTime.UtcNow,
@@ -291,6 +296,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             reservation.ReservedTime,
             reservation.BirthDate,
             reservation.MarketingConsent,
+            reservation.PrivacyConsent,
             reservation.Notes,
             reservation.Status,
             reservation.CreatedAtUtc,
@@ -395,6 +401,27 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             reservation.Id,
             reservation.Area,
             TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
+        });
+    }
+
+    [HttpPatch("{id}/note")]
+    public async Task<IActionResult> UpdateNote(int id, [FromBody] UpdateReservationNoteRequest request)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+
+        if (reservation == null)
+            return NotFound();
+
+        reservation.InternalNote = string.IsNullOrWhiteSpace(request.InternalNote)
+            ? null
+            : request.InternalNote.Trim();
+
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            reservation.Id,
+            reservation.InternalNote
         });
     }
 

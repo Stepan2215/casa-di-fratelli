@@ -33,6 +33,8 @@ public class Reservation
 
     public bool MarketingConsent { get; set; } = false;
 
+    public bool PrivacyConsent { get; set; } = false;
+
     public bool CreatedByAdmin { get; set; } = false;
 
     public string? InternalNote { get; set; }
