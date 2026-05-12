@@ -79,7 +79,9 @@ export default function App() {
         const data = await response.json();
         setCmsMenuItems(Array.isArray(data) ? data : []);
       } catch (error) {
-        console.error("Failed to load public menu", error);
+        if (import.meta.env.DEV) {
+          console.warn("Using fallback menu because public menu failed to load.", error);
+        }
       }
     }
 
