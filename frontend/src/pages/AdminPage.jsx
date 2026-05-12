@@ -16,6 +16,165 @@ const emptyMenuItem = {
 const priceHelperText =
   "Stored in BGN. The public site converts it to EUR and rounds up to the next 10 cents.";
 
+const adminText = {
+  bg: {
+    appTitle: "Restaurant CRM",
+    appSubtitle: "Резервации, меню, клиенти, blacklist и маркетинг в една система.",
+    refresh: "Обнови",
+    language: "Език",
+    stats: {
+      today: "Днес",
+      week: "Седмица",
+      month: "Месец",
+      year: "Година",
+      allReservations: "Всички резервации",
+      pending: "Чакащи",
+      approved: "Потвърдени",
+      blacklist: "Blacklist",
+    },
+    tabs: {
+      reservations: "Резервации",
+      create: "Нова резервация",
+      block: "Блокирай зала",
+      menu: "Меню",
+      blacklist: "Blacklist",
+      customers: "Клиенти",
+    },
+    reservations: {
+      title: "Резервации",
+      subtitle: "Компактен CRM изглед. На телефон се вижда най-важното, а детайлите се отварят с докосване.",
+      search: "Търси име, телефон, имейл, маса...",
+      guest: "Гост",
+      date: "Дата",
+      time: "Час",
+      tables: "Маси",
+      guests: "Гости",
+      status: "Статус",
+      actions: "Действия",
+      approve: "Потвърди",
+      cancel: "Откажи",
+      noShow: "No-show",
+      contact: "Контакт",
+      phone: "Телефон",
+      email: "Имейл",
+      birthday: "Рожден ден",
+      notes: "Бележки",
+      client: "Клиент",
+      internal: "Вътрешна",
+      flags: "Маркери",
+      changeTables: "Смяна на маси",
+      changeTablesHint: "Запазването проверява потвърдени резервации с 60 минути буфер.",
+      saveTables: "Запази масите",
+      sourceAdmin: "Admin",
+      sourceWebsite: "Сайт",
+      open: "Детайли",
+      close: "Скрий",
+    },
+    menu: {
+      title: "Меню CMS",
+      subtitle: "Списък, редакция и добавяне на ястия. Сайтът взима тези данни автоматично.",
+      list: "Списък ястия",
+      add: "Добави ястие",
+      edit: "Редакция",
+      addTitle: "Добави ново ястие",
+      editTitle: "Редактирай ястие",
+      nameBg: "Име BG",
+      nameEn: "Име EN",
+      weight: "Грамаж",
+      price: "Цена BGN",
+      category: "Категория",
+      descriptionBg: "Състав / описание BG",
+      descriptionEn: "Ingredients / description EN",
+      active: "Активно в сайта",
+      notify: "Изпрати към абонати",
+      saveAdd: "Добави ястие",
+      saveEdit: "Запази промени",
+      cancelEdit: "Назад към списъка",
+      delete: "Изтрий",
+      empty: "Още няма ястия в CMS.",
+      priceHelp: "Цената се пази в лева. Публичният сайт я обръща в евро и закръгля нагоре до 10 цента.",
+    },
+  },
+  en: {
+    appTitle: "Restaurant CRM",
+    appSubtitle: "Reservations, menu, guests, blacklist, and marketing in one system.",
+    refresh: "Refresh",
+    language: "Language",
+    stats: {
+      today: "Today",
+      week: "Week",
+      month: "Month",
+      year: "Year",
+      allReservations: "All reservations",
+      pending: "Pending",
+      approved: "Approved",
+      blacklist: "Blacklist",
+    },
+    tabs: {
+      reservations: "Reservations",
+      create: "Create",
+      block: "Block hall",
+      menu: "Menu",
+      blacklist: "Blacklist",
+      customers: "Customers",
+    },
+    reservations: {
+      title: "Reservations",
+      subtitle: "Compact CRM view. Phones show the essentials, then open full details on tap.",
+      search: "Search name, phone, email, table...",
+      guest: "Guest",
+      date: "Date",
+      time: "Time",
+      tables: "Tables",
+      guests: "Guests",
+      status: "Status",
+      actions: "Actions",
+      approve: "Approve",
+      cancel: "Cancel",
+      noShow: "No-show",
+      contact: "Contact",
+      phone: "Phone",
+      email: "Email",
+      birthday: "Birthday",
+      notes: "Notes",
+      client: "Client",
+      internal: "Internal",
+      flags: "Flags",
+      changeTables: "Change tables",
+      changeTablesHint: "Saving checks approved reservations with a 60 minute buffer.",
+      saveTables: "Save tables",
+      sourceAdmin: "Admin",
+      sourceWebsite: "Website",
+      open: "Details",
+      close: "Hide",
+    },
+    menu: {
+      title: "Menu CMS",
+      subtitle: "Browse, edit, and add dishes. The public site pulls these items automatically.",
+      list: "Dish list",
+      add: "Add dish",
+      edit: "Edit",
+      addTitle: "Add new dish",
+      editTitle: "Edit dish",
+      nameBg: "Name BG",
+      nameEn: "Name EN",
+      weight: "Weight",
+      price: "Price BGN",
+      category: "Category",
+      descriptionBg: "Ingredients / description BG",
+      descriptionEn: "Ingredients / description EN",
+      active: "Active on site",
+      notify: "Notify subscribers",
+      saveAdd: "Add dish",
+      saveEdit: "Save changes",
+      cancelEdit: "Back to list",
+      delete: "Delete",
+      empty: "No dishes in the CMS yet.",
+      priceHelp: priceHelperText,
+    },
+  },
+};
+
 const emptyAdminReservation = {
   guestName: "",
   phone: "",
@@ -244,6 +403,7 @@ function Panel({ title, subtitle, children, right }) {
 
 export default function AdminPage() {
   const [activeTab, setActiveTab] = React.useState("reservations");
+  const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
   const [menuItems, setMenuItems] = React.useState([]);
   const [blacklist, setBlacklist] = React.useState([]);
@@ -251,6 +411,7 @@ export default function AdminPage() {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
   const [expandedId, setExpandedId] = React.useState(null);
+  const [menuMode, setMenuMode] = React.useState("list");
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
@@ -432,6 +593,7 @@ export default function AdminPage() {
 
     setMenuForm(emptyMenuItem);
     setEditingMenuId(null);
+    setMenuMode("list");
     await loadMenuItems();
   }
 
@@ -610,13 +772,15 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     }, {})
   ).sort((a, b) => b.count - a.count);
 
+  const a = adminText[adminLanguage];
+
   const tabs = [
-    ["reservations", "Reservations"],
-    ["create", "Create"],
-    ["block", "Block hall"],
-    ["menu", "Menu"],
-    ["blacklist", "Blacklist"],
-    ["customers", "Customers"],
+    ["reservations", a.tabs.reservations],
+    ["create", a.tabs.create],
+    ["block", a.tabs.block],
+    ["menu", a.tabs.menu],
+    ["blacklist", a.tabs.blacklist],
+    ["customers", a.tabs.customers],
   ];
 
   async function refreshActiveTab() {
@@ -647,26 +811,44 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
               Casa di Fratelli Admin OS
             </p>
             <h1 className="mt-3 text-4xl font-semibold text-[#fff4df] md:text-5xl">
-              Restaurant CRM
+              {a.appTitle}
             </h1>
             <p className="mt-3 text-stone-400">
-              Резервации, меню, клиенти, blacklist и маркетинг в една система.
+              {a.appSubtitle}
             </p>
           </div>
 
-          <button
-            onClick={refreshActiveTab}
-            className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
-          >
-            Refresh
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+              {["bg", "en"].map((lang) => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => setAdminLanguage(lang)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    adminLanguage === lang ? "luxury-button" : "text-white/70 hover:text-white"
+                  }`}
+                  aria-label={`${a.language}: ${lang.toUpperCase()}`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={refreshActiveTab}
+              className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
+            >
+              {a.refresh}
+            </button>
+          </div>
         </div>
         <div className="mb-4 flex flex-wrap gap-2">
   {[
-    ["today", "Today"],
-    ["week", "Week"],
-    ["month", "Month"],
-    ["year", "Year"],
+    ["today", a.stats.today],
+    ["week", a.stats.week],
+    ["month", a.stats.month],
+    ["year", a.stats.year],
   ].map(([key, label]) => (
     <button
       key={key}
@@ -682,10 +864,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   ))}
 </div>
         <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <StatCard label="All reservations" value={statsReservations.length} />
-          <StatCard label="Pending" value={pendingCount} />
-          <StatCard label="Approved" value={approvedCount} />
-          <StatCard label="Blacklist" value={blacklistCount} />
+          <StatCard label={a.stats.allReservations} value={statsReservations.length} />
+          <StatCard label={a.stats.pending} value={pendingCount} />
+          <StatCard label={a.stats.approved} value={approvedCount} />
+          <StatCard label={a.stats.blacklist} value={blacklistCount} />
         </div>
 
         <div className="mb-8 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-black/20 p-2 sm:grid-cols-3 lg:flex lg:flex-wrap">
@@ -722,14 +904,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           <>
             {activeTab === "reservations" && (
               <Panel
-                title="Reservations"
-                subtitle="Основен екран с компактна таблица и детайли при отваряне."
+                title={a.reservations.title}
+                subtitle={a.reservations.subtitle}
                 right={
                   <div className="flex flex-col gap-3 md:flex-row">
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search name, phone, email, table..."
+                      placeholder={a.reservations.search}
                       className="rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none placeholder:text-white/35 focus:border-amber-300"
                     />
 
@@ -746,17 +928,164 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 }
               >
-                <div className="overflow-x-auto">
+                <div className="grid gap-3 lg:hidden">
+                  {filteredReservations.map((r) => {
+                    const expanded = expandedId === r.id;
+                    const tableEdit = getTableEdit(r);
+
+                    return (
+                      <article
+                        key={r.id}
+                        className={`rounded-[24px] border p-4 transition ${
+                          r.isBlacklisted
+                            ? "border-yellow-400/25 bg-yellow-500/10"
+                            : r.isRegularCustomer
+                            ? "border-emerald-400/20 bg-emerald-500/10"
+                            : "border-white/10 bg-white/[0.04]"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(expanded ? null : r.id)}
+                          className="w-full text-left"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-lg font-semibold text-white">{r.guestName}</div>
+                              <div className="mt-1 text-xs text-stone-500">
+                                #{r.id} · {r.createdByAdmin ? a.reservations.sourceAdmin : a.reservations.sourceWebsite}
+                              </div>
+                            </div>
+                            <StatusBadge status={r.status} />
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
+                            <div className="rounded-2xl bg-black/20 p-3">
+                              <div className="text-xs text-stone-500">{a.reservations.date}</div>
+                              <div className="mt-1 text-white">{r.reservedDate}</div>
+                            </div>
+                            <div className="rounded-2xl bg-black/20 p-3">
+                              <div className="text-xs text-stone-500">{a.reservations.time}</div>
+                              <div className="mt-1 text-white">{r.reservedTime}</div>
+                            </div>
+                            <div className="rounded-2xl bg-black/20 p-3">
+                              <div className="text-xs text-stone-500">{a.reservations.guests}</div>
+                              <div className="mt-1 text-white">{r.guestCount}</div>
+                            </div>
+                            <div className="rounded-2xl bg-black/20 p-3">
+                              <div className="text-xs text-stone-500">{a.reservations.tables}</div>
+                              <div className="mt-1 truncate text-white">{r.tableIds.join(", ")}</div>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 text-right text-xs uppercase tracking-[0.22em] text-[#d8b377]">
+                            {expanded ? a.reservations.close : a.reservations.open}
+                          </div>
+                        </button>
+
+                        {expanded && (
+                          <div className="mt-4 border-t border-white/10 pt-4">
+                            <div className="grid gap-3 md:grid-cols-3">
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-xs uppercase tracking-[0.22em] text-amber-300">
+                                  {a.reservations.contact}
+                                </div>
+                                <div className="mt-3 text-sm text-stone-300">{a.reservations.phone}: {r.phone}</div>
+                                <div className="mt-2 text-sm text-stone-300">{a.reservations.email}: {r.email || "—"}</div>
+                                <div className="mt-2 text-sm text-stone-300">{a.reservations.birthday}: {r.birthDate || "—"}</div>
+                              </div>
+
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-xs uppercase tracking-[0.22em] text-amber-300">
+                                  {a.reservations.notes}
+                                </div>
+                                <div className="mt-3 text-sm text-stone-300">{a.reservations.client}: {r.notes || "—"}</div>
+                                <div className="mt-2 text-sm text-stone-300">{a.reservations.internal}: {r.internalNote || "—"}</div>
+                              </div>
+
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-xs uppercase tracking-[0.22em] text-amber-300">
+                                  {a.reservations.flags}
+                                </div>
+                                <div className="mt-3 text-sm text-stone-300">Blacklist: {r.isBlacklisted ? "Yes" : "No"}</div>
+                                <div className="mt-2 text-sm text-stone-300">Regular: {r.isRegularCustomer ? "Yes" : "No"}</div>
+                                <div className="mt-2 text-sm text-stone-300">Marketing: {r.marketingConsent ? "Yes" : "No"}</div>
+                              </div>
+                            </div>
+
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              <button
+                                onClick={() => updateStatus(r.id, "approve")}
+                                disabled={r.status === "Approved"}
+                                className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
+                              >
+                                {a.reservations.approve}
+                              </button>
+                              <button
+                                onClick={() => updateStatus(r.id, "cancel")}
+                                disabled={r.status === "Cancelled"}
+                                className="rounded-xl bg-red-500 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
+                              >
+                                {a.reservations.cancel}
+                              </button>
+                              <button
+                                onClick={() => addToBlacklist(r)}
+                                className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-3 py-2 text-xs font-medium text-yellow-200"
+                              >
+                                {a.reservations.noShow}
+                              </button>
+                            </div>
+
+                            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/5 p-4">
+                              <div className="text-xs uppercase tracking-[0.22em] text-amber-300">
+                                {a.reservations.changeTables}
+                              </div>
+                              <p className="mt-2 text-sm text-stone-400">{a.reservations.changeTablesHint}</p>
+                              <div className="mt-4 flex flex-col gap-2 md:flex-row">
+                                <select
+                                  value={tableEdit.area}
+                                  onChange={(e) => setTableEditArea(r, e.target.value)}
+                                  disabled={r.status === "Cancelled"}
+                                  className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                >
+                                  <option value="indoor">Hall / Non-smoking</option>
+                                  <option value="garden">Terrace / Smoking</option>
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => saveReservationTables(r)}
+                                  disabled={r.status === "Cancelled" || tableEdit.tableIds.length === 0}
+                                  className="rounded-2xl bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:opacity-40"
+                                >
+                                  {a.reservations.saveTables}
+                                </button>
+                              </div>
+                              <div className="mt-4">
+                                <TableChipSelector
+                                  area={tableEdit.area}
+                                  selectedTableIds={tableEdit.tableIds}
+                                  onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+
+                <div className="hidden overflow-x-auto lg:block">
                   <table className="w-full min-w-[950px] text-left text-sm">
                     <thead className="text-stone-400">
                       <tr className="border-b border-white/10">
-                        <th className="p-4">Guest</th>
-                        <th className="p-4">Date</th>
-                        <th className="p-4">Time</th>
-                        <th className="p-4">Tables</th>
-                        <th className="p-4">Guests</th>
-                        <th className="p-4">Status</th>
-                        <th className="p-4">Actions</th>
+                        <th className="p-4">{a.reservations.guest}</th>
+                        <th className="p-4">{a.reservations.date}</th>
+                        <th className="p-4">{a.reservations.time}</th>
+                        <th className="p-4">{a.reservations.tables}</th>
+                        <th className="p-4">{a.reservations.guests}</th>
+                        <th className="p-4">{a.reservations.status}</th>
+                        <th className="p-4">{a.reservations.actions}</th>
                       </tr>
                     </thead>
 
@@ -783,7 +1112,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 >
                                   <div className="font-medium text-white">{r.guestName}</div>
                                   <div className="mt-1 text-xs text-stone-500">
-                                    #{r.id} {r.createdByAdmin ? "· Admin" : "· Website"}
+                                    #{r.id} · {r.createdByAdmin ? a.reservations.sourceAdmin : a.reservations.sourceWebsite}
                                   </div>
                                 </button>
                               </td>
@@ -803,7 +1132,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                     disabled={r.status === "Approved"}
                                     className="rounded-xl bg-emerald-500 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
                                   >
-                                    Approve
+                                    {a.reservations.approve}
                                   </button>
 
                                   <button
@@ -811,14 +1140,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                     disabled={r.status === "Cancelled"}
                                     className="rounded-xl bg-red-500 px-3 py-2 text-xs font-medium text-white disabled:opacity-40"
                                   >
-                                    Cancel
+                                    {a.reservations.cancel}
                                   </button>
 
                                   <button
                                     onClick={() => addToBlacklist(r)}
                                     className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-3 py-2 text-xs font-medium text-yellow-200"
                                   >
-                                    No-show
+                                    {a.reservations.noShow}
                                   </button>
                                 </div>
                               </td>
@@ -830,34 +1159,34 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   <div className="grid gap-4 md:grid-cols-3">
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                                       <div className="text-xs uppercase tracking-[0.25em] text-amber-300">
-                                        Contact
+                                        {a.reservations.contact}
                                       </div>
                                       <div className="mt-3 text-sm text-stone-300">
-                                        Phone: {r.phone}
+                                        {a.reservations.phone}: {r.phone}
                                       </div>
                                       <div className="mt-2 text-sm text-stone-300">
-                                        Email: {r.email || "—"}
+                                        {a.reservations.email}: {r.email || "—"}
                                       </div>
                                       <div className="mt-2 text-sm text-stone-300">
-                                        Birthday: {r.birthDate || "—"}
+                                        {a.reservations.birthday}: {r.birthDate || "—"}
                                       </div>
                                     </div>
 
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                                       <div className="text-xs uppercase tracking-[0.25em] text-amber-300">
-                                        Notes
+                                        {a.reservations.notes}
                                       </div>
                                       <div className="mt-3 text-sm text-stone-300">
-                                        Client: {r.notes || "—"}
+                                        {a.reservations.client}: {r.notes || "—"}
                                       </div>
                                       <div className="mt-2 text-sm text-stone-300">
-                                        Internal: {r.internalNote || "—"}
+                                        {a.reservations.internal}: {r.internalNote || "—"}
                                       </div>
                                     </div>
 
                                     <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
                                       <div className="text-xs uppercase tracking-[0.25em] text-amber-300">
-                                        Flags
+                                        {a.reservations.flags}
                                       </div>
                                       <div className="mt-3 text-sm text-stone-300">
                                         Blacklist: {r.isBlacklisted ? "Yes" : "No"}
@@ -875,10 +1204,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                     <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                                       <div>
                                         <div className="text-xs uppercase tracking-[0.25em] text-amber-300">
-                                          Change tables
+                                          {a.reservations.changeTables}
                                         </div>
                                         <p className="mt-2 text-sm text-stone-400">
-                                          Save checks approved reservations with a 60 minute buffer.
+                                          {a.reservations.changeTablesHint}
                                         </p>
                                       </div>
 
@@ -899,7 +1228,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                           disabled={r.status === "Cancelled" || tableEdit.tableIds.length === 0}
                                           className="rounded-2xl bg-amber-400 px-5 py-3 text-sm font-semibold text-black disabled:opacity-40"
                                         >
-                                          Save tables
+                                          {a.reservations.saveTables}
                                         </button>
                                       </div>
                                     </div>
@@ -1099,155 +1428,225 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
             {activeTab === "menu" && (
               <Panel
-                title="Menu CMS"
-                subtitle="Редакция на меню и изпращане на нови предложения към абонати."
+                title={a.menu.title}
+                subtitle={a.menu.subtitle}
+                right={
+                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                    {[
+                      ["list", a.menu.list],
+                      ["form", editingMenuId ? a.menu.edit : a.menu.add],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          if (key === "form" && menuMode !== "form") {
+                            setEditingMenuId(null);
+                            setMenuForm(emptyMenuItem);
+                          }
+                          setMenuMode(key);
+                        }}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          menuMode === key ? "luxury-button" : "text-white/70 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                }
               >
-                <form onSubmit={saveMenuItem} className="mb-8 grid gap-4 md:grid-cols-2">
-                  {[
-                    ["nameBg", "Name BG"],
-                    ["nameEn", "Name EN"],
-                    ["weight", "Weight"],
-                    ["price", "Price BGN"],
-                    ["category", "Category"],
-                  ].map(([key, label]) => (
-                    <div key={key}>
-                      <label className="mb-2 block text-sm text-stone-400">{label}</label>
-                      <input
-                        type={key === "price" ? "number" : "text"}
-                        step={key === "price" ? "0.01" : undefined}
-                        value={menuForm[key]}
+                {menuMode === "form" ? (
+                  <form onSubmit={saveMenuItem} className="grid gap-4 md:grid-cols-2">
+                    <div className="md:col-span-2">
+                      <h3 className="text-2xl font-semibold text-[#fff4df]">
+                        {editingMenuId ? a.menu.editTitle : a.menu.addTitle}
+                      </h3>
+                    </div>
+
+                    {[
+                      ["nameBg", a.menu.nameBg],
+                      ["nameEn", a.menu.nameEn],
+                      ["weight", a.menu.weight],
+                      ["price", a.menu.price],
+                      ["category", a.menu.category],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-2 block text-sm text-stone-400">{label}</label>
+                        <input
+                          type={key === "price" ? "number" : "text"}
+                          step={key === "price" ? "0.01" : undefined}
+                          value={menuForm[key]}
+                          onChange={(e) =>
+                            setMenuForm((prev) => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          required={["nameBg", "price"].includes(key)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                        {key === "price" && (
+                          <p className="mt-2 text-xs leading-5 text-stone-500">
+                            {a.menu.priceHelp}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+
+                    <div>
+                      <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionBg}</label>
+                      <textarea
+                        value={menuForm.descriptionBg}
                         onChange={(e) =>
                           setMenuForm((prev) => ({
                             ...prev,
-                            [key]: e.target.value,
+                            descriptionBg: e.target.value,
                           }))
                         }
-                        required={["nameBg", "price"].includes(key)}
+                        rows={4}
                         className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                       />
-                      {key === "price" && (
-                        <p className="mt-2 text-xs leading-5 text-stone-500">
-                          {priceHelperText}
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionEn}</label>
+                      <textarea
+                        value={menuForm.descriptionEn}
+                        onChange={(e) =>
+                          setMenuForm((prev) => ({
+                            ...prev,
+                            descriptionEn: e.target.value,
+                          }))
+                        }
+                        rows={4}
+                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                      />
+                    </div>
+
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
+                      <input
+                        type="checkbox"
+                        checked={menuForm.isActive}
+                        onChange={(e) =>
+                          setMenuForm((prev) => ({
+                            ...prev,
+                            isActive: e.target.checked,
+                          }))
+                        }
+                      />
+                      {a.menu.active}
+                    </label>
+
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
+                      <input
+                        type="checkbox"
+                        checked={menuForm.notifySubscribers}
+                        onChange={(e) =>
+                          setMenuForm((prev) => ({
+                            ...prev,
+                            notifySubscribers: e.target.checked,
+                          }))
+                        }
+                      />
+                      {a.menu.notify}
+                    </label>
+
+                    <div className="flex flex-col gap-3 md:col-span-2 md:flex-row">
+                      <button className="luxury-button rounded-2xl px-6 py-4 font-semibold">
+                        {editingMenuId ? a.menu.saveEdit : a.menu.saveAdd}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingMenuId(null);
+                          setMenuForm(emptyMenuItem);
+                          setMenuMode("list");
+                        }}
+                        className="ghost-button rounded-2xl px-6 py-4 font-semibold"
+                      >
+                        {a.menu.cancelEdit}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {menuItems.length === 0 && (
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400 md:col-span-2 xl:col-span-3">
+                        {a.menu.empty}
+                      </div>
+                    )}
+
+                    {menuItems.map((item) => (
+                      <div key={item.id || item.Id} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-lg font-semibold">{item.nameBg || item.NameBg}</div>
+                            <div className="mt-1 text-sm text-stone-400">{item.nameEn || item.NameEn || "—"}</div>
+                          </div>
+                          <div className="rounded-full bg-amber-400 px-3 py-1 text-sm font-semibold text-black">
+                            {item.price || item.Price} лв
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-stone-300">
+                            {item.category || item.Category || "Main"}
+                          </span>
+                          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-stone-300">
+                            {item.weight || item.Weight || "—"}
+                          </span>
+                          <span className={`rounded-full border px-3 py-1 ${
+                            (item.isActive ?? item.IsActive ?? true)
+                              ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-200"
+                              : "border-red-400/25 bg-red-400/10 text-red-200"
+                          }`}>
+                            {(item.isActive ?? item.IsActive ?? true) ? "Active" : "Hidden"}
+                          </span>
+                        </div>
+
+                        <p className="mt-4 text-sm leading-6 text-stone-300">
+                          {item.descriptionBg || item.DescriptionBg || "—"}
                         </p>
-                      )}
-                    </div>
-                  ))}
+                        <p className="mt-3 text-sm leading-6 text-stone-500">
+                          {item.descriptionEn || item.DescriptionEn || "—"}
+                        </p>
 
-                  <div>
-                    <label className="mb-2 block text-sm text-stone-400">Description BG</label>
-                    <textarea
-                      value={menuForm.descriptionBg}
-                      onChange={(e) =>
-                        setMenuForm((prev) => ({
-                          ...prev,
-                          descriptionBg: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
-                  </div>
+                        <div className="mt-5 flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingMenuId(item.id || item.Id);
+                              setMenuForm({
+                                nameBg: item.nameBg || item.NameBg || "",
+                                nameEn: item.nameEn || item.NameEn || "",
+                                descriptionBg: item.descriptionBg || item.DescriptionBg || "",
+                                descriptionEn: item.descriptionEn || item.DescriptionEn || "",
+                                weight: item.weight || item.Weight || "",
+                                price: item.price || item.Price || "",
+                                category: item.category || item.Category || "Main",
+                                isActive: item.isActive ?? item.IsActive ?? true,
+                                notifySubscribers: false,
+                              });
+                              setMenuMode("form");
+                            }}
+                            className="ghost-button rounded-xl px-4 py-2 text-sm"
+                          >
+                            {a.menu.edit}
+                          </button>
 
-                  <div>
-                    <label className="mb-2 block text-sm text-stone-400">Description EN</label>
-                    <textarea
-                      value={menuForm.descriptionEn}
-                      onChange={(e) =>
-                        setMenuForm((prev) => ({
-                          ...prev,
-                          descriptionEn: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
-                  </div>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={menuForm.isActive}
-                      onChange={(e) =>
-                        setMenuForm((prev) => ({
-                          ...prev,
-                          isActive: e.target.checked,
-                        }))
-                      }
-                    />
-                    Active
-                  </label>
-
-                  <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
-                    <input
-                      type="checkbox"
-                      checked={menuForm.notifySubscribers}
-                      onChange={(e) =>
-                        setMenuForm((prev) => ({
-                          ...prev,
-                          notifySubscribers: e.target.checked,
-                        }))
-                      }
-                    />
-                    Notify subscribers
-                  </label>
-
-                  <button className="rounded-2xl bg-amber-400 px-6 py-4 font-semibold text-black md:col-span-2">
-                    {editingMenuId ? "Update menu item" : "Add menu item"}
-                  </button>
-                </form>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {menuItems.map((item) => (
-                    <div key={item.id || item.Id} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <div className="text-lg font-semibold">{item.nameBg || item.NameBg}</div>
-                          <div className="mt-1 text-sm text-stone-400">{item.category || item.Category}</div>
-                        </div>
-                        <div className="rounded-full bg-amber-400 px-3 py-1 text-sm font-semibold text-black">
-                          {item.price || item.Price} лв
+                          <button
+                            type="button"
+                            onClick={() => deleteMenuItem(item.id || item.Id)}
+                            className="rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white"
+                          >
+                            {a.menu.delete}
+                          </button>
                         </div>
                       </div>
-
-                      <p className="mt-4 text-sm leading-6 text-stone-300">
-                        {item.descriptionBg || item.DescriptionBg}
-                      </p>
-
-                      <div className="mt-4 text-sm text-stone-500">
-                        {item.weight || item.Weight}
-                      </div>
-
-                      <div className="mt-5 flex gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingMenuId(item.id || item.Id);
-                            setMenuForm({
-                              nameBg: item.nameBg || item.NameBg || "",
-                              nameEn: item.nameEn || item.NameEn || "",
-                              descriptionBg: item.descriptionBg || item.DescriptionBg || "",
-                              descriptionEn: item.descriptionEn || item.DescriptionEn || "",
-                              weight: item.weight || item.Weight || "",
-                              price: item.price || item.Price || "",
-                              category: item.category || item.Category || "Main",
-                              isActive: item.isActive ?? item.IsActive ?? true,
-                              notifySubscribers: false,
-                            });
-                          }}
-                          className="rounded-xl border border-white/10 px-4 py-2 text-sm"
-                        >
-                          Edit
-                        </button>
-
-                        <button
-                          onClick={() => deleteMenuItem(item.id || item.Id)}
-                          className="rounded-xl bg-red-500 px-4 py-2 text-sm"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </Panel>
             )}
 

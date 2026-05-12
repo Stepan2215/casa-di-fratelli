@@ -2,12 +2,12 @@ export default function HeroSection({ t, onOpenReservation, onOpenMenu, language
   return (
     <section className="relative min-h-[calc(100vh-92px)] overflow-hidden">
       <img
-        src="/restaurant-interior.webp"
+        src="/restaurant-terrace.jpg"
         alt={t.interiorAlt}
-        className="absolute inset-0 h-full w-full scale-[1.02] object-cover"
+        className="absolute inset-0 h-full w-full scale-[1.03] object-cover object-[56%_center] md:object-center"
       />
-      <div className="absolute inset-0 backdrop-blur-[1.5px]" />
-      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,5,4,0.95)_0%,rgba(9,7,5,0.84)_38%,rgba(9,7,5,0.34)_72%,rgba(9,7,5,0.58)_100%)]" />
+      <div className="absolute inset-0 backdrop-blur-[0.6px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,5,4,0.96)_0%,rgba(9,7,5,0.82)_42%,rgba(9,7,5,0.28)_75%,rgba(9,7,5,0.64)_100%)]" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_18%,rgba(201,165,106,0.18),transparent_24rem),radial-gradient(circle_at_16%_82%,rgba(36,115,78,0.2),transparent_24rem)]" />
       <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#090705] to-transparent" />
 

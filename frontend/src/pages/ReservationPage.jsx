@@ -759,6 +759,7 @@ if (bookingMode === "single") {
   const zoneTitle = selectedArea === "garden" ? labels.gardenTitle : labels.indoorTitle;
   const zoneSubtitle = selectedArea === "garden" ? labels.gardenSubtitle : labels.indoorSubtitle;
   const zoneAccent = selectedArea === "garden" ? t.smokeLabel : t.mainLabel;
+  const zonePreviewImage = selectedArea === "garden" ? "/restaurant-terrace.jpg" : "/restaurant-interior.webp";
 
   return (
     <>
@@ -902,7 +903,7 @@ if (bookingMode === "single") {
               )}
 
               <div className="relative mb-4 aspect-[4/3] overflow-hidden rounded-[24px] border border-white/10 bg-[#1a1411] shadow-2xl shadow-black/25">
-                <img src="/restaurant-interior.webp" alt="Restaurant zone preview" className="absolute inset-0 h-full w-full scale-[1.03] object-cover opacity-55 blur-[1px]" />
+                <img src={zonePreviewImage} alt="Restaurant zone preview" className="absolute inset-0 h-full w-full scale-[1.04] object-cover object-center opacity-55 blur-[1px] transition duration-700" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                   <div className="mb-2 text-xs uppercase tracking-[0.25em] text-[#d8b377]">
