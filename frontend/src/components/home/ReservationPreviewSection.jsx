@@ -2,7 +2,7 @@ export default function ReservationPreviewSection({ t, onOpenReservation }) {
   return (
     <section id="reservation" className="mx-auto max-w-7xl px-6 py-24">
       <div className="grid gap-6 md:grid-cols-[0.85fr_1.15fr]">
-        <div className="luxury-panel rounded-[28px] p-8 md:p-10">
+        <div className="luxury-panel reveal-up rounded-[28px] p-8 md:p-10">
           <p className="section-kicker">
             {t.reservationTag}
           </p>
@@ -29,7 +29,7 @@ export default function ReservationPreviewSection({ t, onOpenReservation }) {
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0d1511] p-3 shadow-2xl shadow-black/30">
+        <div className="reveal-up relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0d1511] p-3 shadow-2xl shadow-black/30">
           <img
             src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=1200&q=80"
             alt="Restaurant table"

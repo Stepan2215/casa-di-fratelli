@@ -2,7 +2,7 @@ export default function AboutSection({ t }) {
   return (
     <section id="about" className="mx-auto max-w-7xl px-6 py-24">
       <div className="grid gap-6 md:grid-cols-[0.95fr_1.05fr]">
-        <div className="luxury-panel rounded-[28px] p-8 md:p-10">
+        <div className="luxury-panel reveal-up rounded-[28px] p-8 md:p-10">
           <p className="section-kicker">
             {t.aboutTag}
           </p>
@@ -29,7 +29,7 @@ export default function AboutSection({ t }) {
           {t.features.map(([title, text], index) => (
             <div
               key={title}
-              className={`rounded-[24px] border p-6 transition hover:-translate-y-1 ${
+              className={`reveal-up rounded-[24px] border p-6 transition hover:-translate-y-1 ${
                 index === 1
                   ? "border-emerald-300/15 bg-emerald-400/10"
                   : index === 2

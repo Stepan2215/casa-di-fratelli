@@ -19,7 +19,7 @@ export default function GallerySection({ t }) {
         {galleryImages.map((src, idx) => (
           <div
             key={src}
-            className={`${idx === 1 ? "md:translate-y-8" : ""} group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-2 shadow-2xl shadow-black/25`}
+            className={`${idx === 1 ? "md:translate-y-8" : ""} reveal-fade group overflow-hidden rounded-[24px] border border-white/10 bg-white/[0.04] p-2 shadow-2xl shadow-black/25`}
           >
             <img
               src={src}

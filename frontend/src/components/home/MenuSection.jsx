@@ -24,7 +24,7 @@ export default function MenuSection({ t, language }) {
         {previewCategories.map((category, index) => (
           <div
             key={category.id}
-            className="luxury-panel group rounded-[28px] p-6 transition hover:-translate-y-1 md:p-7"
+            className="luxury-panel reveal-up menu-spark group rounded-[28px] p-6 transition hover:-translate-y-1 md:p-7"
           >
             <div className="mb-6 flex items-center justify-between gap-4">
               <h3 className="text-2xl font-semibold text-[#f2d39a]">

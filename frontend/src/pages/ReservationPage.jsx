@@ -438,11 +438,16 @@ function BookingModal({
               <label className="mb-2 block text-sm text-amber-100">
                 {language === "bg" ? "Дата на раждане" : "Date of birth"}
               </label>
-              <input
-                name="birthDate"
-                type="date"
-                className="quiet-input w-full rounded-2xl px-4 py-3 [color-scheme:dark]"
-              />
+              <div className="relative">
+                <input
+                  name="birthDate"
+                  type="date"
+                  className="quiet-input w-full max-w-full rounded-2xl px-4 py-3 pr-12 [color-scheme:dark]"
+                />
+                <div className="pointer-events-none absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 text-xs text-[#f2d39a]">
+                  {language === "bg" ? "Д" : "D"}
+                </div>
+              </div>
               <p className="mt-3 text-sm text-amber-100/80">
                 {language === "bg"
                   ? "Очаква ви приятен бонус за вашия рожден ден."

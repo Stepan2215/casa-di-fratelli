@@ -17,6 +17,9 @@ export default function MenuPage({
   const [activeCategory, setActiveCategory] = React.useState(
     data.categories[0]?.id || ""
   );
+  const activeCategoryData =
+    data.categories.find((category) => category.id === activeCategory) ||
+    data.categories[0];
 
   React.useEffect(() => {
     const sectionIds = data.categories.map((category) => category.id);
@@ -65,15 +68,33 @@ export default function MenuPage({
         onGoHome={onBackHome}
       />
 
-        <MenuHero
+      <MenuHero
         data={data}
         onOpenReservation={onOpenReservation}
         language={language}
-        />
+      />
 
-      <div className="sticky top-[78px] md:top-[146px] z-40 border-b border-white/10 bg-[#090705]/88 backdrop-blur-2xl">
-        <div className="mx-auto max-w-7xl px-4 py-3 md:px-6 md:py-4">
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none">
+      <div className="sticky top-[116px] z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-[132px]">
+        <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
+          <div className="mb-2 flex items-center justify-between gap-3 md:hidden">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[#d8b377]">
+                {language === "bg" ? "Секция" : "Section"}
+              </div>
+              <div className="truncate text-sm font-semibold text-[#fff4df]">
+                {activeCategoryData?.title}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onBackHome}
+              className="ghost-button shrink-0 rounded-full px-3 py-2 text-xs font-medium"
+            >
+              {language === "bg" ? "Начало" : "Home"}
+            </button>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none md:gap-3">
             {data.categories.map((category) => {
               const isActive = activeCategory === category.id;
 
@@ -82,9 +103,9 @@ export default function MenuPage({
                   key={category.id}
                   type="button"
                   onClick={() => handleCategoryClick(category.id)}
-                  className={`whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition ${
+                  className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition active:scale-95 md:px-4 md:text-sm ${
                     isActive
-                      ? "border-[#c9a56a]/40 bg-[#c9a56a] text-black"
+                      ? "border-[#c9a56a]/40 bg-[#c9a56a] text-black shadow-lg shadow-[#c9a56a]/20"
                       : "border-white/10 bg-white/5 text-white/75 hover:border-[#c9a56a]/30 hover:text-[#f2d3a0]"
                   }`}
                 >
@@ -96,7 +117,7 @@ export default function MenuPage({
             <button
               type="button"
               onClick={onBackHome}
-              className="ghost-button whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium"
+              className="ghost-button hidden whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium md:block"
             >
               {language === "bg" ? "Начало" : "Home"}
             </button>
@@ -108,7 +129,11 @@ export default function MenuPage({
 
       <div className="mx-auto grid max-w-7xl gap-14 px-6 pb-20 pt-10">
         {data.categories.map((category) => (
-          <MenuCategorySection key={category.id} category={category} />
+          <MenuCategorySection
+            key={category.id}
+            category={category}
+            language={language}
+          />
         ))}
       </div>
 
