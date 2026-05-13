@@ -216,7 +216,11 @@ function WallTv({ label }) {
 
 function GardenTable({ table, selected, reserved, onSelect }) {
   const commonClass = `absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-    reserved ? "cursor-not-allowed opacity-75" : selected ? "scale-110" : "hover:scale-105"
+    reserved
+      ? "cursor-not-allowed scale-90 opacity-75 md:scale-100"
+      : selected
+      ? "scale-95 md:scale-110"
+      : "scale-90 hover:scale-95 md:scale-100 md:hover:scale-105"
   }`;
 
   if (table.special) {
@@ -297,11 +301,11 @@ function GardenTable({ table, selected, reserved, onSelect }) {
 
 function GardenMap({ tables, selectedIds, onSelect, labels }) {
   return (
-    <div className="relative min-h-[570px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner">
+    <div className="relative min-h-[620px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner md:min-h-[800px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
-      <MapWindow className="left-6 right-6 top-3 h-5" label={labels.windows} />
-      <MapWindow className="bottom-6 left-3 top-6 w-5" label={labels.windows} vertical />
-      <MapWindow className="bottom-6 right-3 top-6 w-5" label={labels.windows} vertical />
+      <MapWindow className="left-5 right-5 top-3 h-4" label={labels.windows} />
+      <MapWindow className="bottom-5 left-3 top-5 w-4" label={labels.windows} vertical />
+      <MapWindow className="bottom-5 right-3 top-5 w-4" label={labels.windows} vertical />
       <WallTv label={labels.tv} />
       <TerraceEntry label={labels.terraceEntrance} />
 
@@ -1029,9 +1033,6 @@ if (bookingMode === "single") {
               </div>
 
               <div className="space-y-3 text-sm">
-                <InfoRow label={language === "bg" ? "Зона" : "Area"} value={selectedArea === "garden" ? t.smokingSection : t.familySection} />
-                <InfoRow label={language === "bg" ? "Дата" : "Date"} value={reservationDate || "—"} />
-                <InfoRow label={language === "bg" ? "Час" : "Time"} value={selectedTime || "—"} />
                 <InfoRow label={labels.table} value={selectedTables.length ? selectedTables.map((table) => table.id).join(", ") : "—"} />
                 <InfoRow label={labels.capacity} value={`${totalSeats || 0} / ${guestCount || 0} ${t.people}`} />
               </div>
