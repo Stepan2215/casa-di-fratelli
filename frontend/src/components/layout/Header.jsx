@@ -62,7 +62,7 @@ export default function Header({
 
   return (
     <>
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090705]/90 backdrop-blur-2xl">
+    <header className="fixed inset-x-0 top-2 z-50 border-b border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-3">
       <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -240,7 +240,7 @@ export default function Header({
         </div>
       </div>
     </header>
-    <div aria-hidden="true" className="h-[124px] md:h-[152px]" />
+    <div aria-hidden="true" className="h-[132px] md:h-[164px]" />
     </>
   );
 }
