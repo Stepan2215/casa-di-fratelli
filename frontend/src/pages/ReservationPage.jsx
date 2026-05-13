@@ -214,12 +214,12 @@ function SideEntry({ label }) {
 
 function IndoorPartitionWall({ label }) {
   return (
-    <div className="pointer-events-none absolute left-[67%] top-[48%] z-10 h-[27%] w-4 -translate-x-1/2">
+    <div className="pointer-events-none absolute right-5 top-[51%] z-10 h-4 w-[43%] -translate-y-1/2">
       <div className="relative h-full w-full rounded-full border border-stone-200/14 bg-[linear-gradient(180deg,rgba(255,244,223,0.18),rgba(63,47,34,0.78),rgba(255,244,223,0.12))] shadow-[0_0_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.2)]">
-        <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[#f2d39a]/20" />
-        <div className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-white/12" />
+        <div className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-[#f2d39a]/20" />
+        <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-white/12" />
       </div>
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white/55 backdrop-blur">
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white/55 backdrop-blur">
         {label}
       </div>
     </div>
@@ -425,10 +425,10 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
       onClick={() => onSelect(table, "indoor")}
       className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
         reserved
-          ? "cursor-not-allowed scale-90 opacity-75 md:scale-100"
+          ? "cursor-not-allowed scale-[0.86] opacity-75 md:scale-100"
           : selected
-          ? "scale-95 md:scale-110"
-          : "scale-90 hover:scale-95 md:scale-100 md:hover:scale-105"
+          ? "scale-[0.92] md:scale-110"
+          : "scale-[0.86] hover:scale-90 md:scale-100 md:hover:scale-105"
       }`}
       style={{ left: `${table.x}%`, top: `${table.y}%` }}
     >
@@ -466,7 +466,7 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
   ];
 
   return (
-    <div className="relative min-h-[640px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]">
+    <div className="relative min-h-[760px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))] md:min-h-[830px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
       <MapWindow className="left-3 top-5 h-[50%] w-4" label={labels.windows} vertical />
       <MapWindow className="bottom-5 left-3 top-[70%] w-4" label={labels.windows} vertical />
