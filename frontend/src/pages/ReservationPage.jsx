@@ -214,12 +214,24 @@ function SideEntry({ label }) {
 
 function IndoorPartitionWall({ label }) {
   return (
-    <div className="pointer-events-none absolute right-5 top-[51%] z-10 h-4 w-[43%] -translate-y-1/2">
+    <div className="pointer-events-none absolute right-5 top-[51%] z-10 h-4 w-[50%] -translate-y-1/2">
       <div className="relative h-full w-full rounded-full border border-stone-200/14 bg-[linear-gradient(180deg,rgba(255,244,223,0.18),rgba(63,47,34,0.78),rgba(255,244,223,0.12))] shadow-[0_0_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.2)]">
         <div className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-[#f2d39a]/20" />
         <div className="absolute inset-y-1 left-1/2 w-px -translate-x-1/2 bg-white/12" />
       </div>
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white/55 backdrop-blur">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function IndoorTerraceEntry({ label }) {
+  return (
+    <div className="pointer-events-none absolute bottom-1 left-[25%] z-10 w-[28%] -translate-x-1/2 text-center">
+      <div className="mx-auto h-6 w-16 rounded-t-full border-x border-t border-emerald-200/45 bg-[radial-gradient(circle_at_50%_100%,rgba(110,231,183,0.2),transparent_64%)] shadow-[0_0_18px_rgba(110,231,183,0.14)]" />
+      <div className="mx-auto h-1 w-20 rounded-full bg-emerald-200/45" />
+      <div className="mx-auto mt-0.5 max-w-[104px] rounded-full border border-emerald-200/20 bg-black/48 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.14em] text-emerald-100/90 backdrop-blur">
         {label}
       </div>
     </div>
@@ -472,6 +484,7 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
       <MapWindow className="bottom-5 left-3 top-[70%] w-4" label={labels.windows} vertical />
       <SideEntry label={labels.entrance} />
       <IndoorPartitionWall label={labels.wall} />
+      <IndoorTerraceEntry label={labels.terraceEntrance} />
       <MergedTableRail tables={indoorTables} selectedIds={selectedIds} groups={indoorGroups} />
 
       {tables.map((table) => (
@@ -671,6 +684,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [selectedArea, setSelectedArea] = React.useState("indoor");
   const [selectedTables, setSelectedTables] = React.useState([]);
   const [showBookingForm, setShowBookingForm] = React.useState(false);
+  const [largePartyNoticeOpen, setLargePartyNoticeOpen] = React.useState(false);
   const [blockedSlots, setBlockedSlots] = React.useState([]);
   const timeSelectionRef = React.useRef(null);
   const mapSectionRef = React.useRef(null);
@@ -720,6 +734,14 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
 
   const requestedGuests = Number(guestCount || 0);
   const canShowSearchParams = Boolean(selectedArea && reservationDate && selectedTime && guestCount);
+
+  React.useEffect(() => {
+    if (selectedArea === "indoor" && requestedGuests > 16) {
+      setSelectedArea("garden");
+      setSelectedTables([]);
+      setLargePartyNoticeOpen(true);
+    }
+  }, [requestedGuests, selectedArea]);
 
   React.useEffect(() => {
   if (canShowSearchParams && window.innerWidth < 1024) {
@@ -1065,7 +1087,7 @@ if (bookingMode === "single") {
                     className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   >
                     <option value="">{language === "bg" ? "Избери" : "Select"}</option>
-                    {Array.from({ length: 12 }, (_, i) => i + 1).map((count) => (
+                    {Array.from({ length: 24 }, (_, i) => i + 1).map((count) => (
                       <option key={count} value={count}>
                         {count}
                       </option>
@@ -1201,6 +1223,50 @@ if (bookingMode === "single") {
           </div>
         )}
       </div>
+
+      {largePartyNoticeOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4 backdrop-blur-xl">
+          <div className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-[#c9a56a]/24 bg-[radial-gradient(circle_at_top_left,rgba(201,165,106,0.22),transparent_38%),linear-gradient(145deg,rgba(31,24,19,0.98),rgba(11,9,7,0.98))] p-6 text-center text-white shadow-2xl shadow-black/50">
+            <button
+              type="button"
+              onClick={() => setLargePartyNoticeOpen(false)}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white"
+              aria-label={language === "bg" ? "Затвори" : "Close"}
+            >
+              ×
+            </button>
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[#c9a56a]/30 bg-[#c9a56a]/12 text-2xl text-[#f2d39a]">
+              {requestedGuests}
+            </div>
+            <div className="section-kicker mb-3">
+              {language === "bg" ? "Голяма компания" : "Large party"}
+            </div>
+            <h3 className="text-2xl font-semibold text-[#fff4df]">
+              {language === "bg" ? "Преместихме ви към терасата" : "We moved you to the terrace"}
+            </h3>
+            <p className="mt-3 text-sm leading-7 text-white/68">
+              {language === "bg"
+                ? "В залата за непушачи онлайн могат да се комбинират маси до 16 гости. За по-голяма компания може да разгледате терасата или да се свържете с администратор за събитие."
+                : "The non-smoking hall can be booked online for up to 16 guests. For a larger party, view the terrace or contact an administrator to arrange an event."}
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setLargePartyNoticeOpen(false)}
+                className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
+              >
+                {language === "bg" ? "Виж терасата" : "View terrace"}
+              </button>
+              <a
+                href="tel:+359888218318"
+                className="ghost-button rounded-2xl px-5 py-3 text-sm font-semibold"
+              >
+                {language === "bg" ? "Позвъни на администратор" : "Call administrator"}
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showBookingForm && canOpenForm && (
         <BookingModal

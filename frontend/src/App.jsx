@@ -22,6 +22,14 @@ const getInitialPage = () => {
     return "admin";
   }
 
+  if (window.location.pathname === "/reservation") {
+    return "reservation-map";
+  }
+
+  if (window.location.pathname === "/menu") {
+    return "menu";
+  }
+
   return "home";
 };
 
@@ -65,7 +73,13 @@ export default function App() {
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const nextPath = currentPage === "admin" ? "/admin" : "/";
+    const pagePaths = {
+      admin: "/admin",
+      "reservation-map": "/reservation",
+      menu: "/menu",
+      home: "/",
+    };
+    const nextPath = pagePaths[currentPage] || "/";
     if (window.location.pathname !== nextPath) {
       window.history.pushState({}, "", nextPath);
     }
@@ -75,7 +89,24 @@ export default function App() {
     if (typeof window === "undefined") return;
 
     const handlePopState = () => {
-      setCurrentPage(window.location.pathname === "/admin" ? "admin" : "home");
+      const path = window.location.pathname;
+
+      if (path === "/admin") {
+        setCurrentPage("admin");
+        return;
+      }
+
+      if (path === "/reservation") {
+        setCurrentPage("reservation-map");
+        return;
+      }
+
+      if (path === "/menu") {
+        setCurrentPage("menu");
+        return;
+      }
+
+      setCurrentPage("home");
     };
 
     window.addEventListener("popstate", handlePopState);
