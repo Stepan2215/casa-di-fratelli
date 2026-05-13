@@ -253,6 +253,29 @@ const adminReservationTimes = Array.from({ length: 13 }, (_, index) => {
   return `${String(hour).padStart(2, "0")}:00`;
 });
 
+const categoryDisplayNames = {
+  bg: {
+    salads: "Салати",
+    starters: "Нещо за начало",
+    "pasta-risotto": "Паста и ризото",
+    mains: "Основни и рибни",
+    pizza: "Пица",
+    bread: "Домашен хляб",
+    desserts: "Десерти",
+    main: "Основни",
+  },
+  en: {
+    salads: "Salads",
+    starters: "Starters",
+    "pasta-risotto": "Pasta & Risotto",
+    mains: "Mains & Fish",
+    pizza: "Pizza",
+    bread: "Bread",
+    desserts: "Desserts",
+    main: "Main",
+  },
+};
+
 const gardenGroups = [
   ["42", "43", "44", "45"],
   ["38", "39", "40", "41"],
@@ -269,6 +292,15 @@ const indoorCombinationGroups = [
 
 function getValue(item, key) {
   return item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
+}
+
+function normalizeCategory(value) {
+  return String(value || "main").trim() || "main";
+}
+
+function getCategoryLabel(category, language) {
+  const normalized = normalizeCategory(category);
+  return categoryDisplayNames[language]?.[normalized] || normalized;
 }
 
 function isContinuousGroup(group, tableIds) {
@@ -465,6 +497,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [statusFilter, setStatusFilter] = React.useState("All");
   const [expandedId, setExpandedId] = React.useState(null);
   const [menuMode, setMenuMode] = React.useState("list");
+  const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
@@ -909,6 +942,52 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   ).sort((a, b) => b.count - a.count);
 
   const a = adminText[adminLanguage];
+
+  const menuCategories = React.useMemo(() => {
+    const grouped = new Map();
+
+    menuItems.forEach((item) => {
+      const category = normalizeCategory(item.category || item.Category);
+
+      if (!grouped.has(category)) {
+        grouped.set(category, {
+          id: category,
+          label: getCategoryLabel(category, adminLanguage),
+          count: 0,
+          activeCount: 0,
+          items: [],
+        });
+      }
+
+      const group = grouped.get(category);
+      group.count += 1;
+      if ((item.isActive ?? item.IsActive ?? true) === true) {
+        group.activeCount += 1;
+      }
+      group.items.push(item);
+    });
+
+    return Array.from(grouped.values()).sort((first, second) =>
+      first.label.localeCompare(second.label, adminLanguage === "bg" ? "bg" : "en")
+    );
+  }, [adminLanguage, menuItems]);
+
+  React.useEffect(() => {
+    if (menuMode !== "list") return;
+
+    if (menuCategories.length === 0) {
+      if (selectedMenuCategory) setSelectedMenuCategory("");
+      return;
+    }
+
+    if (!selectedMenuCategory || !menuCategories.some((category) => category.id === selectedMenuCategory)) {
+      setSelectedMenuCategory(menuCategories[0].id);
+    }
+  }, [menuCategories, menuMode, selectedMenuCategory]);
+
+  const selectedCategoryData =
+    menuCategories.find((category) => category.id === selectedMenuCategory) || menuCategories[0];
+  const selectedCategoryItems = selectedCategoryData?.items || [];
 
   const tabs = [
     ["reservations", a.tabs.reservations],
@@ -1775,9 +1854,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     </div>
                   </form>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  <div className="space-y-5">
                     {menuItems.length === 0 && (
-                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400 md:col-span-2 xl:col-span-3">
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400">
                         <div>{a.menu.empty}</div>
                         <button
                           type="button"
@@ -1789,7 +1868,63 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       </div>
                     )}
 
-                    {menuItems.map((item) => (
+                    {menuCategories.length > 0 && (
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        {menuCategories.map((category) => {
+                          const selected = selectedCategoryData?.id === category.id;
+
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => setSelectedMenuCategory(category.id)}
+                              className={`menu-spark rounded-[24px] border p-5 text-left transition ${
+                                selected
+                                  ? "border-[#c9a56a]/45 bg-[#c9a56a]/15 shadow-xl shadow-black/20"
+                                  : "border-white/10 bg-white/[0.04] hover:border-[#c9a56a]/30 hover:bg-white/[0.07]"
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <div className="text-lg font-semibold text-[#fff4df]">
+                                    {category.label}
+                                  </div>
+                                  <div className="mt-2 text-sm text-stone-400">
+                                    {category.count} {adminLanguage === "bg" ? "ястия" : "dishes"}
+                                  </div>
+                                </div>
+                                <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                  selected
+                                    ? "bg-[#c9a56a] text-black"
+                                    : "border border-white/10 bg-black/20 text-stone-300"
+                                }`}>
+                                  {category.activeCount}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {selectedCategoryData && (
+                      <div className="rounded-[26px] border border-white/10 bg-black/20 p-4 md:p-5">
+                        <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                          <div>
+                            <div className="section-kicker">
+                              {adminLanguage === "bg" ? "Отворена секция" : "Open section"}
+                            </div>
+                            <h3 className="mt-2 text-2xl font-semibold text-[#fff4df]">
+                              {selectedCategoryData.label}
+                            </h3>
+                          </div>
+                          <div className="rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-stone-300">
+                            {selectedCategoryData.count} {adminLanguage === "bg" ? "позиции" : "items"}
+                          </div>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {selectedCategoryItems.map((item) => (
                       <div key={item.id || item.Id} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -1857,6 +1992,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         </div>
                       </div>
                     ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </Panel>
