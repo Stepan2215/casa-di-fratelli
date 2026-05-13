@@ -79,7 +79,7 @@ export default function MenuPage({
         language={language}
       />
 
-      <div className="sticky top-[69px] z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-[138px]">
+      <div className="sticky top-0 z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl">
         <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
           <div className="mb-2 flex items-center justify-between gap-3 md:hidden">
             <div className="min-w-0">
@@ -131,7 +131,7 @@ export default function MenuPage({
       </div>
 
       <div className="flex flex-col">
-        <div className="order-1 mx-auto grid max-w-7xl gap-10 px-6 pb-12 pt-8 md:order-2 md:gap-14 md:pb-20 md:pt-10">
+        <div className="order-2 mx-auto grid max-w-7xl gap-10 px-6 pb-12 pt-8 md:gap-14 md:pb-20 md:pt-10">
           {data.categories.map((category) => (
             <MenuCategorySection
               key={category.id}
@@ -141,7 +141,7 @@ export default function MenuPage({
           ))}
         </div>
 
-        <div className="order-2 md:order-1">
+        <div className="order-1">
           <ChefHighlight data={data} />
         </div>
       </div>

@@ -6,6 +6,8 @@ import MenuSection from "../components/home/MenuSection";
 import GallerySection from "../components/home/GallerySection";
 import ReservationPreviewSection from "../components/home/ReservationPreviewSection";
 import ReviewsSection from "../components/home/ReviewsSection";
+import AwardsSection from "../components/home/AwardsSection";
+import EventsSection from "../components/home/EventsSection";
 
 export default function HomePage({
   t,
@@ -41,8 +43,10 @@ export default function HomePage({
         cmsMenuItems={cmsMenuItems}
       />
       <GallerySection t={t} />
+      <AwardsSection language={language} />
       <ReservationPreviewSection t={t} onOpenReservation={onOpenReservation} />
       <ReviewsSection language={language} />
+      <EventsSection language={language} />
       <Footer t={t} />
     </div>
   );

@@ -47,7 +47,7 @@ export default function ReviewsSection({ language }) {
   }, []);
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20">
+    <section id="reviews" className="mx-auto max-w-7xl px-6 py-20">
       <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-sm uppercase tracking-[0.35em] text-amber-300">

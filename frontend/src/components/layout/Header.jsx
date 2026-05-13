@@ -31,6 +31,13 @@ export default function Header({
     "https://www.google.com/maps/search/?api=1&query=Casa%20di%20Fratelli%20Plovdiv";
   const locationLabel = t.navLocation || (language === "bg" ? "Локация" : "Location");
   const menuLabel = language === "bg" ? "Меню" : "Menu";
+  const sectionLinks = [
+    ["#about", t.navAbout, "01"],
+    ["#gallery", t.navGallery, "02"],
+    ["#awards", t.navAwards || (language === "bg" ? "Награди" : "Awards"), "03"],
+    ["#reviews", t.navReviews || (language === "bg" ? "Отзиви" : "Reviews"), "04"],
+    ["#events", t.navEvents || (language === "bg" ? "Събития" : "Events"), "05"],
+  ];
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
@@ -53,7 +60,7 @@ export default function Header({
     "flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[#fff4df] transition active:scale-[0.98] hover:border-[#c9a56a]/35 hover:bg-[#c9a56a]/10";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090705]/82 backdrop-blur-2xl">
+    <header className="relative z-50 border-b border-white/10 bg-[#090705]/82 backdrop-blur-2xl">
       <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -99,16 +106,6 @@ export default function Header({
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={locationLabel}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c9a56a]/35 bg-[#c9a56a]/12 text-[#f2d39a] shadow-[0_10px_30px_rgba(201,165,106,0.14)] transition active:scale-95"
-            >
-              <LocationIcon />
-            </a>
-
             <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1 shadow-inner">
               {["bg", "en"].map((code) => (
                 <button
@@ -152,49 +149,42 @@ export default function Header({
           </div>
         </div>
 
+        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] gap-2 md:hidden">
+          <button
+            type="button"
+            onClick={openMenuPage}
+            className="ghost-button rounded-full px-4 py-2.5 text-sm font-semibold"
+          >
+            {menuLabel}
+          </button>
+          <a
+            href={locationUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={locationLabel}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#c9a56a]/35 bg-[#c9a56a]/12 text-[#f2d39a] shadow-[0_10px_30px_rgba(201,165,106,0.14)] transition active:scale-95"
+          >
+            <LocationIcon />
+          </a>
+          <button
+            type="button"
+            onClick={openReservationPage}
+            className="luxury-button rounded-full px-4 py-2.5 text-sm font-semibold"
+          >
+            {language === "bg" ? "Резервирай" : "Reserve"}
+          </button>
+        </div>
+
         <div className="mt-4 hidden items-center justify-between gap-3 md:flex">
           <nav className="flex gap-7 text-sm text-stone-300">
-            <a href="#about" className="transition hover:text-[#f2d39a]">
-              {t.navAbout}
-            </a>
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              className="transition hover:text-[#f2d39a]"
-            >
-              {menuLabel}
-            </button>
-            <a href="#gallery" className="transition hover:text-[#f2d39a]">
-              {t.navGallery}
-            </a>
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="transition hover:text-[#f2d39a]"
-            >
-              {locationLabel}
-            </a>
-            <a href="#reservation" className="transition hover:text-[#f2d39a]">
-              {t.navReservation}
-            </a>
+            {sectionLinks.map(([href, label]) => (
+              <a key={href} href={href} className="transition hover:text-[#f2d39a]">
+                {label}
+              </a>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={locationLabel}
-              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full border border-[#c9a56a]/35 bg-[#f6ead4]/10 px-5 py-3 text-sm font-semibold text-[#fff4df] shadow-[0_14px_45px_rgba(201,165,106,0.14)] transition hover:-translate-y-0.5 hover:border-[#f2d39a]/70 hover:bg-[#f2d39a]/15 hover:text-white"
-            >
-              <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,244,223,0.22),transparent_36%)] opacity-0 transition group-hover:opacity-100" />
-              <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/25">
-                <LocationIcon className="h-3.5 w-3.5" />
-              </span>
-              <span className="relative">{locationLabel}</span>
-            </a>
-
+          <div className="flex items-center gap-4">
             <button
               type="button"
               onClick={onOpenMenu}
@@ -202,6 +192,19 @@ export default function Header({
             >
               {menuLabel}
             </button>
+
+            <a
+              href={locationUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={locationLabel}
+              className="group relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[#c9a56a]/35 bg-[#f6ead4]/10 text-[#fff4df] shadow-[0_14px_45px_rgba(201,165,106,0.14)] transition hover:-translate-y-0.5 hover:border-[#f2d39a]/70 hover:bg-[#f2d39a]/15 hover:text-white"
+            >
+              <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,244,223,0.22),transparent_36%)] opacity-0 transition group-hover:opacity-100" />
+              <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/25">
+                <LocationIcon className="h-3.5 w-3.5" />
+              </span>
+            </a>
 
             <button
               type="button"
@@ -219,42 +222,17 @@ export default function Header({
           }`}
         >
           <nav className="rounded-[26px] border border-white/10 bg-[#15110d]/92 p-2 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-            <a href="#about" onClick={closeMobileMenu} className={mobileLinkClass}>
-              {t.navAbout}
-              <span className="text-[#c9a56a]">01</span>
-            </a>
-            <button
-              type="button"
-              onClick={openMenuPage}
-              className={`${mobileLinkClass} mt-2 w-full text-left`}
-            >
-              <span>{menuLabel}</span>
-              <span className="text-[#c9a56a]">02</span>
-            </button>
-            <a href="#gallery" onClick={closeMobileMenu} className={`${mobileLinkClass} mt-2`}>
-              {t.navGallery}
-              <span className="text-[#c9a56a]">03</span>
-            </a>
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              onClick={closeMobileMenu}
-              className={`${mobileLinkClass} mt-2`}
-            >
-              <span className="inline-flex items-center gap-2">
-                <LocationIcon className="h-4 w-4 text-[#c9a56a]" />
-                {locationLabel}
-              </span>
-              <span className="text-[#c9a56a]">04</span>
-            </a>
-            <button
-              type="button"
-              onClick={openReservationPage}
-              className="luxury-button mt-3 w-full rounded-2xl px-4 py-3 text-sm font-semibold"
-            >
-              {t.reserveNow}
-            </button>
+            {sectionLinks.map(([href, label, number], index) => (
+              <a
+                key={href}
+                href={href}
+                onClick={closeMobileMenu}
+                className={`${mobileLinkClass} ${index > 0 ? "mt-2" : ""}`}
+              >
+                {label}
+                <span className="text-[#c9a56a]">{number}</span>
+              </a>
+            ))}
           </nav>
         </div>
       </div>
