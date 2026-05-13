@@ -29,6 +29,7 @@ public class MenuController : ControllerBase
     {
         try
         {
+            await AdminSchemaBootstrapper.EnsureAsync(_db);
             await MenuSeedData.SeedAsync(_db);
 
             var items = await _db.MenuItems
@@ -45,57 +46,103 @@ public class MenuController : ControllerBase
         }
     }
 
+    [HttpPost("seed")]
+    public async Task<IActionResult> Seed()
+    {
+        try
+        {
+            await AdminSchemaBootstrapper.EnsureAsync(_db);
+            var created = await MenuSeedData.SeedAsync(_db);
+            var total = await _db.MenuItems.CountAsync();
+
+            return Ok(new
+            {
+                Created = created,
+                Total = total
+            });
+        }
+        catch (Exception error)
+        {
+            _logger.LogError(error, "Failed to seed menu items.");
+            return StatusCode(500, new { message = "Failed to seed menu items." });
+        }
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] MenuItem item)
     {
-        item.CreatedAtUtc = DateTime.UtcNow;
-
-        _db.MenuItems.Add(item);
-        await _db.SaveChangesAsync();
-
-        if (item.NotifySubscribers)
+        try
         {
-            var subscribers = await _db.CustomerProfiles
-                .Where(x => x.MarketingConsent && !string.IsNullOrWhiteSpace(x.Email))
-                .ToListAsync();
+            await AdminSchemaBootstrapper.EnsureAsync(_db);
 
-            foreach (var customer in subscribers)
+            if (string.IsNullOrWhiteSpace(item.NameBg))
+                return BadRequest(new { message = "Dish name is required." });
+
+            if (item.Price <= 0)
+                return BadRequest(new { message = "Dish price must be greater than zero." });
+
+            item.NameBg = item.NameBg.Trim();
+            item.NameEn = string.IsNullOrWhiteSpace(item.NameEn) ? item.NameBg : item.NameEn.Trim();
+            item.DescriptionBg = item.DescriptionBg?.Trim() ?? string.Empty;
+            item.DescriptionEn = item.DescriptionEn?.Trim() ?? string.Empty;
+            item.Weight = item.Weight?.Trim() ?? string.Empty;
+            item.Category = string.IsNullOrWhiteSpace(item.Category) ? "main" : item.Category.Trim();
+            item.CreatedAtUtc = DateTime.UtcNow;
+
+            _db.MenuItems.Add(item);
+            await _db.SaveChangesAsync();
+
+            if (item.NotifySubscribers)
             {
-                try
-                {
-                    await _emailService.SendAsync(
-                        customer.Email!,
-                        $"Ново предложение · Casa di Fratelli",
-                        $"""
-                        <div style="font-family:Arial,sans-serif">
-                            <h2>{item.NameBg}</h2>
-                            <p>{item.DescriptionBg}</p>
+                var subscribers = await _db.CustomerProfiles
+                    .Where(x => x.MarketingConsent && !string.IsNullOrWhiteSpace(x.Email))
+                    .ToListAsync();
 
-                            <p>
-                                <strong>{item.Weight}</strong>
-                                ·
-                                <strong>{item.Price:F2} лв</strong>
-                            </p>
-
-                            <p>
-                                Очакваме Ви в Casa di Fratelli.
-                            </p>
-                        </div>
-                        """
-                    );
-                }
-                catch
+                foreach (var customer in subscribers)
                 {
+                    try
+                    {
+                        await _emailService.SendAsync(
+                            customer.Email!,
+                            $"Ново предложение · Casa di Fratelli",
+                            $"""
+                            <div style="font-family:Arial,sans-serif">
+                                <h2>{item.NameBg}</h2>
+                                <p>{item.DescriptionBg}</p>
+
+                                <p>
+                                    <strong>{item.Weight}</strong>
+                                    ·
+                                    <strong>{item.Price:F2} лв</strong>
+                                </p>
+
+                                <p>
+                                    Очакваме Ви в Casa di Fratelli.
+                                </p>
+                            </div>
+                            """
+                        );
+                    }
+                    catch
+                    {
+                    }
                 }
             }
-        }
 
-        return Ok(item);
+            return Ok(item);
+        }
+        catch (Exception error)
+        {
+            _logger.LogError(error, "Failed to create menu item.");
+            return StatusCode(500, new { message = "Failed to create menu item." });
+        }
     }
 
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] MenuItem updated)
     {
+        await AdminSchemaBootstrapper.EnsureAsync(_db);
+
         var item = await _db.MenuItems.FindAsync(id);
 
         if (item == null)
@@ -120,6 +167,8 @@ public class MenuController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
+        await AdminSchemaBootstrapper.EnsureAsync(_db);
+
         var item = await _db.MenuItems.FindAsync(id);
 
         if (item == null)

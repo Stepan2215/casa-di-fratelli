@@ -454,7 +454,7 @@ function Panel({ title, subtitle, children, right }) {
   );
 }
 
-export default function AdminPage() {
+export default function AdminPage({ onMenuChanged }) {
   const [activeTab, setActiveTab] = React.useState("reservations");
   const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
@@ -672,6 +672,8 @@ export default function AdminPage() {
 
   async function saveMenuItem(event) {
     event.preventDefault();
+    setAdminNotice("");
+    setAdminError("");
 
     const payload = {
       ...menuForm,
@@ -682,24 +684,61 @@ export default function AdminPage() {
       ? `${API_BASE_URL}/api/menu/${editingMenuId}`
       : `${API_BASE_URL}/api/menu`;
 
-    await fetch(url, {
+    const response = await fetch(url, {
       method: editingMenuId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to save menu item."));
+      return;
+    }
+
     setMenuForm(emptyMenuItem);
     setEditingMenuId(null);
     setMenuMode("list");
+    setAdminNotice(editingMenuId ? "Menu item updated." : "Menu item created.");
     await loadMenuItems();
+    await onMenuChanged?.();
   }
 
   async function deleteMenuItem(id) {
-    await fetch(`${API_BASE_URL}/api/menu/${id}`, {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/menu/${id}`, {
       method: "DELETE",
     });
 
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to delete menu item."));
+      return;
+    }
+
+    setAdminNotice("Menu item deleted.");
     await loadMenuItems();
+    await onMenuChanged?.();
+  }
+
+  async function seedMenuItems() {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/menu/seed`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to seed menu items."));
+      return;
+    }
+
+    const result = await response.json();
+    await loadMenuItems();
+    await onMenuChanged?.();
+    setMenuMode("list");
+    setAdminNotice(`Menu ready. Added ${result.created ?? result.Created ?? 0}, total ${result.total ?? result.Total ?? "—"}.`);
   }
 
   async function createAdminReservation(event) {
@@ -1587,28 +1626,38 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 title={a.menu.title}
                 subtitle={a.menu.subtitle}
                 right={
-                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
-                    {[
-                      ["list", a.menu.list],
-                      ["form", editingMenuId ? a.menu.edit : a.menu.add],
-                    ].map(([key, label]) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => {
-                          if (key === "form" && menuMode !== "form") {
-                            setEditingMenuId(null);
-                            setMenuForm(emptyMenuItem);
-                          }
-                          setMenuMode(key);
-                        }}
-                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                          menuMode === key ? "luxury-button" : "text-white/70 hover:text-white"
-                        }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <button
+                      type="button"
+                      onClick={seedMenuItems}
+                      className="ghost-button rounded-full px-4 py-2 text-sm font-semibold"
+                    >
+                      {adminLanguage === "bg" ? "Запълни от менюто на сайта" : "Seed from site menu"}
+                    </button>
+
+                    <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                      {[
+                        ["list", a.menu.list],
+                        ["form", editingMenuId ? a.menu.edit : a.menu.add],
+                      ].map(([key, label]) => (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => {
+                            if (key === "form" && menuMode !== "form") {
+                              setEditingMenuId(null);
+                              setMenuForm(emptyMenuItem);
+                            }
+                            setMenuMode(key);
+                          }}
+                          className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                            menuMode === key ? "luxury-button" : "text-white/70 hover:text-white"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 }
               >
@@ -1729,7 +1778,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {menuItems.length === 0 && (
                       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400 md:col-span-2 xl:col-span-3">
-                        {a.menu.empty}
+                        <div>{a.menu.empty}</div>
+                        <button
+                          type="button"
+                          onClick={seedMenuItems}
+                          className="luxury-button mt-4 rounded-2xl px-5 py-3 text-sm font-semibold"
+                        >
+                          {adminLanguage === "bg" ? "Добави всички базови ястия" : "Add all base dishes"}
+                        </button>
                       </div>
                     )}
 

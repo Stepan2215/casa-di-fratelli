@@ -40,6 +40,20 @@ export default function App() {
 
   const t = translations[language];
 
+  const loadMenuItems = React.useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/menu`);
+      if (!response.ok) return;
+
+      const data = await response.json();
+      setCmsMenuItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn("Using fallback menu because public menu failed to load.", error);
+      }
+    }
+  }, []);
+
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("restaurant-lang", language);
@@ -71,25 +85,11 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
-    async function loadMenuItems() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/menu`);
-        if (!response.ok) return;
-
-        const data = await response.json();
-        setCmsMenuItems(Array.isArray(data) ? data : []);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn("Using fallback menu because public menu failed to load.", error);
-        }
-      }
-    }
-
     loadMenuItems();
-  }, []);
+  }, [loadMenuItems]);
 
   if (currentPage === "admin") {
-    return <AdminPage />;
+    return <AdminPage onMenuChanged={loadMenuItems} />;
   }
 
   if (currentPage === "reservation-map") {

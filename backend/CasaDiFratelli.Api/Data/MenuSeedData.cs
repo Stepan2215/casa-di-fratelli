@@ -62,7 +62,7 @@ public static class MenuSeedData
         new("desserts", "Шоколадово суфле със сметанов сладолед", "Chocolate Souffle with Cream Ice Cream", "Топъл десерт с кремообразен център", "Warm dessert with a creamy center", "150 гр", 10.17m)
     };
 
-    public static async Task SeedAsync(AppDbContext db)
+    public static async Task<int> SeedAsync(AppDbContext db)
     {
         var existingNames = await db.MenuItems
             .Select(item => item.NameBg)
@@ -75,7 +75,7 @@ public static class MenuSeedData
             .ToList();
 
         if (missingItems.Count == 0)
-            return;
+            return 0;
 
         db.MenuItems.AddRange(missingItems.Select(item => new MenuItem
         {
@@ -92,5 +92,7 @@ public static class MenuSeedData
         }));
 
         await db.SaveChangesAsync();
+
+        return missingItems.Count;
     }
 }

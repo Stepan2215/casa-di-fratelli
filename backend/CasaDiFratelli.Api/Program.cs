@@ -28,7 +28,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.Migrate();
     await AdminSchemaBootstrapper.EnsureAsync(db);
-    await MenuSeedData.SeedAsync(db);
+    _ = await MenuSeedData.SeedAsync(db);
 }
 
 app.UseCors("AllowFrontend");
