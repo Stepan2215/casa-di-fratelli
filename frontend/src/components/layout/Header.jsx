@@ -61,7 +61,8 @@ export default function Header({
     "flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[#fff4df] transition active:scale-[0.98] hover:border-[#c9a56a]/35 hover:bg-[#c9a56a]/10";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090705]/82 backdrop-blur-2xl">
+    <>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#090705]/90 backdrop-blur-2xl">
       <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <button
@@ -80,6 +81,16 @@ export default function Header({
           </button>
 
           <div className="hidden items-center gap-2 md:flex">
+            <a
+              href={locationUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={locationLabel}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c9a56a]/30 bg-[#c9a56a]/10 text-[#f2d39a] transition hover:border-[#f2d39a]/60 hover:bg-[#c9a56a]/16 hover:text-white"
+            >
+              <LocationIcon className="h-4 w-4" />
+            </a>
+
             <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1 shadow-inner">
               <button
                 type="button"
@@ -107,6 +118,16 @@ export default function Header({
           </div>
 
           <div className="flex items-center gap-2 md:hidden">
+            <a
+              href={locationUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={locationLabel}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-[#c9a56a]/30 bg-[#c9a56a]/10 text-[#f2d39a] shadow-[0_10px_28px_rgba(201,165,106,0.12)] transition active:scale-95"
+            >
+              <LocationIcon className="h-4 w-4" />
+            </a>
+
             <div className="flex rounded-full border border-white/10 bg-white/[0.06] p-1 shadow-inner">
               {["bg", "en"].map((code) => (
                 <button
@@ -150,7 +171,7 @@ export default function Header({
           </div>
         </div>
 
-        <div className={`mt-3 grid gap-2 md:hidden ${isMenuPage ? "grid-cols-[1fr_1fr]" : "grid-cols-[1fr_1fr_1fr]"}`}>
+        <div className={`mt-3 grid gap-2 md:hidden ${isMenuPage ? "grid-cols-1" : "grid-cols-[1fr_1fr]"}`}>
           {!isMenuPage && (
             <button
               type="button"
@@ -160,16 +181,6 @@ export default function Header({
               {menuLabel}
             </button>
           )}
-          <a
-            href={locationUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={locationLabel}
-            className="flex h-11 items-center justify-center gap-2 rounded-full border border-[#c9a56a]/35 bg-[#c9a56a]/12 px-4 text-sm font-semibold text-[#f2d39a] shadow-[0_10px_30px_rgba(201,165,106,0.14)] transition active:scale-95"
-          >
-            <LocationIcon />
-            <span>{locationLabel}</span>
-          </a>
           <button
             type="button"
             onClick={openReservationPage}
@@ -198,20 +209,6 @@ export default function Header({
                 {menuLabel}
               </button>
             )}
-
-            <a
-              href={locationUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label={locationLabel}
-              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full border border-[#c9a56a]/35 bg-[#f6ead4]/10 px-5 py-3 text-sm font-semibold text-[#fff4df] shadow-[0_14px_45px_rgba(201,165,106,0.14)] transition hover:-translate-y-0.5 hover:border-[#f2d39a]/70 hover:bg-[#f2d39a]/15 hover:text-white"
-            >
-              <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,244,223,0.22),transparent_36%)] opacity-0 transition group-hover:opacity-100" />
-              <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/25">
-                <LocationIcon className="h-3.5 w-3.5" />
-              </span>
-              <span className="relative">{locationLabel}</span>
-            </a>
 
             <button
               type="button"
@@ -243,5 +240,7 @@ export default function Header({
         </div>
       </div>
     </header>
+    <div aria-hidden="true" className="h-[124px] md:h-[152px]" />
+    </>
   );
 }
