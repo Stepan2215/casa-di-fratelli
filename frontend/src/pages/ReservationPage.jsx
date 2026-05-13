@@ -54,7 +54,26 @@ const gardenGroups = [
   ["30", "31", "32", "33"],
 ];
 
-const groupableIndoorIds = ["5", "6", "20", "21", "22", "23", "28", "29"];
+const indoorGroups = [
+  ["5", "6"],
+  ["20", "21", "22", "23"],
+  ["28", "29"],
+];
+
+const gardenCellById = gardenGroups.reduce((acc, group, columnIndex) => {
+  group.forEach((id, rowIndex) => {
+    acc[id] = { columnIndex, rowIndex };
+  });
+  return acc;
+}, {});
+
+function getTablesCapacity(tables, ids) {
+  return ids.reduce((sum, id) => sum + (tables.find((table) => table.id === id)?.seats || 0), 0);
+}
+
+function getEligibleIndoorGroups(requestedGuests) {
+  return indoorGroups.filter((group) => getTablesCapacity(indoorTables, group) >= requestedGuests);
+}
 
 const reservationTimes = Array.from({ length: 13 }, (_, index) => {
   const hour = 10 + index;
@@ -98,7 +117,7 @@ function isWithinReservationBuffer(firstTime, secondTime) {
   return Math.abs(first - second) < 60;
 }
 
-function isContinuousTerraceSelection(selectedTables, nextTable) {
+function isContinuousTerraceColumnSelection(selectedTables, nextTable) {
   const ids = [...selectedTables.map((table) => table.id), nextTable.id];
 
   const matchingGroup = gardenGroups.find((group) =>
@@ -118,20 +137,62 @@ function isContinuousTerraceSelection(selectedTables, nextTable) {
   return true;
 }
 
-function canCombineTables(area, selectedTables, nextTable) {
+function isLogicalTerraceSelection(selectedTables, nextTable) {
+  const ids = [...new Set([...selectedTables.map((table) => table.id), nextTable.id])];
+  const cells = ids.map((id) => gardenCellById[id]).filter(Boolean);
+
+  if (cells.length !== ids.length) return false;
+
+  if (cells.length <= 4) {
+    return isContinuousTerraceColumnSelection(selectedTables, nextTable);
+  }
+
+  const selectedCells = new Set(cells.map((cell) => `${cell.columnIndex}:${cell.rowIndex}`));
+  const columns = [...new Set(cells.map((cell) => cell.columnIndex))].sort((a, b) => a - b);
+  const rows = [...new Set(cells.map((cell) => cell.rowIndex))].sort((a, b) => a - b);
+
+  const hasNoGaps = (values) =>
+    values.every((value, index) => index === 0 || value - values[index - 1] === 1);
+
+  if (!hasNoGaps(columns) || !hasNoGaps(rows)) return false;
+
+  const nextCell = gardenCellById[nextTable.id];
+  const touchesCurrentSelection = selectedTables.some((table) => {
+    const cell = gardenCellById[table.id];
+    if (!cell) return false;
+
+    const columnDistance = Math.abs(cell.columnIndex - nextCell.columnIndex);
+    const rowDistance = Math.abs(cell.rowIndex - nextCell.rowIndex);
+
+    return columnDistance + rowDistance === 1;
+  });
+
+  if (!touchesCurrentSelection) return false;
+
+  return cells.every((cell) => {
+    const rowCells = cells
+      .filter((item) => item.rowIndex === cell.rowIndex)
+      .map((item) => item.columnIndex)
+      .sort((a, b) => a - b);
+    const columnCells = cells
+      .filter((item) => item.columnIndex === cell.columnIndex)
+      .map((item) => item.rowIndex)
+      .sort((a, b) => a - b);
+
+    return hasNoGaps(rowCells) && hasNoGaps(columnCells) && selectedCells.has(`${cell.columnIndex}:${cell.rowIndex}`);
+  });
+}
+
+function canCombineTables(area, selectedTables, nextTable, requestedGuests) {
   if (!selectedTables.length) return true;
 
   if (area === "garden") {
     if (nextTable.special) return false;
     if (selectedTables.some((table) => table.special)) return false;
-    return isContinuousTerraceSelection(selectedTables, nextTable);
+    return isLogicalTerraceSelection(selectedTables, nextTable);
   }
 
-  const allowedGroups = [
-    ["5", "6"],
-    ["20", "21", "22", "23"],
-    ["28", "29"],
-  ];
+  const allowedGroups = getEligibleIndoorGroups(requestedGuests);
 
   const currentIds = selectedTables.map((table) => table.id);
   const nextIds = [...currentIds, nextTable.id];
@@ -471,12 +532,6 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
 }
 
 function IndoorMap({ tables, selectedIds, onSelect, labels }) {
-  const indoorGroups = [
-    ["5", "6"],
-    ["20", "21", "22", "23"],
-    ["28", "29"],
-  ];
-
   return (
     <div className="relative min-h-[760px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))] md:min-h-[830px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
@@ -798,12 +853,13 @@ if (bookingMode === "single") {
 
     if (selectedTables.length === 0) {
       if (area === "garden") return !table.special;
-      return groupableIndoorIds.includes(table.id);
+      const eligibleIndoorIds = getEligibleIndoorGroups(requestedGuests).flat();
+      return eligibleIndoorIds.includes(table.id);
     }
 
     if (isSelected) return true;
 
-    return canCombineTables(area, selectedTables, table);
+    return canCombineTables(area, selectedTables, table, requestedGuests);
   };
 
   const visibleGardenTables = gardenTables.filter((table) => canShowTable(table, "garden"));
@@ -838,7 +894,7 @@ if (bookingMode === "single") {
       const currentSeats = prev.reduce((sum, item) => sum + item.seats, 0);
       if (currentSeats >= requestedGuests) return prev;
 
-      if (!canCombineTables(area, prev, table)) return prev;
+      if (!canCombineTables(area, prev, table, requestedGuests)) return prev;
 
       return [...prev, table];
     });
