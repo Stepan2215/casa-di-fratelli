@@ -881,7 +881,7 @@ if (bookingMode === "single") {
 
   return (
     <>
-      <div className="luxury-shell min-h-screen p-4 text-white md:p-8">
+      <div className="luxury-shell min-h-screen px-4 pb-0 pt-4 text-white md:p-8">
         <div className="mx-auto max-w-7xl space-y-8">
           <div className="luxury-panel rounded-[28px] p-5 md:p-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div>
@@ -1150,25 +1150,25 @@ if (bookingMode === "single") {
             )}
           </div>
         </div>
-      </div>
 
-      {canOpenForm && !showBookingForm && (
-  <div className="fixed bottom-0 left-0 right-0 z-[60] border-t border-white/10 bg-[#0f0b08]/95 p-4 shadow-2xl backdrop-blur lg:hidden">
-    <button
-      type="button"
-      onClick={() => {
-        setSubmitError("");
-        setSubmitSuccess("");
-        setShowBookingForm(true);
-      }}
-      className="w-full rounded-2xl bg-[#c9a56a] py-4 font-semibold text-black"
-    >
-      {language === "bg"
-        ? `Резервирай маса ${selectedTables.map((table) => table.id).join(", ")}`
-        : `Reserve table ${selectedTables.map((table) => table.id).join(", ")}`}
-    </button>
-  </div>
-)}
+        {canOpenForm && !showBookingForm && (
+          <div className="sticky bottom-0 z-[60] -mx-4 mt-5 border-t border-white/10 bg-[#0f0b08]/95 p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl lg:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                setSubmitError("");
+                setSubmitSuccess("");
+                setShowBookingForm(true);
+              }}
+              className="w-full rounded-2xl bg-[#c9a56a] py-4 font-semibold text-black"
+            >
+              {language === "bg"
+                ? `Резервирай маса ${selectedTables.map((table) => table.id).join(", ")}`
+                : `Reserve table ${selectedTables.map((table) => table.id).join(", ")}`}
+            </button>
+          </div>
+        )}
+      </div>
 
       {showBookingForm && canOpenForm && (
         <BookingModal
