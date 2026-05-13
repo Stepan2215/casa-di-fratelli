@@ -71,6 +71,7 @@ export default function MenuPage({
         onOpenReservation={onOpenReservation}
         onOpenMenu={() => {}}
         onGoHome={onBackHome}
+        isMenuPage
       />
 
       <MenuHero

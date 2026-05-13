@@ -25,6 +25,7 @@ export default function Header({
   onOpenReservation,
   onOpenMenu,
   onGoHome,
+  isMenuPage = false,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const locationUrl =
@@ -149,22 +150,25 @@ export default function Header({
           </div>
         </div>
 
-        <div className="mt-3 grid grid-cols-[1fr_auto_1fr] gap-2 md:hidden">
-          <button
-            type="button"
-            onClick={openMenuPage}
-            className="ghost-button rounded-full px-4 py-2.5 text-sm font-semibold"
-          >
-            {menuLabel}
-          </button>
+        <div className={`mt-3 grid gap-2 md:hidden ${isMenuPage ? "grid-cols-[1fr_1fr]" : "grid-cols-[1fr_1fr_1fr]"}`}>
+          {!isMenuPage && (
+            <button
+              type="button"
+              onClick={openMenuPage}
+              className="ghost-button rounded-full px-4 py-2.5 text-sm font-semibold"
+            >
+              {menuLabel}
+            </button>
+          )}
           <a
             href={locationUrl}
             target="_blank"
             rel="noreferrer"
             aria-label={locationLabel}
-            className="flex h-11 w-11 items-center justify-center rounded-full border border-[#c9a56a]/35 bg-[#c9a56a]/12 text-[#f2d39a] shadow-[0_10px_30px_rgba(201,165,106,0.14)] transition active:scale-95"
+            className="flex h-11 items-center justify-center gap-2 rounded-full border border-[#c9a56a]/35 bg-[#c9a56a]/12 px-4 text-sm font-semibold text-[#f2d39a] shadow-[0_10px_30px_rgba(201,165,106,0.14)] transition active:scale-95"
           >
             <LocationIcon />
+            <span>{locationLabel}</span>
           </a>
           <button
             type="button"
@@ -185,25 +189,28 @@ export default function Header({
           </nav>
 
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={onOpenMenu}
-              className="ghost-button rounded-full px-5 py-3 text-sm font-medium"
-            >
-              {menuLabel}
-            </button>
+            {!isMenuPage && (
+              <button
+                type="button"
+                onClick={onOpenMenu}
+                className="ghost-button rounded-full px-5 py-3 text-sm font-medium"
+              >
+                {menuLabel}
+              </button>
+            )}
 
             <a
               href={locationUrl}
               target="_blank"
               rel="noreferrer"
               aria-label={locationLabel}
-              className="group relative inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[#c9a56a]/35 bg-[#f6ead4]/10 text-[#fff4df] shadow-[0_14px_45px_rgba(201,165,106,0.14)] transition hover:-translate-y-0.5 hover:border-[#f2d39a]/70 hover:bg-[#f2d39a]/15 hover:text-white"
+              className="group relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full border border-[#c9a56a]/35 bg-[#f6ead4]/10 px-5 py-3 text-sm font-semibold text-[#fff4df] shadow-[0_14px_45px_rgba(201,165,106,0.14)] transition hover:-translate-y-0.5 hover:border-[#f2d39a]/70 hover:bg-[#f2d39a]/15 hover:text-white"
             >
               <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,244,223,0.22),transparent_36%)] opacity-0 transition group-hover:opacity-100" />
               <span className="relative flex h-6 w-6 items-center justify-center rounded-full bg-[#c9a56a] text-stone-950 shadow-lg shadow-[#c9a56a]/25">
                 <LocationIcon className="h-3.5 w-3.5" />
               </span>
+              <span className="relative">{locationLabel}</span>
             </a>
 
             <button

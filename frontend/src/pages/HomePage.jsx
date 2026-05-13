@@ -18,7 +18,7 @@ export default function HomePage({
   cmsMenuItems,
 }) {
   return (
-    <div className="luxury-shell min-h-screen overflow-hidden text-stone-100">
+    <div className="luxury-shell min-h-screen overflow-x-hidden text-stone-100">
       <Header
         t={t}
         language={language}

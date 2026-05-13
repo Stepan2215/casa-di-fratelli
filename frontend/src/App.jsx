@@ -7,6 +7,7 @@ import ReservationPage from "./pages/ReservationPage";
 import MenuPage from "./pages/MenuPage";
 import AdminPage from "./pages/AdminPage";
 import { API_BASE_URL } from "./config/api";
+import BackToTopButton from "./components/layout/BackToTopButton";
 
 const safeReadStoredLanguage = () => {
   if (typeof window === "undefined") return "bg";
@@ -89,41 +90,55 @@ export default function App() {
   }, [loadMenuItems]);
 
   if (currentPage === "admin") {
-    return <AdminPage onMenuChanged={loadMenuItems} />;
+    return (
+      <>
+        <AdminPage onMenuChanged={loadMenuItems} />
+        <BackToTopButton />
+      </>
+    );
   }
 
   if (currentPage === "reservation-map") {
     return (
-      <ReservationPage
-        t={t}
-        language={language}
-        setLanguage={setLanguage}
-        onBack={() => setCurrentPage("home")}
-      />
+      <>
+        <ReservationPage
+          t={t}
+          language={language}
+          setLanguage={setLanguage}
+          onBack={() => setCurrentPage("home")}
+        />
+        <BackToTopButton />
+      </>
     );
   }
 
   if (currentPage === "menu") {
     return (
-      <MenuPage
-        t={t}
-        language={language}
-        setLanguage={setLanguage}
-        onOpenReservation={() => setCurrentPage("reservation-map")}
-        onBackHome={() => setCurrentPage("home")}
-        cmsMenuItems={cmsMenuItems}
-      />
+      <>
+        <MenuPage
+          t={t}
+          language={language}
+          setLanguage={setLanguage}
+          onOpenReservation={() => setCurrentPage("reservation-map")}
+          onBackHome={() => setCurrentPage("home")}
+          cmsMenuItems={cmsMenuItems}
+        />
+        <BackToTopButton />
+      </>
     );
   }
 
   return (
-    <HomePage
-      t={t}
-      language={language}
-      setLanguage={setLanguage}
-      onOpenReservation={() => setCurrentPage("reservation-map")}
-      onOpenMenu={() => setCurrentPage("menu")}
-      cmsMenuItems={cmsMenuItems}
-    />
+    <>
+      <HomePage
+        t={t}
+        language={language}
+        setLanguage={setLanguage}
+        onOpenReservation={() => setCurrentPage("reservation-map")}
+        onOpenMenu={() => setCurrentPage("menu")}
+        cmsMenuItems={cmsMenuItems}
+      />
+      <BackToTopButton />
+    </>
   );
 }
