@@ -2,25 +2,25 @@ import React from "react";
 import { API_BASE_URL } from "../config/api";
 
 const gardenTables = [
-  { id: "42", x: 10, y: 22, seats: 4 },
-  { id: "43", x: 10, y: 42, seats: 4 },
-  { id: "44", x: 10, y: 62, seats: 4 },
-  { id: "45", x: 10, y: 82, seats: 4 },
-  { id: "38", x: 33, y: 24, seats: 4 },
-  { id: "39", x: 33, y: 44, seats: 4 },
-  { id: "40", x: 33, y: 64, seats: 4 },
-  { id: "41", x: 33, y: 84, seats: 4 },
-  { id: "34", x: 62, y: 24, seats: 4 },
-  { id: "35", x: 62, y: 44, seats: 4 },
-  { id: "36", x: 62, y: 64, seats: 4 },
-  { id: "37", x: 62, y: 84, seats: 4 },
-  { id: "30", x: 85, y: 22, seats: 4 },
-  { id: "31", x: 85, y: 42, seats: 4 },
-  { id: "32", x: 85, y: 62, seats: 4 },
-  { id: "33", x: 85, y: 82, seats: 4 },
-  { id: "34A", x: 60, y: 8, seats: 4, special: true },
-  { id: "30A", x: 82, y: 8, seats: 4, special: true },
-  { id: "45A", x: 24, y: 94, seats: 4, special: true },
+  { id: "42", x: 17, y: 22, seats: 4 },
+  { id: "43", x: 17, y: 42, seats: 4 },
+  { id: "44", x: 17, y: 62, seats: 4 },
+  { id: "45", x: 17, y: 82, seats: 4 },
+  { id: "38", x: 38, y: 24, seats: 4 },
+  { id: "39", x: 38, y: 44, seats: 4 },
+  { id: "40", x: 38, y: 64, seats: 4 },
+  { id: "41", x: 38, y: 84, seats: 4 },
+  { id: "34", x: 59, y: 24, seats: 4 },
+  { id: "35", x: 59, y: 44, seats: 4 },
+  { id: "36", x: 59, y: 64, seats: 4 },
+  { id: "37", x: 59, y: 84, seats: 4 },
+  { id: "30", x: 78, y: 22, seats: 4 },
+  { id: "31", x: 78, y: 42, seats: 4 },
+  { id: "32", x: 78, y: 62, seats: 4 },
+  { id: "33", x: 78, y: 82, seats: 4 },
+  { id: "34A", x: 58, y: 10, seats: 2, special: true },
+  { id: "30A", x: 75, y: 10, seats: 2, special: true },
+  { id: "45A", x: 28, y: 93, seats: 2, special: true },
 ];
 
 const indoorTables = [
@@ -228,16 +228,28 @@ function GardenTable({ table, selected, reserved, onSelect }) {
         className={commonClass}
         style={{ left: `${table.x}%`, top: `${table.y}%` }}
       >
-        <div
-          className={`rounded-xl border px-3 py-2 text-xs font-medium shadow-lg ${
-            selected
-              ? "border-[#d7b57f] bg-[#d7b57f]/22 text-[#f7ddb2]"
-              : reserved
-              ? "border-red-400/30 bg-red-500/10 text-red-200"
-              : "border-white/15 bg-white/5 text-white/80"
-          }`}
-        >
-          {table.id}
+        <div className="relative h-11 w-14">
+          <div
+            className={`absolute left-1/2 top-0 h-3.5 w-5 -translate-x-1/2 rounded-[7px] border border-[#c9a56a]/20 ${
+              reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"
+            }`}
+          />
+          <div
+            className={`absolute bottom-0 left-1/2 h-3.5 w-5 -translate-x-1/2 rounded-[7px] border border-[#c9a56a]/20 ${
+              reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"
+            }`}
+          />
+          <div
+            className={`absolute left-1/2 top-1/2 flex h-8 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-xl border text-[10px] font-semibold shadow-lg ${
+              selected
+                ? "border-[#d7b57f] bg-[linear-gradient(145deg,#f6d99e,#b88b4d)] text-black"
+                : reserved
+                ? "border-red-400/30 bg-red-500/10 text-red-200"
+                : "border-[#c9a56a]/35 bg-[linear-gradient(145deg,#4d3829,#251b15)] text-white/88"
+            }`}
+          >
+            {table.id}
+          </div>
         </div>
       </button>
     );
@@ -287,9 +299,9 @@ function GardenMap({ tables, selectedIds, onSelect, labels }) {
   return (
     <div className="relative min-h-[570px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
-      <MapWindow className="left-[14%] right-[14%] top-4 h-7" label={labels.windows} />
-      <MapWindow className="bottom-[15%] left-4 top-[15%] w-7" label={labels.windows} vertical />
-      <MapWindow className="bottom-[15%] right-4 top-[15%] w-7" label={labels.windows} vertical />
+      <MapWindow className="left-6 right-6 top-3 h-5" label={labels.windows} />
+      <MapWindow className="bottom-6 left-3 top-6 w-5" label={labels.windows} vertical />
+      <MapWindow className="bottom-6 right-3 top-6 w-5" label={labels.windows} vertical />
       <WallTv label={labels.tv} />
       <TerraceEntry label={labels.terraceEntrance} />
 
