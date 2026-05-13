@@ -222,7 +222,7 @@ export default function Header({
           }`}
         >
           <nav className="rounded-[26px] border border-white/10 bg-[#15110d]/92 p-2 shadow-2xl shadow-black/35 backdrop-blur-2xl">
-            {sectionLinks.map(([href, label, number], index) => (
+            {sectionLinks.map(([href, label], index) => (
               <a
                 key={href}
                 href={href}
@@ -230,7 +230,6 @@ export default function Header({
                 className={`${mobileLinkClass} ${index > 0 ? "mt-2" : ""}`}
               >
                 {label}
-                <span className="text-[#c9a56a]">{number}</span>
               </a>
             ))}
           </nav>
