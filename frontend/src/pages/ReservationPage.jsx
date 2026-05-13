@@ -649,6 +649,7 @@ function BookingModal({
   submitError,
   submitSuccess,
 }) {
+  const formRef = React.useRef(null);
   const areaLabel =
     selectedArea === "garden"
       ? t.smokingSection
@@ -657,6 +658,27 @@ function BookingModal({
         ? "Открита тераса / Пушачи"
         : "Open terrace / Smoking"
       : t.familySection;
+
+  const focusNextField = (event) => {
+    if (event.key !== "Enter") return;
+
+    const field = event.currentTarget;
+    if (field.tagName === "TEXTAREA") return;
+
+    const form = formRef.current;
+    if (!form) return;
+
+    const fields = Array.from(
+      form.querySelectorAll("input:not([type='hidden']), textarea, button[type='submit']")
+    ).filter((item) => !item.disabled && item.offsetParent !== null);
+    const currentIndex = fields.indexOf(field);
+    const nextField = fields[currentIndex + 1];
+
+    if (!nextField) return;
+
+    event.preventDefault();
+    nextField.focus();
+  };
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/78 backdrop-blur-md">
@@ -690,12 +712,15 @@ function BookingModal({
             </button>
           </div>
 
-          <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+          <form ref={formRef} onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
               <input
                 name="guestName"
                 required
+                autoComplete="name"
+                enterKeyHint="next"
+                onKeyDown={focusNextField}
                 className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderName}
               />
@@ -706,6 +731,11 @@ function BookingModal({
               <input
                 name="phone"
                 required
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                enterKeyHint="next"
+                onKeyDown={focusNextField}
                 className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderPhone}
               />
@@ -717,6 +747,10 @@ function BookingModal({
                 name="email"
                 type="email"
                 required
+                inputMode="email"
+                autoComplete="email"
+                enterKeyHint="next"
+                onKeyDown={focusNextField}
                 className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderEmail}
               />
@@ -730,6 +764,9 @@ function BookingModal({
                 <input
                   name="birthDate"
                   type="date"
+                  autoComplete="bday"
+                  enterKeyHint="next"
+                  onKeyDown={focusNextField}
                   className="quiet-input w-full max-w-full rounded-2xl px-4 py-3 pr-12 [color-scheme:dark]"
                 />
                 <div className="pointer-events-none absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 text-xs text-[#f2d39a]">
@@ -750,6 +787,7 @@ function BookingModal({
               <textarea
                 name="notes"
                 rows={4}
+                enterKeyHint="done"
                 className="quiet-input w-full rounded-2xl px-4 py-3"
                 placeholder={t.placeholderRequests}
               />
@@ -825,7 +863,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [selectedArea, setSelectedArea] = React.useState("indoor");
   const [selectedTables, setSelectedTables] = React.useState([]);
   const [showBookingForm, setShowBookingForm] = React.useState(false);
-  const [largePartyNoticeOpen, setLargePartyNoticeOpen] = React.useState(false);
+  const [partyNoticeType, setPartyNoticeType] = React.useState("");
   const [blockedSlots, setBlockedSlots] = React.useState([]);
   const timeSelectionRef = React.useRef(null);
   const mapSectionRef = React.useRef(null);
@@ -904,7 +942,17 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     if (selectedArea === "indoor" && requestedGuests > 16) {
       setSelectedArea("garden");
       setSelectedTables([]);
-      setLargePartyNoticeOpen(true);
+      setPartyNoticeType("indoorTooLarge");
+      return;
+    }
+
+    if (selectedArea === "openTerrace" && requestedGuests > 8) {
+      setSelectedTables([]);
+      setPartyNoticeType(requestedGuests > 16 ? "openTerraceVeryLarge" : "openTerraceLarge");
+
+      if (requestedGuests > 16) {
+        setSelectedArea("garden");
+      }
     }
   }, [requestedGuests, selectedArea]);
 
@@ -1113,6 +1161,45 @@ if (bookingMode === "single") {
       : labels.indoorSubtitle;
   const zoneAccent = selectedArea === "indoor" ? t.mainLabel : t.smokeLabel;
   const zonePreviewImage = selectedArea === "indoor" ? "/restaurant-interior.webp" : "/restaurant-terrace.jpg";
+  const partyNotice =
+    partyNoticeType === "openTerraceLarge"
+      ? {
+          kicker: language === "bg" ? "Откритата тераса е до 8 души" : "Open terrace fits up to 8",
+          title: language === "bg" ? "Изберете по-подходяща зона" : "Choose a better area",
+          text:
+            language === "bg"
+              ? "За тази компания може да резервирате залата за непушачи или покритата тераса. Ако поводът е специален, администраторът ще помогне с най-добрата подредба."
+              : "For this party size, you can book the non-smoking hall or the covered terrace. For a special occasion, the administrator can help with the best setup.",
+          actions: [
+            { area: "indoor", label: language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking" },
+            { area: "garden", label: language === "bg" ? "Покрита тераса" : "Covered terrace" },
+          ],
+        }
+      : partyNoticeType === "openTerraceVeryLarge"
+      ? {
+          kicker: language === "bg" ? "Голяма компания" : "Large party",
+          title: language === "bg" ? "Най-подходяща е покритата тераса" : "The covered terrace is the best fit",
+          text:
+            language === "bg"
+              ? "Откритата тераса е малка зона до 8 души, а залата за непушачи се комбинира онлайн до 16 гости. За тази компания може да продължите към покритата тераса или да се обадите на администратор."
+              : "The open terrace is a small area for up to 8 guests, and the non-smoking hall can be booked online for up to 16. For this party size, continue with the covered terrace or call an administrator.",
+          actions: [
+            { area: "garden", label: language === "bg" ? "Покрита тераса" : "Covered terrace" },
+          ],
+        }
+      : partyNoticeType === "indoorTooLarge"
+      ? {
+          kicker: language === "bg" ? "Голяма компания" : "Large party",
+          title: language === "bg" ? "Преместихме ви към терасата" : "We moved you to the terrace",
+          text:
+            language === "bg"
+              ? "В залата за непушачи онлайн могат да се комбинират маси до 16 гости. За по-голяма компания може да разгледате покритата тераса или да се свържете с администратор за събитие."
+              : "The non-smoking hall can be booked online for up to 16 guests. For a larger party, view the covered terrace or contact an administrator to arrange an event.",
+          actions: [
+            { area: "garden", label: language === "bg" ? "Виж терасата" : "View terrace" },
+          ],
+        }
+      : null;
 
   return (
     <>
@@ -1415,12 +1502,12 @@ if (bookingMode === "single") {
         )}
       </div>
 
-      {largePartyNoticeOpen && (
+      {partyNotice && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/72 px-4 backdrop-blur-xl">
           <div className="relative w-full max-w-md overflow-hidden rounded-[30px] border border-[#c9a56a]/24 bg-[radial-gradient(circle_at_top_left,rgba(201,165,106,0.22),transparent_38%),linear-gradient(145deg,rgba(31,24,19,0.98),rgba(11,9,7,0.98))] p-6 text-center text-white shadow-2xl shadow-black/50">
             <button
               type="button"
-              onClick={() => setLargePartyNoticeOpen(false)}
+              onClick={() => setPartyNoticeType("")}
               className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white/70 transition hover:text-white"
               aria-label={language === "bg" ? "Затвори" : "Close"}
             >
@@ -1430,24 +1517,29 @@ if (bookingMode === "single") {
               {requestedGuests}
             </div>
             <div className="section-kicker mb-3">
-              {language === "bg" ? "Голяма компания" : "Large party"}
+              {partyNotice.kicker}
             </div>
             <h3 className="text-2xl font-semibold text-[#fff4df]">
-              {language === "bg" ? "Преместихме ви към терасата" : "We moved you to the terrace"}
+              {partyNotice.title}
             </h3>
             <p className="mt-3 text-sm leading-7 text-white/68">
-              {language === "bg"
-                ? "В залата за непушачи онлайн могат да се комбинират маси до 16 гости. За по-голяма компания може да разгледате терасата или да се свържете с администратор за събитие."
-                : "The non-smoking hall can be booked online for up to 16 guests. For a larger party, view the terrace or contact an administrator to arrange an event."}
+              {partyNotice.text}
             </p>
-            <div className="mt-6 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setLargePartyNoticeOpen(false)}
-                className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
-              >
-                {language === "bg" ? "Виж терасата" : "View terrace"}
-              </button>
+            <div className={`mt-6 grid gap-3 ${partyNotice.actions.length > 1 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+              {partyNotice.actions.map((action) => (
+                <button
+                  key={action.area}
+                  type="button"
+                  onClick={() => {
+                    setSelectedArea(action.area);
+                    setSelectedTables([]);
+                    setPartyNoticeType("");
+                  }}
+                  className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
+                >
+                  {action.label}
+                </button>
+              ))}
               <a
                 href="tel:+359888218318"
                 className="ghost-button rounded-2xl px-5 py-3 text-sm font-semibold"
