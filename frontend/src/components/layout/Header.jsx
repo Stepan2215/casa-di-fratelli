@@ -60,7 +60,7 @@ export default function Header({
     "flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3 text-sm font-semibold text-[#fff4df] transition active:scale-[0.98] hover:border-[#c9a56a]/35 hover:bg-[#c9a56a]/10";
 
   return (
-    <header className="relative z-50 border-b border-white/10 bg-[#090705]/82 backdrop-blur-2xl">
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#090705]/82 backdrop-blur-2xl">
       <div className="mx-auto max-w-7xl px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <button
