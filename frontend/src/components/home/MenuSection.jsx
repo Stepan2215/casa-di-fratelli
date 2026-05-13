@@ -19,11 +19,13 @@ export default function MenuSection({ t, language, onOpenMenu, cmsMenuItems }) {
         </div>
 
         <div className="max-w-xl">
-          <p className="leading-7 text-stone-400">{t.menuText}</p>
+          {t.menuText ? (
+            <p className="leading-7 text-stone-400">{t.menuText}</p>
+          ) : null}
           <button
             type="button"
             onClick={onOpenMenu}
-            className="ghost-button mt-5 rounded-full px-5 py-3 text-sm font-semibold"
+            className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
           >
             {language === "bg" ? "Отвори цялото меню" : "Open full menu"}
           </button>

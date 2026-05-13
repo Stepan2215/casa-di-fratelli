@@ -2119,7 +2119,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
                     {[
                       ["list", adminLanguage === "bg" ? "Списък" : "List"],
-                      ["form", adminLanguage === "bg" ? "Добави вручна" : "Add manually"],
+                      ["form", adminLanguage === "bg" ? "Добави ръчно" : "Add manually"],
                     ].map(([key, label]) => (
                       <button
                         key={key}
