@@ -214,6 +214,42 @@ function WallTv({ label }) {
   );
 }
 
+function MergedTableRail({ tables, selectedIds, groups }) {
+  const selectedSet = new Set(selectedIds);
+
+  return groups
+    .map((group) => {
+      const selectedInGroup = group.filter((id) => selectedSet.has(id));
+      if (selectedInGroup.length < 2) return null;
+
+      const selectedTables = selectedInGroup
+        .map((id) => tables.find((table) => table.id === id))
+        .filter(Boolean);
+
+      if (selectedTables.length < 2) return null;
+
+      const x = selectedTables.reduce((sum, table) => sum + table.x, 0) / selectedTables.length;
+      const minY = Math.min(...selectedTables.map((table) => table.y));
+      const maxY = Math.max(...selectedTables.map((table) => table.y));
+
+      return (
+        <div
+          key={group.join("-")}
+          className="pointer-events-none absolute z-[4] w-9 -translate-x-1/2 rounded-[18px] border border-[#f2d39a]/38 bg-[linear-gradient(180deg,rgba(246,217,158,0.32),rgba(91,64,40,0.56),rgba(246,217,158,0.24))] shadow-[0_0_36px_rgba(201,165,106,0.24),inset_0_1px_0_rgba(255,255,255,0.2)] md:w-11"
+          style={{
+            left: `${x}%`,
+            top: `calc(${minY}% - 24px)`,
+            height: `calc(${maxY - minY}% + 48px)`,
+          }}
+        >
+          <div className="absolute inset-1 rounded-[14px] border border-white/10" />
+          <div className="absolute left-1/2 top-3 bottom-3 w-px -translate-x-1/2 bg-[#fff4df]/20" />
+        </div>
+      );
+    })
+    .filter(Boolean);
+}
+
 function GardenTable({ table, selected, reserved, onSelect }) {
   const commonClass = `absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
     reserved
@@ -301,13 +337,14 @@ function GardenTable({ table, selected, reserved, onSelect }) {
 
 function GardenMap({ tables, selectedIds, onSelect, labels }) {
   return (
-    <div className="relative min-h-[620px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner md:min-h-[800px]">
+    <div className="relative min-h-[560px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner md:min-h-[800px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
       <MapWindow className="left-5 right-5 top-3 h-4" label={labels.windows} />
       <MapWindow className="bottom-5 left-3 top-5 w-4" label={labels.windows} vertical />
       <MapWindow className="bottom-5 right-3 top-5 w-4" label={labels.windows} vertical />
       <WallTv label={labels.tv} />
       <TerraceEntry label={labels.terraceEntrance} />
+      <MergedTableRail tables={gardenTables} selectedIds={selectedIds} groups={gardenGroups} />
 
       {tables.map((table) => (
         <GardenTable
@@ -392,12 +429,19 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
 }
 
 function IndoorMap({ tables, selectedIds, onSelect, labels }) {
+  const indoorGroups = [
+    ["5", "6"],
+    ["20", "21", "22", "23"],
+    ["28", "29"],
+  ];
+
   return (
     <div className="relative min-h-[640px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.14),_transparent_34%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]">
       <div className="absolute inset-5 rounded-[22px] border border-dashed border-[#c9a56a]/15" />
       <div className="absolute left-[16%] top-[88%] w-[18%] text-center text-[10px] uppercase tracking-[0.22em] text-[#d6b278]">
         {labels.entrance}
       </div>
+      <MergedTableRail tables={indoorTables} selectedIds={selectedIds} groups={indoorGroups} />
 
       {tables.map((table) => (
         <IndoorTable
