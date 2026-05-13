@@ -71,7 +71,7 @@ export default function Header({
               closeMobileMenu();
               onGoHome();
             }}
-            className="brand-led group min-w-0 text-left transition hover:opacity-95"
+            className="brand-led nav-reveal group min-w-0 text-left transition hover:opacity-95"
           >
             <img
               src="/casa-di-fratelli-logo.svg"
@@ -80,7 +80,7 @@ export default function Header({
             />
           </button>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="nav-reveal nav-reveal-delay-1 hidden items-center gap-2 md:flex">
             <a
               href={locationUrl}
               target="_blank"
@@ -117,7 +117,7 @@ export default function Header({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 md:hidden">
+          <div className="nav-reveal nav-reveal-delay-1 flex items-center gap-2 md:hidden">
             <a
               href={locationUrl}
               target="_blank"
@@ -171,7 +171,7 @@ export default function Header({
           </div>
         </div>
 
-        <div className={`mt-3 grid gap-2 md:hidden ${isMenuPage ? "grid-cols-1" : "grid-cols-[1fr_1fr]"}`}>
+        <div className={`nav-reveal nav-reveal-delay-2 mt-3 grid gap-2 md:hidden ${isMenuPage ? "grid-cols-1" : "grid-cols-[1fr_1fr]"}`}>
           {!isMenuPage && (
             <button
               type="button"
@@ -191,7 +191,7 @@ export default function Header({
         </div>
 
         <div className="mt-4 hidden items-center justify-between gap-3 md:flex">
-          <nav className="flex gap-7 text-sm text-stone-300">
+          <nav className="nav-reveal nav-reveal-delay-2 flex gap-7 text-sm text-stone-300">
             {sectionLinks.map(([href, label]) => (
               <a key={href} href={href} className="transition hover:text-[#f2d39a]">
                 {label}
@@ -199,7 +199,7 @@ export default function Header({
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="nav-reveal nav-reveal-delay-3 flex items-center gap-4">
             {!isMenuPage && (
               <button
                 type="button"
