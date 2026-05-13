@@ -182,6 +182,9 @@ namespace CasaDiFratelli.Api.Migrations
                     b.Property<bool>("MarketingConsent")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("PrivacyConsent")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Notes")
                         .HasColumnType("TEXT");
 
