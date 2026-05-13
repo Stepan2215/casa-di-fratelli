@@ -117,7 +117,77 @@ button:disabled {
   text-transform: uppercase;
 }
 
+.luxury-header {
+  isolation: isolate;
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.28);
+}
+
+.luxury-header::before,
+.luxury-header::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.luxury-header::before {
+  background:
+    linear-gradient(115deg, rgba(201, 165, 106, 0.14), rgba(255, 255, 255, 0.04), rgba(42, 122, 88, 0.12), rgba(124, 45, 36, 0.1)),
+    radial-gradient(circle at 12% 0%, rgba(242, 211, 154, 0.16), transparent 28rem),
+    radial-gradient(circle at 88% 12%, rgba(34, 197, 94, 0.08), transparent 22rem);
+  background-size: 240% 240%, 100% 100%, 100% 100%;
+  animation: header-aurora 12s ease-in-out infinite;
+}
+
+.luxury-header::after {
+  inset: auto 0 -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(242, 211, 154, 0.78), rgba(42, 122, 88, 0.48), transparent);
+  opacity: 0.75;
+}
+
+.brand-led {
+  position: relative;
+  border-radius: 20px;
+}
+
+.brand-led::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -8px -12px;
+  border-radius: 24px;
+  background:
+    linear-gradient(90deg, transparent, rgba(242, 211, 154, 0.64), rgba(255, 255, 255, 0.62), rgba(42, 122, 88, 0.38), transparent) border-box;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+  padding: 1px;
+  opacity: 0.42;
+  animation: logo-led-trace 4.8s ease-in-out infinite;
+}
+
+.brand-led::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -14px -18px;
+  border-radius: 28px;
+  background: radial-gradient(circle at 18% 50%, rgba(242, 211, 154, 0.2), transparent 42%);
+  filter: blur(12px);
+  opacity: 0.55;
+  animation: logo-led-breathe 3.8s ease-in-out infinite;
+}
+
 .brand-logo {
+  position: relative;
+  z-index: 1;
   display: block;
   object-fit: contain;
   filter: invert(93%) sepia(18%) saturate(555%) hue-rotate(344deg) brightness(104%) contrast(93%);
@@ -224,6 +294,43 @@ button:disabled {
   }
 }
 
+@keyframes header-aurora {
+  0%, 100% {
+    background-position: 0% 50%, center, center;
+  }
+  50% {
+    background-position: 100% 50%, center, center;
+  }
+}
+
+@keyframes logo-led-trace {
+  0%, 100% {
+    opacity: 0.22;
+    filter: drop-shadow(0 0 0 rgba(242, 211, 154, 0));
+    transform: translate3d(-2px, 0, 0);
+  }
+  42% {
+    opacity: 0.78;
+    filter: drop-shadow(0 0 12px rgba(242, 211, 154, 0.42));
+    transform: translate3d(2px, 0, 0);
+  }
+  68% {
+    opacity: 0.48;
+    filter: drop-shadow(0 0 8px rgba(42, 122, 88, 0.24));
+  }
+}
+
+@keyframes logo-led-breathe {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(0.985);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.015);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -231,7 +338,10 @@ button:disabled {
 
   .reveal-up,
   .reveal-fade,
-  .floating-glow {
+  .floating-glow,
+  .luxury-header::before,
+  .brand-led::before,
+  .brand-led::after {
     animation: none;
   }
 
