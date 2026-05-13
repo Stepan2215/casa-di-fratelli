@@ -1,6 +1,7 @@
 using CasaDiFratelli.Api.Data;
 using CasaDiFratelli.Api.Models;
 using CasaDiFratelli.Api.Services;
+using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,6 +25,68 @@ public class MenuController : ControllerBase
         _logger = logger;
     }
 
+    private static void AddParameter(IDbCommand command, string name, object? value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value ?? DBNull.Value;
+        command.Parameters.Add(parameter);
+    }
+
+    private async Task EnsureConnectionOpenAsync()
+    {
+        var connection = _db.Database.GetDbConnection();
+
+        if (connection.State != ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+    }
+
+    private async Task<List<object>> ReadMenuItemsAsync()
+    {
+        await EnsureConnectionOpenAsync();
+
+        await using var command = _db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            SELECT
+                "Id",
+                "NameBg",
+                "NameEn",
+                "DescriptionBg",
+                "DescriptionEn",
+                "Weight",
+                "Price",
+                "Category",
+                "IsActive",
+                "NotifySubscribers"
+            FROM "MenuItems"
+            ORDER BY "Category", "NameBg";
+            """;
+
+        var items = new List<object>();
+        await using var reader = await command.ExecuteReaderAsync();
+
+        while (await reader.ReadAsync())
+        {
+            items.Add(new
+            {
+                Id = reader.GetInt32(0),
+                NameBg = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                NameEn = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                DescriptionBg = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                DescriptionEn = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                Weight = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                Price = reader.IsDBNull(6) ? 0m : reader.GetDecimal(6),
+                Category = reader.IsDBNull(7) ? "main" : reader.GetString(7),
+                IsActive = !reader.IsDBNull(8) && reader.GetBoolean(8),
+                NotifySubscribers = !reader.IsDBNull(9) && reader.GetBoolean(9)
+            });
+        }
+
+        return items;
+    }
+
     [HttpGet]
     public async Task<IActionResult> Get()
     {
@@ -32,30 +95,14 @@ public class MenuController : ControllerBase
             await AdminSchemaBootstrapper.EnsureAsync(_db);
             await MenuSeedData.SeedAsync(_db);
 
-            var items = await _db.MenuItems
-                .OrderBy(x => x.Category)
-                .ThenBy(x => x.NameBg)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.NameBg,
-                    x.NameEn,
-                    x.DescriptionBg,
-                    x.DescriptionEn,
-                    x.Weight,
-                    x.Price,
-                    x.Category,
-                    x.IsActive,
-                    x.NotifySubscribers
-                })
-                .ToListAsync();
+            var items = await ReadMenuItemsAsync();
 
             return Ok(items);
         }
         catch (Exception error)
         {
             _logger.LogError(error, "Failed to load menu items.");
-            return Ok(Array.Empty<MenuItem>());
+            return StatusCode(500, new { message = "Failed to load menu items." });
         }
     }
 
@@ -102,8 +149,27 @@ public class MenuController : ControllerBase
             item.Category = string.IsNullOrWhiteSpace(item.Category) ? "main" : item.Category.Trim();
             item.CreatedAtUtc = DateTime.UtcNow;
 
-            _db.MenuItems.Add(item);
-            await _db.SaveChangesAsync();
+            await EnsureConnectionOpenAsync();
+
+            await using var command = _db.Database.GetDbConnection().CreateCommand();
+            command.CommandText = """
+                INSERT INTO "MenuItems"
+                ("NameBg", "NameEn", "DescriptionBg", "DescriptionEn", "Weight", "Price", "Category", "IsActive", "NotifySubscribers")
+                VALUES
+                (@nameBg, @nameEn, @descriptionBg, @descriptionEn, @weight, @price, @category, @isActive, @notifySubscribers)
+                RETURNING "Id";
+                """;
+            AddParameter(command, "@nameBg", item.NameBg);
+            AddParameter(command, "@nameEn", item.NameEn);
+            AddParameter(command, "@descriptionBg", item.DescriptionBg);
+            AddParameter(command, "@descriptionEn", item.DescriptionEn);
+            AddParameter(command, "@weight", item.Weight);
+            AddParameter(command, "@price", item.Price);
+            AddParameter(command, "@category", item.Category);
+            AddParameter(command, "@isActive", item.IsActive);
+            AddParameter(command, "@notifySubscribers", item.NotifySubscribers);
+
+            item.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
 
             if (item.NotifySubscribers)
             {
@@ -167,37 +233,51 @@ public class MenuController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] MenuItem updated)
     {
         await AdminSchemaBootstrapper.EnsureAsync(_db);
+        await EnsureConnectionOpenAsync();
 
-        var item = await _db.MenuItems.FindAsync(id);
+        await using var command = _db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            UPDATE "MenuItems"
+            SET
+                "NameBg" = @nameBg,
+                "NameEn" = @nameEn,
+                "DescriptionBg" = @descriptionBg,
+                "DescriptionEn" = @descriptionEn,
+                "Weight" = @weight,
+                "Price" = @price,
+                "Category" = @category,
+                "IsActive" = @isActive,
+                "NotifySubscribers" = @notifySubscribers,
+                "UpdatedAtUtc" = now()
+            WHERE "Id" = @id;
+            """;
+        AddParameter(command, "@id", id);
+        AddParameter(command, "@nameBg", updated.NameBg?.Trim() ?? string.Empty);
+        AddParameter(command, "@nameEn", string.IsNullOrWhiteSpace(updated.NameEn) ? updated.NameBg?.Trim() : updated.NameEn.Trim());
+        AddParameter(command, "@descriptionBg", updated.DescriptionBg?.Trim() ?? string.Empty);
+        AddParameter(command, "@descriptionEn", updated.DescriptionEn?.Trim() ?? string.Empty);
+        AddParameter(command, "@weight", updated.Weight?.Trim() ?? string.Empty);
+        AddParameter(command, "@price", updated.Price);
+        AddParameter(command, "@category", string.IsNullOrWhiteSpace(updated.Category) ? "main" : updated.Category.Trim());
+        AddParameter(command, "@isActive", updated.IsActive);
+        AddParameter(command, "@notifySubscribers", updated.NotifySubscribers);
 
-        if (item == null)
+        var affectedRows = await command.ExecuteNonQueryAsync();
+        if (affectedRows == 0)
             return NotFound();
-
-        item.NameBg = updated.NameBg;
-        item.NameEn = updated.NameEn;
-        item.DescriptionBg = updated.DescriptionBg;
-        item.DescriptionEn = updated.DescriptionEn;
-        item.Weight = updated.Weight;
-        item.Price = updated.Price;
-        item.Category = updated.Category;
-        item.IsActive = updated.IsActive;
-        item.NotifySubscribers = updated.NotifySubscribers;
-        item.UpdatedAtUtc = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
 
         return Ok(new
         {
-            item.Id,
-            item.NameBg,
-            item.NameEn,
-            item.DescriptionBg,
-            item.DescriptionEn,
-            item.Weight,
-            item.Price,
-            item.Category,
-            item.IsActive,
-            item.NotifySubscribers
+            Id = id,
+            NameBg = updated.NameBg,
+            NameEn = updated.NameEn,
+            DescriptionBg = updated.DescriptionBg,
+            DescriptionEn = updated.DescriptionEn,
+            Weight = updated.Weight,
+            Price = updated.Price,
+            Category = updated.Category,
+            IsActive = updated.IsActive,
+            NotifySubscribers = updated.NotifySubscribers
         });
     }
 
@@ -205,15 +285,18 @@ public class MenuController : ControllerBase
     public async Task<IActionResult> Delete(int id)
     {
         await AdminSchemaBootstrapper.EnsureAsync(_db);
+        await EnsureConnectionOpenAsync();
 
-        var item = await _db.MenuItems.FindAsync(id);
+        await using var command = _db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = """
+            DELETE FROM "MenuItems"
+            WHERE "Id" = @id;
+            """;
+        AddParameter(command, "@id", id);
 
-        if (item == null)
+        var affectedRows = await command.ExecuteNonQueryAsync();
+        if (affectedRows == 0)
             return NotFound();
-
-        _db.MenuItems.Remove(item);
-
-        await _db.SaveChangesAsync();
 
         return Ok();
     }
