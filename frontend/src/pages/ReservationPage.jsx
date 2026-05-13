@@ -165,6 +165,54 @@ function InfoRow({ label, value }) {
   );
 }
 
+function MapWindow({ className = "", label, vertical = false }) {
+  return (
+    <div className={`pointer-events-none absolute z-10 ${className}`}>
+      <div
+        className={`relative overflow-hidden rounded-2xl border border-sky-200/35 bg-sky-100/[0.08] shadow-[0_0_34px_rgba(125,211,252,0.16)] backdrop-blur ${
+          vertical ? "h-44 w-10" : "h-10 w-44"
+        }`}
+      >
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.28),transparent_36%),repeating-linear-gradient(90deg,transparent_0_22%,rgba(186,230,253,0.24)_22%_23%,transparent_23%_46%)]" />
+        <div className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-sky-100/35" />
+        <div className="absolute bottom-1 left-2 right-2 h-px bg-white/20" />
+        <div
+          className={`relative flex h-full w-full items-center justify-center text-[9px] font-bold uppercase tracking-[0.24em] text-sky-100/90 ${
+            vertical ? "-rotate-90 whitespace-nowrap" : ""
+          }`}
+        >
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TerraceEntry({ label }) {
+  return (
+    <div className="pointer-events-none absolute left-[47%] top-[78%] z-10 w-[24%] text-center">
+      <div className="mx-auto mb-2 h-10 w-24 rounded-t-full border-x border-t border-[#d6b278]/50 bg-[radial-gradient(circle_at_50%_100%,rgba(214,178,120,0.25),transparent_62%)] shadow-[0_0_24px_rgba(214,178,120,0.14)]" />
+      <div className="rounded-full border border-[#c9a56a]/28 bg-black/28 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.22em] text-[#f2d39a] backdrop-blur">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function WallTv({ label }) {
+  return (
+    <div className="pointer-events-none absolute left-[3%] top-[49%] z-10">
+      <div className="relative h-20 w-8 rounded-xl border border-white/18 bg-[#080706] shadow-[0_0_30px_rgba(0,0,0,0.45)]">
+        <div className="absolute inset-1 rounded-lg bg-[linear-gradient(160deg,rgba(56,189,248,0.28),rgba(255,255,255,0.08)_42%,rgba(20,184,166,0.16))]" />
+        <div className="absolute left-1/2 top-1/2 h-10 w-px -translate-x-1/2 -translate-y-1/2 bg-white/25" />
+      </div>
+      <div className="mt-2 -translate-x-3 rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[8px] font-bold uppercase tracking-[0.18em] text-white/60">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 function GardenTable({ table, selected, reserved, onSelect }) {
   const commonClass = `absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
     reserved ? "cursor-not-allowed opacity-75" : selected ? "scale-110" : "hover:scale-105"
@@ -207,8 +255,10 @@ function GardenTable({ table, selected, reserved, onSelect }) {
           (chair, index) => (
             <div
               key={index}
-              className={`absolute h-4 w-4 rounded-full border shadow-inner ${
-                reserved ? "border-red-400/20 bg-[#3b1d1d]" : "border-[#c9a56a]/25 bg-[#2f241c]"
+              className={`absolute h-4 w-4 rounded-[7px] border shadow-[inset_0_1px_1px_rgba(255,255,255,0.12),0_5px_12px_rgba(0,0,0,0.24)] ${
+                reserved
+                  ? "border-red-400/20 bg-[#3b1d1d]"
+                  : "border-[#d8b377]/30 bg-[linear-gradient(145deg,#4a382b,#211914)]"
               }`}
               style={{ left: chair.x, top: chair.y }}
             />
@@ -216,14 +266,15 @@ function GardenTable({ table, selected, reserved, onSelect }) {
         )}
 
         <div
-          className={`absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-xs font-semibold transition-all duration-300 ${
+          className={`absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-[18px] text-xs font-semibold transition-all duration-300 ${
             selected
-              ? "bg-[#d7b57f] text-black shadow-lg ring-4 ring-[#d7b57f]/15"
+              ? "bg-[linear-gradient(145deg,#f6d99e,#b88b4d)] text-black shadow-[0_14px_30px_rgba(201,165,106,0.3)] ring-4 ring-[#d7b57f]/15"
               : reserved
               ? "border border-red-400/30 bg-[#4a1f1f] text-red-100"
-              : "border border-[#c9a56a]/35 bg-[#3a2c22] text-white"
+              : "border border-[#c9a56a]/40 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_12px_24px_rgba(0,0,0,0.28)]"
           }`}
         >
+          <span className="absolute inset-1 rounded-[14px] border border-white/8" />
           {table.id}
         </div>
       </div>
@@ -233,14 +284,13 @@ function GardenTable({ table, selected, reserved, onSelect }) {
 
 function GardenMap({ tables, selectedIds, onSelect, labels }) {
   return (
-    <div className="relative min-h-[570px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))]">
-      <div className="absolute inset-5 rounded-[22px] border border-dashed border-[#c9a56a]/15" />
-      <div className="absolute left-1/2 top-3 -translate-x-1/2 text-[10px] uppercase tracking-[0.25em] text-white/35">
-        {labels.perimeter}
-      </div>
-      <div className="absolute left-[47%] top-[79%] w-[20%] text-center text-[10px] uppercase tracking-[0.22em] text-[#d6b278]">
-        {labels.entrance}
-      </div>
+    <div className="relative min-h-[570px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner">
+      <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
+      <MapWindow className="left-1/2 top-4 -translate-x-1/2" label={labels.windows} />
+      <MapWindow className="left-4 top-1/2 -translate-y-1/2" label={labels.windows} vertical />
+      <MapWindow className="right-4 top-1/2 -translate-y-1/2" label={labels.windows} vertical />
+      <WallTv label={labels.tv} />
+      <TerraceEntry label={labels.terraceEntrance} />
 
       {tables.map((table) => (
         <GardenTable
@@ -261,14 +311,14 @@ function SixSeatChairs({ reserved }) {
       {[0, 1, 2].map((i) => (
         <div
           key={`top-${i}`}
-          className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
+          className={`absolute h-3 w-4 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
           style={{ left: i * 18 + 10, top: -8 }}
         />
       ))}
       {[0, 1, 2].map((i) => (
         <div
           key={`bottom-${i}`}
-          className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
+          className={`absolute h-3 w-4 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`}
           style={{ left: i * 18 + 10, top: 36 }}
         />
       ))}
@@ -279,10 +329,10 @@ function SixSeatChairs({ reserved }) {
 function FourSeatChairs({ reserved }) {
   return (
     <>
-      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: -8, transform: "translateX(-50%)" }} />
-      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: 36, transform: "translateX(-50%)" }} />
-      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: 0, top: 14 }} />
-      <div className={`absolute h-3 w-3 rounded-full ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ right: 0, top: 14 }} />
+      <div className={`absolute h-3 w-4 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: -8, transform: "translateX(-50%)" }} />
+      <div className={`absolute h-3 w-4 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: "50%", top: 36, transform: "translateX(-50%)" }} />
+      <div className={`absolute h-4 w-3 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ left: 0, top: 14 }} />
+      <div className={`absolute h-4 w-3 rounded-[6px] border border-[#c9a56a]/20 ${reserved ? "bg-[#3b1d1d]" : "bg-[#2f241c]"}`} style={{ right: 0, top: 14 }} />
     </>
   );
 }
@@ -307,10 +357,10 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
             table.wide ? "h-[40px] w-[70px]" : "h-[40px] w-[50px]"
           } ${
             selected
-              ? "bg-[#d7b57f] text-black shadow-lg ring-4 ring-[#d7b57f]/15"
+              ? "bg-[linear-gradient(145deg,#f6d99e,#b88b4d)] text-black shadow-lg ring-4 ring-[#d7b57f]/15"
               : reserved
               ? "border border-red-400/30 bg-[#4a1f1f] text-red-100"
-              : "border border-[#c9a56a]/35 bg-[#3a2c22] text-white"
+              : "border border-[#c9a56a]/35 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_22px_rgba(0,0,0,0.26)]"
           }`}
         >
           {table.id}
@@ -560,6 +610,9 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const labels = {
     perimeter: language === "bg" ? "Периметър" : "Garden perimeter",
     entrance: language === "bg" ? "Вход" : "Entrance",
+    terraceEntrance: language === "bg" ? "Вход към терасата" : "Entrance to terrace",
+    windows: language === "bg" ? "Прозорци" : "Windows",
+    tv: language === "bg" ? "Телевизор" : "TV",
     gardenTitle: language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking",
     gardenSubtitle: language === "bg" ? "Подходяща зона за пушачи" : "Smoking area",
     indoorTitle: language === "bg" ? "Зала / Непушачи" : "Hall / Non-smoking",
