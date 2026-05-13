@@ -80,7 +80,7 @@ export default function MenuPage({
         language={language}
       />
 
-      <div className="sticky top-[132px] z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-[164px]">
+      <div className="sticky top-[124px] z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-[152px]">
         <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
           <div className="mb-2 flex items-center justify-between gap-3 md:hidden">
             <div className="min-w-0">
