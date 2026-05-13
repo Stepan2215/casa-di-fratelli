@@ -498,6 +498,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [expandedId, setExpandedId] = React.useState(null);
   const [menuMode, setMenuMode] = React.useState("list");
   const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
+  const [blacklistMode, setBlacklistMode] = React.useState("list");
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
@@ -552,6 +553,7 @@ export default function AdminPage({ onMenuChanged }) {
 
   React.useEffect(() => {
     loadReservations();
+    loadBlacklist();
   }, []);
 
   React.useEffect(() => {
@@ -687,20 +689,44 @@ export default function AdminPage({ onMenuChanged }) {
     await loadReservations();
   }
 
-  async function addToBlacklist(reservation) {
-    await fetch(`${API_BASE_URL}/api/blacklist`, {
+  async function saveBlacklistPayload(payload) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/blacklist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        guestName: reservation.guestName,
-        phone: reservation.phone,
-        email: reservation.email,
-        reason: "No-show",
-        notes: reservation.internalNote || reservation.notes || "",
-      }),
+      body: JSON.stringify(payload),
     });
 
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to add to blacklist."));
+      return false;
+    }
+
     await loadBlacklist();
+    setAdminNotice("Added to blacklist.");
+    return true;
+  }
+
+  async function addToBlacklist(reservation) {
+    await saveBlacklistPayload({
+      guestName: reservation.guestName,
+      phone: reservation.phone,
+      email: reservation.email,
+      reason: "No-show",
+      notes: reservation.internalNote || reservation.notes || "",
+    });
+  }
+
+  async function addCustomerToBlacklist(customer) {
+    await saveBlacklistPayload({
+      guestName: customer.guestName || "",
+      phone: customer.phone || "",
+      email: customer.email || "",
+      reason: "Manual review",
+      notes: `Added from Customers tab. Reservations: ${customer.count}`,
+    });
   }
 
   async function saveMenuItem(event) {
@@ -847,11 +873,8 @@ export default function AdminPage({ onMenuChanged }) {
   async function saveBlacklistEntry(event) {
     event.preventDefault();
 
-    await fetch(`${API_BASE_URL}/api/blacklist`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(blacklistForm),
-    });
+    const saved = await saveBlacklistPayload(blacklistForm);
+    if (!saved) return;
 
     setBlacklistForm({
       guestName: "",
@@ -860,8 +883,7 @@ export default function AdminPage({ onMenuChanged }) {
       reason: "No-show",
       notes: "",
     });
-
-    await loadBlacklist();
+    setBlacklistMode("list");
   }
 
   async function deleteBlacklistEntry(id) {
@@ -913,6 +935,12 @@ const statsReservations = reservations.filter((r) =>
 const pendingCount = statsReservations.filter((r) => r.status === "Pending").length;
 const approvedCount = statsReservations.filter((r) => r.status === "Approved").length;
   const blacklistCount = blacklist.length;
+  const blacklistKeys = new Set(
+    blacklist.flatMap((entry) => [
+      String(entry.phone || entry.Phone || "").trim().toLowerCase(),
+      String(entry.email || entry.Email || "").trim().toLowerCase(),
+    ]).filter(Boolean)
+  );
 
   const customers = Object.values(
     reservations.reduce((acc, r) => {
@@ -928,14 +956,21 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           lastReservation: r.reservedDate,
           isRegularCustomer: false,
           marketingConsent: r.marketingConsent,
-          isBlacklisted: r.isBlacklisted,
+          isBlacklisted:
+            r.isBlacklisted ||
+            blacklistKeys.has(String(r.phone || "").trim().toLowerCase()) ||
+            blacklistKeys.has(String(r.email || "").trim().toLowerCase()),
         };
       }
 
       acc[key].count += 1;
       acc[key].isRegularCustomer = acc[key].isRegularCustomer || r.isRegularCustomer || acc[key].count >= 5;
       acc[key].marketingConsent = acc[key].marketingConsent || r.marketingConsent;
-      acc[key].isBlacklisted = acc[key].isBlacklisted || r.isBlacklisted;
+      acc[key].isBlacklisted =
+        acc[key].isBlacklisted ||
+        r.isBlacklisted ||
+        blacklistKeys.has(String(r.phone || "").trim().toLowerCase()) ||
+        blacklistKeys.has(String(r.email || "").trim().toLowerCase());
 
       return acc;
     }, {})
@@ -2077,67 +2112,112 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
             )}
 
             {activeTab === "blacklist" && (
-              <Panel title="Blacklist" subtitle="No-show клиенти и проблемни резервации.">
-                <form onSubmit={saveBlacklistEntry} className="mb-8 grid gap-4 md:grid-cols-3">
-                  {[
-                    ["guestName", "Guest name"],
-                    ["phone", "Phone"],
-                    ["email", "Email"],
-                    ["reason", "Reason"],
-                  ].map(([key, label]) => (
-                    <div key={key}>
-                      <label className="mb-2 block text-sm text-stone-400">{label}</label>
-                      <input
-                        value={blacklistForm[key]}
+              <Panel
+                title="Blacklist"
+                subtitle="No-show клиенти и проблемни резервации."
+                right={
+                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                    {[
+                      ["list", adminLanguage === "bg" ? "Списък" : "List"],
+                      ["form", adminLanguage === "bg" ? "Добави вручна" : "Add manually"],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setBlacklistMode(key)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          blacklistMode === key ? "luxury-button" : "text-white/70 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                {blacklistMode === "form" ? (
+                  <form onSubmit={saveBlacklistEntry} className="grid gap-4 md:grid-cols-3">
+                    {[
+                      ["guestName", "Guest name"],
+                      ["phone", "Phone"],
+                      ["email", "Email"],
+                      ["reason", "Reason"],
+                    ].map(([key, label]) => (
+                      <div key={key}>
+                        <label className="mb-2 block text-sm text-stone-400">{label}</label>
+                        <input
+                          value={blacklistForm[key]}
+                          onChange={(e) =>
+                            setBlacklistForm((prev) => ({
+                              ...prev,
+                              [key]: e.target.value,
+                            }))
+                          }
+                          required={["guestName", "phone", "reason"].includes(key)}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      </div>
+                    ))}
+
+                    <div className="md:col-span-3">
+                      <label className="mb-2 block text-sm text-stone-400">Notes</label>
+                      <textarea
+                        value={blacklistForm.notes}
                         onChange={(e) =>
                           setBlacklistForm((prev) => ({
                             ...prev,
-                            [key]: e.target.value,
+                            notes: e.target.value,
                           }))
                         }
+                        rows={4}
                         className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                       />
                     </div>
-                  ))}
 
-                  <div className="md:col-span-3">
-                    <label className="mb-2 block text-sm text-stone-400">Notes</label>
-                    <textarea
-                      value={blacklistForm.notes}
-                      onChange={(e) =>
-                        setBlacklistForm((prev) => ({
-                          ...prev,
-                          notes: e.target.value,
-                        }))
-                      }
-                      rows={3}
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
-                  </div>
-
-                  <button className="rounded-2xl bg-yellow-400 px-6 py-4 font-semibold text-black md:col-span-3">
-                    Add to blacklist
-                  </button>
-                </form>
-
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {blacklist.map((item) => (
-                    <div key={item.id || item.Id} className="rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5">
-                      <div className="font-semibold">{item.guestName || item.GuestName || "—"}</div>
-                      <div className="mt-2 text-sm text-yellow-100/80">{item.phone || item.Phone}</div>
-                      <div className="mt-1 text-sm text-yellow-100/80">{item.email || item.Email}</div>
-                      <div className="mt-4 text-sm">{item.reason || item.Reason}</div>
-                      <div className="mt-2 text-sm text-yellow-100/60">{item.notes || item.Notes}</div>
-
+                    <div className="flex flex-col gap-3 md:col-span-3 md:flex-row">
+                      <button className="rounded-2xl bg-yellow-400 px-6 py-4 font-semibold text-black">
+                        Add to blacklist
+                      </button>
                       <button
-                        onClick={() => deleteBlacklistEntry(item.id || item.Id)}
-                        className="mt-5 rounded-xl bg-red-500 px-4 py-2 text-sm"
+                        type="button"
+                        onClick={() => setBlacklistMode("list")}
+                        className="ghost-button rounded-2xl px-6 py-4 font-semibold"
                       >
-                        Remove
+                        Back to list
                       </button>
                     </div>
-                  ))}
-                </div>
+                  </form>
+                ) : (
+                  <div className="space-y-4">
+                    {blacklist.length === 0 && (
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400">
+                        {adminLanguage === "bg" ? "Blacklist е празен." : "Blacklist is empty."}
+                      </div>
+                    )}
+
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {blacklist.map((item) => (
+                        <div key={item.id || item.Id} className="rounded-3xl border border-yellow-400/20 bg-yellow-400/10 p-5">
+                          <div className="font-semibold">{item.guestName || item.GuestName || "—"}</div>
+                          <div className="mt-2 text-sm text-yellow-100/80">{item.phone || item.Phone}</div>
+                          <div className="mt-1 text-sm text-yellow-100/80">{item.email || item.Email || "—"}</div>
+                          <div className="mt-4 rounded-2xl border border-yellow-300/15 bg-black/15 p-3 text-sm">
+                            {item.reason || item.Reason}
+                          </div>
+                          <div className="mt-2 text-sm text-yellow-100/60">{item.notes || item.Notes}</div>
+
+                          <button
+                            type="button"
+                            onClick={() => deleteBlacklistEntry(item.id || item.Id)}
+                            className="mt-5 rounded-xl bg-red-500 px-4 py-2 text-sm font-semibold text-white"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </Panel>
             )}
 
@@ -2152,6 +2232,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         <th className="p-4">Email</th>
                         <th className="p-4">Reservations</th>
                         <th className="p-4">Flags</th>
+                        <th className="p-4">Actions</th>
                       </tr>
                     </thead>
 
@@ -2180,6 +2261,16 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 </span>
                               )}
                             </div>
+                          </td>
+                          <td className="p-4">
+                            <button
+                              type="button"
+                              onClick={() => addCustomerToBlacklist(c)}
+                              disabled={c.isBlacklisted}
+                              className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-semibold text-yellow-200 disabled:opacity-40"
+                            >
+                              {c.isBlacklisted ? "Blacklisted" : "Add blacklist"}
+                            </button>
                           </td>
                         </tr>
                       ))}
