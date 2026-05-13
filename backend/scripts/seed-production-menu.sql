@@ -28,6 +28,33 @@ ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "NotifySubscribers" boolean NOT
 ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "CreatedAtUtc" timestamp with time zone NOT NULL DEFAULT now();
 ALTER TABLE "MenuItems" ADD COLUMN IF NOT EXISTS "UpdatedAtUtc" timestamp with time zone NULL;
 
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'MenuItems'
+        AND column_name = 'CreatedAtUtc'
+        AND data_type = 'text'
+    ) THEN
+        ALTER TABLE "MenuItems"
+        ALTER COLUMN "CreatedAtUtc" TYPE timestamp with time zone
+        USING COALESCE(NULLIF("CreatedAtUtc", '')::timestamp with time zone, now());
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'MenuItems'
+        AND column_name = 'UpdatedAtUtc'
+        AND data_type = 'text'
+    ) THEN
+        ALTER TABLE "MenuItems"
+        ALTER COLUMN "UpdatedAtUtc" TYPE timestamp with time zone
+        USING NULLIF("UpdatedAtUtc", '')::timestamp with time zone;
+    END IF;
+END $$;
+
 ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "PrivacyConsent" boolean NOT NULL DEFAULT false;
 
 INSERT INTO "MenuItems"
@@ -80,3 +107,5 @@ WHERE NOT EXISTS (
 );
 
 COMMIT;
+
+SELECT count(*) AS menu_items_total FROM "MenuItems";

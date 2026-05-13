@@ -35,6 +35,19 @@ public class MenuController : ControllerBase
             var items = await _db.MenuItems
                 .OrderBy(x => x.Category)
                 .ThenBy(x => x.NameBg)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.NameBg,
+                    x.NameEn,
+                    x.DescriptionBg,
+                    x.DescriptionEn,
+                    x.Weight,
+                    x.Price,
+                    x.Category,
+                    x.IsActive,
+                    x.NotifySubscribers
+                })
                 .ToListAsync();
 
             return Ok(items);
@@ -129,7 +142,19 @@ public class MenuController : ControllerBase
                 }
             }
 
-            return Ok(item);
+            return Ok(new
+            {
+                item.Id,
+                item.NameBg,
+                item.NameEn,
+                item.DescriptionBg,
+                item.DescriptionEn,
+                item.Weight,
+                item.Price,
+                item.Category,
+                item.IsActive,
+                item.NotifySubscribers
+            });
         }
         catch (Exception error)
         {
@@ -161,7 +186,19 @@ public class MenuController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        return Ok(item);
+        return Ok(new
+        {
+            item.Id,
+            item.NameBg,
+            item.NameEn,
+            item.DescriptionBg,
+            item.DescriptionEn,
+            item.Weight,
+            item.Price,
+            item.Category,
+            item.IsActive,
+            item.NotifySubscribers
+        });
     }
 
     [HttpDelete("{id}")]
