@@ -200,6 +200,32 @@ function TerraceEntry({ label }) {
   );
 }
 
+function SideEntry({ label }) {
+  return (
+    <div className="pointer-events-none absolute left-1 top-[60%] z-10 flex -translate-y-1/2 items-center">
+      <div className="h-14 w-5 rounded-r-full border-y border-r border-[#d6b278]/55 bg-[radial-gradient(circle_at_0%_50%,rgba(214,178,120,0.32),transparent_68%)] shadow-[0_0_18px_rgba(214,178,120,0.16)]" />
+      <div className="h-12 w-1 rounded-full bg-[#d6b278]/55" />
+      <div className="ml-1 rounded-full border border-[#c9a56a]/28 bg-black/48 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.16em] text-[#f2d39a] backdrop-blur">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function IndoorPartitionWall({ label }) {
+  return (
+    <div className="pointer-events-none absolute left-[67%] top-[48%] z-10 h-[27%] w-4 -translate-x-1/2">
+      <div className="relative h-full w-full rounded-full border border-stone-200/14 bg-[linear-gradient(180deg,rgba(255,244,223,0.18),rgba(63,47,34,0.78),rgba(255,244,223,0.12))] shadow-[0_0_28px_rgba(0,0,0,0.34),inset_0_1px_0_rgba(255,255,255,0.2)]">
+        <div className="absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-[#f2d39a]/20" />
+        <div className="absolute inset-x-1 top-1/2 h-px -translate-y-1/2 bg-white/12" />
+      </div>
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white/55 backdrop-blur">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 function WallTv({ label }) {
   return (
     <div className="pointer-events-none absolute left-[4%] top-[50%] z-10">
@@ -398,7 +424,11 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
       disabled={reserved}
       onClick={() => onSelect(table, "indoor")}
       className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${
-        reserved ? "cursor-not-allowed opacity-75" : selected ? "scale-110" : "hover:scale-105"
+        reserved
+          ? "cursor-not-allowed scale-90 opacity-75 md:scale-100"
+          : selected
+          ? "scale-95 md:scale-110"
+          : "scale-90 hover:scale-95 md:scale-100 md:hover:scale-105"
       }`}
       style={{ left: `${table.x}%`, top: `${table.y}%` }}
     >
@@ -436,11 +466,12 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
   ];
 
   return (
-    <div className="relative min-h-[640px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.14),_transparent_34%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]">
-      <div className="absolute inset-5 rounded-[22px] border border-dashed border-[#c9a56a]/15" />
-      <div className="absolute left-[16%] top-[88%] w-[18%] text-center text-[10px] uppercase tracking-[0.22em] text-[#d6b278]">
-        {labels.entrance}
-      </div>
+    <div className="relative min-h-[640px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]">
+      <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
+      <MapWindow className="left-3 top-5 h-[50%] w-4" label={labels.windows} vertical />
+      <MapWindow className="bottom-5 left-3 top-[70%] w-4" label={labels.windows} vertical />
+      <SideEntry label={labels.entrance} />
+      <IndoorPartitionWall label={labels.wall} />
       <MergedTableRail tables={indoorTables} selectedIds={selectedIds} groups={indoorGroups} />
 
       {tables.map((table) => (
@@ -673,6 +704,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     entrance: language === "bg" ? "Вход" : "Entrance",
     terraceEntrance: language === "bg" ? "Вход към терасата" : "Entrance to terrace",
     windows: language === "bg" ? "Прозорци" : "Windows",
+    wall: language === "bg" ? "Стена" : "Wall",
     tv: language === "bg" ? "Телевизор" : "TV",
     gardenTitle: language === "bg" ? "Тераса / Пушачи" : "Terrace / Smoking",
     gardenSubtitle: language === "bg" ? "Подходяща зона за пушачи" : "Smoking area",
