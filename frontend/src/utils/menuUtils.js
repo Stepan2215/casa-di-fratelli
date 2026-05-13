@@ -1,5 +1,3 @@
-export const BGN_TO_EUR_RATE = 1.95583;
-
 const categoryLabels = {
   salads: { bg: "Салати", en: "Salads" },
   starters: { bg: "Нещо за начало", en: "Starters" },
@@ -12,22 +10,19 @@ const categoryLabels = {
   drinks: { bg: "Напитки", en: "Drinks" },
 };
 
-export function formatEuroFromBgn(value) {
+export function formatEuro(value) {
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue) || numericValue <= 0) {
     return "€0.00";
   }
 
-  const eur = numericValue / BGN_TO_EUR_RATE;
-  const roundedUp = Math.ceil(eur * 10) / 10;
-
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "EUR",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(roundedUp);
+  }).format(numericValue);
 }
 
 export function priceTextToEuro(priceText) {
@@ -35,7 +30,7 @@ export function priceTextToEuro(priceText) {
 
   if (!match) return priceText || "";
 
-  return formatEuroFromBgn(match[0].replace(",", "."));
+  return formatEuro(match[0].replace(",", "."));
 }
 
 export function localizeStaticMenuPrices(data) {
@@ -87,7 +82,7 @@ export function buildMenuDataFromCms(items, language, fallbackData) {
     grouped.get(categoryId).items.push({
       name: getValue(item, language === "bg" ? "nameBg" : "nameEn") || getValue(item, "nameBg") || "",
       weight: getValue(item, "weight") || "",
-      price: formatEuroFromBgn(getValue(item, "price")),
+      price: formatEuro(getValue(item, "price")),
       description:
         getValue(item, language === "bg" ? "descriptionBg" : "descriptionEn") ||
         getValue(item, "descriptionBg") ||

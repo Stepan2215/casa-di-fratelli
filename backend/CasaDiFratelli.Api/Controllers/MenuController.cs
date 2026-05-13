@@ -243,7 +243,7 @@ public class MenuController : ControllerBase
                                 <p>
                                     <strong>{item.Weight}</strong>
                                     ·
-                                    <strong>{item.Price:F2} лв</strong>
+                                    <strong>€{item.Price:F2}</strong>
                                 </p>
 
                                 <p>

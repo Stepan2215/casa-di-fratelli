@@ -14,7 +14,7 @@ const emptyMenuItem = {
 };
 
 const priceHelperText =
-  "Stored in BGN. The public site converts it to EUR and rounds up to the next 10 cents.";
+  "Stored and shown in EUR. Use the final guest-facing price.";
 
 const adminText = {
   bg: {
@@ -81,7 +81,7 @@ const adminText = {
       nameBg: "Име BG",
       nameEn: "Име EN",
       weight: "Грамаж",
-      price: "Цена BGN",
+      price: "Цена EUR",
       category: "Категория",
       descriptionBg: "Състав / описание BG",
       descriptionEn: "Ingredients / description EN",
@@ -92,7 +92,7 @@ const adminText = {
       cancelEdit: "Назад към списъка",
       delete: "Изтрий",
       empty: "Още няма ястия в CMS.",
-      priceHelp: "Цената се пази в лева. Публичният сайт я обръща в евро и закръгля нагоре до 10 цента.",
+      priceHelp: "Цената се пази и показва в евро. Въведете крайната цена за гостите.",
     },
   },
   en: {
@@ -159,7 +159,7 @@ const adminText = {
       nameBg: "Name BG",
       nameEn: "Name EN",
       weight: "Weight",
-      price: "Price BGN",
+      price: "Price EUR",
       category: "Category",
       descriptionBg: "Ingredients / description BG",
       descriptionEn: "Ingredients / description EN",
@@ -988,6 +988,15 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   const selectedCategoryData =
     menuCategories.find((category) => category.id === selectedMenuCategory) || menuCategories[0];
   const selectedCategoryItems = selectedCategoryData?.items || [];
+  const categoryOptions = menuCategories.length
+    ? menuCategories
+    : Object.keys(categoryDisplayNames[adminLanguage]).map((category) => ({
+        id: category,
+        label: getCategoryLabel(category, adminLanguage),
+        count: 0,
+        activeCount: 0,
+        items: [],
+      }));
 
   const tabs = [
     ["reservations", a.tabs.reservations],
@@ -1741,102 +1750,169 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 }
               >
                 {menuMode === "form" ? (
-                  <form onSubmit={saveMenuItem} className="grid gap-4 md:grid-cols-2">
-                    <div className="md:col-span-2">
-                      <h3 className="text-2xl font-semibold text-[#fff4df]">
-                        {editingMenuId ? a.menu.editTitle : a.menu.addTitle}
-                      </h3>
-                    </div>
+                  <form onSubmit={saveMenuItem} className="space-y-5">
+                    <div className="rounded-[26px] border border-white/10 bg-black/20 p-5 md:p-6">
+                      <div className="mb-5">
+                        <div className="section-kicker">
+                          {editingMenuId
+                            ? adminLanguage === "bg" ? "Редакция" : "Edit"
+                            : adminLanguage === "bg" ? "Ново ястие" : "New dish"}
+                        </div>
+                        <h3 className="mt-2 text-2xl font-semibold text-[#fff4df]">
+                          {editingMenuId ? a.menu.editTitle : a.menu.addTitle}
+                        </h3>
+                      </div>
 
-                    {[
-                      ["nameBg", a.menu.nameBg],
-                      ["nameEn", a.menu.nameEn],
-                      ["weight", a.menu.weight],
-                      ["price", a.menu.price],
-                      ["category", a.menu.category],
-                    ].map(([key, label]) => (
-                      <div key={key}>
-                        <label className="mb-2 block text-sm text-stone-400">{label}</label>
-                        <input
-                          type={key === "price" ? "number" : "text"}
-                          step={key === "price" ? "0.01" : undefined}
-                          value={menuForm[key]}
-                          onChange={(e) =>
-                            setMenuForm((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          required={["nameBg", "price"].includes(key)}
-                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                        />
-                        {key === "price" && (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-2 block text-sm text-stone-400">{a.menu.nameBg}</label>
+                          <input
+                            value={menuForm.nameBg}
+                            onChange={(e) => setMenuForm((prev) => ({ ...prev, nameBg: e.target.value }))}
+                            required
+                            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm text-stone-400">{a.menu.nameEn}</label>
+                          <input
+                            value={menuForm.nameEn}
+                            onChange={(e) => setMenuForm((prev) => ({ ...prev, nameEn: e.target.value }))}
+                            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm text-stone-400">{a.menu.weight}</label>
+                          <input
+                            value={menuForm.weight}
+                            onChange={(e) => setMenuForm((prev) => ({ ...prev, weight: e.target.value }))}
+                            placeholder={adminLanguage === "bg" ? "напр. 350 гр" : "e.g. 350 g"}
+                            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm text-stone-400">{a.menu.price}</label>
+                          <div className="relative">
+                            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#f2d39a]">
+                              €
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={menuForm.price}
+                              onChange={(e) => setMenuForm((prev) => ({ ...prev, price: e.target.value }))}
+                              required
+                              className="w-full rounded-2xl border border-white/10 bg-black/20 px-9 py-3 outline-none focus:border-amber-300"
+                            />
+                          </div>
                           <p className="mt-2 text-xs leading-5 text-stone-500">
                             {a.menu.priceHelp}
                           </p>
-                        )}
+                        </div>
                       </div>
-                    ))}
-
-                    <div>
-                      <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionBg}</label>
-                      <textarea
-                        value={menuForm.descriptionBg}
-                        onChange={(e) =>
-                          setMenuForm((prev) => ({
-                            ...prev,
-                            descriptionBg: e.target.value,
-                          }))
-                        }
-                        rows={4}
-                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                      />
                     </div>
 
-                    <div>
-                      <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionEn}</label>
-                      <textarea
-                        value={menuForm.descriptionEn}
-                        onChange={(e) =>
-                          setMenuForm((prev) => ({
-                            ...prev,
-                            descriptionEn: e.target.value,
-                          }))
-                        }
-                        rows={4}
-                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                      />
+                    <div className="rounded-[26px] border border-white/10 bg-white/[0.04] p-5 md:p-6">
+                      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                        <div>
+                          <div className="section-kicker">{a.menu.category}</div>
+                          <h4 className="mt-2 text-xl font-semibold text-[#fff4df]">
+                            {adminLanguage === "bg" ? "Избери секция" : "Choose section"}
+                          </h4>
+                        </div>
+                        <div className="text-sm text-stone-500">
+                          {adminLanguage === "bg" ? "Или създай нова секция по-долу" : "Or create a new section below"}
+                        </div>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {categoryOptions.map((category) => {
+                          const selected = normalizeCategory(menuForm.category) === category.id;
+
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => setMenuForm((prev) => ({ ...prev, category: category.id }))}
+                              className={`rounded-2xl border p-4 text-left transition ${
+                                selected
+                                  ? "border-[#c9a56a]/50 bg-[#c9a56a]/15"
+                                  : "border-white/10 bg-black/20 hover:border-[#c9a56a]/35"
+                              }`}
+                            >
+                              <div className="font-semibold text-[#fff4df]">{category.label}</div>
+                              <div className="mt-1 text-xs text-stone-500">
+                                {category.count} {adminLanguage === "bg" ? "ястия" : "dishes"}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border border-dashed border-white/15 bg-black/20 p-4">
+                        <label className="mb-2 block text-sm text-stone-400">
+                          {adminLanguage === "bg" ? "Нова секция" : "New section"}
+                        </label>
+                        <input
+                          value={
+                            categoryOptions.some((category) => category.id === normalizeCategory(menuForm.category))
+                              ? ""
+                              : menuForm.category
+                          }
+                          onChange={(e) => setMenuForm((prev) => ({ ...prev, category: e.target.value }))}
+                          placeholder={adminLanguage === "bg" ? "например: Напитки" : "for example: Drinks"}
+                          className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      </div>
                     </div>
 
-                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
-                      <input
-                        type="checkbox"
-                        checked={menuForm.isActive}
-                        onChange={(e) =>
-                          setMenuForm((prev) => ({
-                            ...prev,
-                            isActive: e.target.checked,
-                          }))
-                        }
-                      />
-                      {a.menu.active}
-                    </label>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionBg}</label>
+                        <textarea
+                          value={menuForm.descriptionBg}
+                          onChange={(e) => setMenuForm((prev) => ({ ...prev, descriptionBg: e.target.value }))}
+                          rows={5}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      </div>
 
-                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
-                      <input
-                        type="checkbox"
-                        checked={menuForm.notifySubscribers}
-                        onChange={(e) =>
-                          setMenuForm((prev) => ({
-                            ...prev,
-                            notifySubscribers: e.target.checked,
-                          }))
-                        }
-                      />
-                      {a.menu.notify}
-                    </label>
+                      <div>
+                        <label className="mb-2 block text-sm text-stone-400">{a.menu.descriptionEn}</label>
+                        <textarea
+                          value={menuForm.descriptionEn}
+                          onChange={(e) => setMenuForm((prev) => ({ ...prev, descriptionEn: e.target.value }))}
+                          rows={5}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      </div>
+                    </div>
 
-                    <div className="flex flex-col gap-3 md:col-span-2 md:flex-row">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
+                        <input
+                          type="checkbox"
+                          checked={menuForm.isActive}
+                          onChange={(e) => setMenuForm((prev) => ({ ...prev, isActive: e.target.checked }))}
+                        />
+                        {a.menu.active}
+                      </label>
+
+                      <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300">
+                        <input
+                          type="checkbox"
+                          checked={menuForm.notifySubscribers}
+                          onChange={(e) => setMenuForm((prev) => ({ ...prev, notifySubscribers: e.target.checked }))}
+                        />
+                        {a.menu.notify}
+                      </label>
+                    </div>
+
+                    <div className="flex flex-col gap-3 md:flex-row">
                       <button className="luxury-button rounded-2xl px-6 py-4 font-semibold">
                         {editingMenuId ? a.menu.saveEdit : a.menu.saveAdd}
                       </button>
@@ -1932,7 +2008,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                             <div className="mt-1 text-sm text-stone-400">{item.nameEn || item.NameEn || "—"}</div>
                           </div>
                           <div className="rounded-full bg-amber-400 px-3 py-1 text-sm font-semibold text-black">
-                            {item.price || item.Price} лв
+                            €{Number(item.price || item.Price || 0).toFixed(2)}
                           </div>
                         </div>
 
