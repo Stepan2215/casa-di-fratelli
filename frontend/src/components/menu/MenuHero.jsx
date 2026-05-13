@@ -5,7 +5,7 @@ export default function MenuHero({ data, onOpenReservation, language }) {
     <section className="relative overflow-hidden border-b border-white/10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_0%,rgba(201,165,106,0.2),transparent_32rem),radial-gradient(circle_at_90%_10%,rgba(40,160,116,0.14),transparent_28rem)]" />
 
-      <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 md:grid-cols-2 md:py-24">
+      <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-10 md:grid-cols-2 md:py-24">
         <div className="relative z-10">
           <img
             src="/casa-di-fratelli-logo.svg"
@@ -24,7 +24,7 @@ export default function MenuHero({ data, onOpenReservation, language }) {
             {data.heroText}
           </p>
 
-          <div className="mt-8 flex flex-wrap gap-4">
+          <div className="mt-8 hidden flex-wrap gap-4 md:flex">
             <button
               type="button"
               onClick={onOpenReservation}
@@ -35,7 +35,7 @@ export default function MenuHero({ data, onOpenReservation, language }) {
           </div>
         </div>
 
-        <div className="relative">
+        <div className="relative hidden md:block">
           <div className="absolute -inset-6 rounded-[2rem] bg-[#c9a56a]/10 blur-3xl" />
           <div className="relative overflow-hidden rounded-[28px] border border-white/10 p-2 shadow-2xl shadow-black/30">
             <img
