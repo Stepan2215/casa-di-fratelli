@@ -316,6 +316,10 @@ const indoorCombinationGroups = [
   ["20", "21", "22", "23"],
   ["28", "29"],
 ];
+const openTerraceCombinationGroups = [
+  ["46", "47"],
+  ["48", "49"],
+];
 
 function getValue(item, key) {
   return item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
@@ -354,6 +358,14 @@ function canUseAdminTableSelection(area, tableIds) {
     return gardenGroups.some((group) =>
       uniqueTableIds.every((id) => group.includes(id)) && isContinuousGroup(group, uniqueTableIds)
     );
+  }
+
+  if (area === "openTerrace") {
+    return openTerraceCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
+  }
+
+  if (area === "all") {
+    return true;
   }
 
   return indoorCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
@@ -844,6 +856,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [expandedId, setExpandedId] = React.useState(null);
   const [menuMode, setMenuMode] = React.useState("list");
   const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
+  const menuItemsRef = React.useRef(null);
   const [blacklistMode, setBlacklistMode] = React.useState("list");
   const [showCreateReservation, setShowCreateReservation] = React.useState(false);
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
@@ -1021,7 +1034,7 @@ export default function AdminPage({ onMenuChanged }) {
   function getTableEdit(reservation) {
     return (
       tableEdits[reservation.id] || {
-        area: reservation.area === "garden" ? "garden" : "indoor",
+        area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
         tableIds: reservation.tableIds,
       }
     );
@@ -1055,6 +1068,37 @@ export default function AdminPage({ onMenuChanged }) {
         tableIds: nextTableIds,
       },
     }));
+  }
+
+  function getAdminReservationTableIds() {
+    return String(adminReservation.tableIds || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+  }
+
+  function toggleAdminReservationTable(tableId) {
+    const currentTableIds = getAdminReservationTableIds();
+    const exists = currentTableIds.includes(tableId);
+    const nextTableIds = exists
+      ? currentTableIds.filter((id) => id !== tableId)
+      : [...currentTableIds, tableId];
+
+    if (!canUseAdminTableSelection(adminReservation.area, nextTableIds)) {
+      return;
+    }
+
+    setAdminReservation((prev) => ({
+      ...prev,
+      tableIds: nextTableIds.join(", "),
+    }));
+  }
+
+  function selectAdminMenuCategory(categoryId) {
+    setSelectedMenuCategory(categoryId);
+    window.setTimeout(() => {
+      menuItemsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
   }
 
   function getNoteEdit(reservation) {
@@ -1458,6 +1502,36 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   const selectedCategoryData =
     menuCategories.find((category) => category.id === selectedMenuCategory) || menuCategories[0];
   const selectedCategoryItems = selectedCategoryData?.items || [];
+  const adminReservationTableIds = getAdminReservationTableIds();
+  const reservationAreaOptions = [
+    {
+      value: "indoor",
+      title: adminLanguage === "bg" ? "Зала / непушачи" : "Hall / non-smoking",
+      subtitle: adminLanguage === "bg" ? "Тиха вътрешна зала" : "Quiet indoor hall",
+      meta: `${indoorTableIds.length} ${adminLanguage === "bg" ? "маси" : "tables"}`,
+    },
+    {
+      value: "garden",
+      title: adminLanguage === "bg" ? "Покрита тераса" : "Covered terrace",
+      subtitle: adminLanguage === "bg" ? "Зона за пушачи" : "Smoking area",
+      meta: `${gardenTableIds.length} ${adminLanguage === "bg" ? "маси" : "tables"}`,
+    },
+    {
+      value: "openTerrace",
+      title: adminLanguage === "bg" ? "Открита тераса" : "Open terrace",
+      subtitle: adminLanguage === "bg" ? "Навън, компактна зона" : "Outdoor compact area",
+      meta: `4 ${adminLanguage === "bg" ? "маси" : "tables"}`,
+    },
+  ];
+  const hallBlockAreaOptions = [
+    {
+      value: "all",
+      title: adminLanguage === "bg" ? "Целият ресторант" : "Whole restaurant",
+      subtitle: adminLanguage === "bg" ? "Всички зали и тераси" : "All halls and terraces",
+      meta: `${areaTableIds.all.length} ${adminLanguage === "bg" ? "маси" : "tables"}`,
+    },
+    ...reservationAreaOptions,
+  ];
   const categoryOptions = menuCategories.length
     ? menuCategories
     : Object.keys(categoryDisplayNames[adminLanguage]).map((category) => ({
@@ -1661,7 +1735,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       </button>
                     </div>
 
-                    <form onSubmit={createAdminReservation} className="grid gap-4 md:grid-cols-3">
+                    <form onSubmit={createAdminReservation} className="grid gap-4 lg:grid-cols-3">
                       {[
                         ["guestName", adminLanguage === "bg" ? "Име на гост" : "Guest name"],
                         ["phone", adminLanguage === "bg" ? "Телефон" : "Phone"],
@@ -1669,7 +1743,6 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         ["reservedDate", adminLanguage === "bg" ? "Дата" : "Date"],
                         ["reservedTime", adminLanguage === "bg" ? "Час" : "Time"],
                         ["guestCount", adminLanguage === "bg" ? "Гости" : "Guests"],
-                        ["tableIds", adminLanguage === "bg" ? "Маси, разделени със запетая" : "Tables comma separated"],
                       ].map(([key, label]) => (
                         <div key={key}>
                           <label className="mb-2 block text-sm text-stone-400">{label}</label>
@@ -1709,27 +1782,90 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         </div>
                       ))}
 
-                      <div>
-                        <label className="mb-2 block text-sm text-stone-400">
-                          {adminLanguage === "bg" ? "Зона" : "Area"}
+                      <div className="lg:col-span-3">
+                        <label className="mb-3 block text-sm text-stone-400">
+                          {adminLanguage === "bg" ? "Зона за гостите" : "Guest area"}
                         </label>
-                        <select
-                          value={adminReservation.area}
+                        <div className="grid gap-3 md:grid-cols-3">
+                          {reservationAreaOptions.map((option) => {
+                            const selected = adminReservation.area === option.value;
+
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                onClick={() =>
+                                  setAdminReservation((prev) => ({
+                                    ...prev,
+                                    area: option.value,
+                                    tableIds: "",
+                                  }))
+                                }
+                                className={`menu-spark rounded-[22px] border p-4 text-left transition ${
+                                  selected
+                                    ? "border-[#c9a56a]/55 bg-[#c9a56a]/15 shadow-xl shadow-black/25"
+                                    : "border-white/10 bg-white/[0.04] hover:border-[#c9a56a]/30"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div>
+                                    <div className="font-semibold text-[#fff4df]">{option.title}</div>
+                                    <div className="mt-1 text-sm text-stone-400">{option.subtitle}</div>
+                                  </div>
+                                  <span
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                      selected ? "bg-[#c9a56a] text-black" : "border border-white/10 text-stone-300"
+                                    }`}
+                                  >
+                                    {option.meta}
+                                  </span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="lg:col-span-3">
+                        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                          <div>
+                            <label className="block text-sm text-stone-400">
+                              {adminLanguage === "bg" ? "Маси" : "Tables"}
+                            </label>
+                            <p className="mt-1 text-xs text-stone-500">
+                              {adminLanguage === "bg"
+                                ? "Избери от бутоните или въведи номера ръчно."
+                                : "Pick from chips or type table numbers manually."}
+                            </p>
+                          </div>
+                          {adminReservationTableIds.length > 0 && (
+                            <div className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 px-4 py-2 text-sm text-[#f2d39a]">
+                              {adminReservationTableIds.join(", ")}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          value={adminReservation.tableIds}
                           onChange={(e) =>
                             setAdminReservation((prev) => ({
                               ...prev,
-                              area: e.target.value,
+                              tableIds: e.target.value,
                             }))
                           }
-                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                        >
-                          <option value="indoor">Hall / Non-smoking</option>
-                          <option value="garden">Terrace / Smoking</option>
-                          <option value="openTerrace">Open terrace / Smoking</option>
-                        </select>
+                          required
+                          placeholder={adminLanguage === "bg" ? "Напр. 20, 21, 22" : "Example: 20, 21, 22"}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none placeholder:text-white/30 focus:border-amber-300"
+                        />
+                        <div className="mt-3 rounded-[22px] border border-white/10 bg-black/15 p-3">
+                          <TableChipSelector
+                            area={adminReservation.area}
+                            selectedTableIds={adminReservationTableIds}
+                            onToggle={toggleAdminReservationTable}
+                          />
+                        </div>
                       </div>
 
-                      <div className="md:col-span-3">
+                      <div className="lg:col-span-3">
                         <label className="mb-2 block text-sm text-stone-400">
                           {adminLanguage === "bg" ? "Вътрешна бележка" : "Internal note"}
                         </label>
@@ -1746,7 +1882,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         />
                       </div>
 
-                      <button className="luxury-button rounded-2xl px-6 py-4 font-semibold md:col-span-3">
+                      <button className="luxury-button rounded-2xl px-6 py-4 font-semibold lg:col-span-3">
                         {adminLanguage === "bg" ? "Създай резервация" : "Create reservation"}
                       </button>
                     </form>
@@ -1890,6 +2026,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 >
                                   <option value="indoor">Hall / Non-smoking</option>
                                   <option value="garden">Terrace / Smoking</option>
+                                  <option value="openTerrace">Open terrace / Smoking</option>
                                 </select>
                                 <button
                                   type="button"
@@ -2075,6 +2212,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         >
                                           <option value="indoor">Hall / Non-smoking</option>
                                           <option value="garden">Terrace / Smoking</option>
+                                          <option value="openTerrace">Open terrace / Smoking</option>
                                         </select>
 
                                         <button
@@ -2110,30 +2248,66 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
             {activeTab === "block" && (
               <Panel
-                title="Block hall"
-                subtitle="Затваря избраната зона за ден или диапазон от часове. Създава approved блокиращи резервации."
+                title={adminLanguage === "bg" ? "Блокирай зала" : "Block hall"}
+                subtitle={
+                  adminLanguage === "bg"
+                    ? "Затваря избраната зона или целия ресторант за ден или диапазон от часове."
+                    : "Close one area or the whole restaurant for a day or a time range."
+                }
               >
                 <form onSubmit={createHallBlock} className="grid gap-4 md:grid-cols-4">
-                  <div>
-                    <label className="mb-2 block text-sm text-stone-400">Area</label>
-                    <select
-                      value={hallBlock.area}
-                      onChange={(e) =>
-                        setHallBlock((prev) => ({
-                          ...prev,
-                          area: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    >
-                      <option value="indoor">Hall / Non-smoking</option>
-                      <option value="garden">Terrace / Smoking</option>
-                      <option value="all">Whole restaurant</option>
-                    </select>
+                  <div className="md:col-span-4">
+                    <label className="mb-3 block text-sm text-stone-400">
+                      {adminLanguage === "bg" ? "Какво резервираме" : "What to block"}
+                    </label>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                      {hallBlockAreaOptions.map((option) => {
+                        const selected = hallBlock.area === option.value;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() =>
+                              setHallBlock((prev) => ({
+                                ...prev,
+                                area: option.value,
+                              }))
+                            }
+                            className={`menu-spark rounded-[24px] border p-5 text-left transition ${
+                              selected
+                                ? "border-[#c9a56a]/55 bg-[#c9a56a]/15 shadow-xl shadow-black/25"
+                                : "border-white/10 bg-white/[0.04] hover:border-[#c9a56a]/30"
+                            }`}
+                          >
+                            <div className="section-kicker text-[0.62rem]">
+                              {option.value === "all"
+                                ? adminLanguage === "bg"
+                                  ? "Цял ресторант"
+                                  : "Full buyout"
+                                : adminLanguage === "bg"
+                                ? "Зона"
+                                : "Area"}
+                            </div>
+                            <div className="mt-3 text-lg font-semibold text-[#fff4df]">{option.title}</div>
+                            <div className="mt-2 text-sm leading-6 text-stone-400">{option.subtitle}</div>
+                            <div
+                              className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                                selected ? "bg-[#c9a56a] text-black" : "border border-white/10 text-stone-300"
+                              }`}
+                            >
+                              {option.meta}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm text-stone-400">Date</label>
+                    <label className="mb-2 block text-sm text-stone-400">
+                      {adminLanguage === "bg" ? "Дата" : "Date"}
+                    </label>
                     <input
                       type="date"
                       value={hallBlock.reservedDate}
@@ -2149,7 +2323,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm text-stone-400">From</label>
+                    <label className="mb-2 block text-sm text-stone-400">
+                      {adminLanguage === "bg" ? "От" : "From"}
+                    </label>
                     <select
                       value={hallBlock.startTime}
                       onChange={(e) =>
@@ -2170,7 +2346,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm text-stone-400">To</label>
+                    <label className="mb-2 block text-sm text-stone-400">
+                      {adminLanguage === "bg" ? "До" : "To"}
+                    </label>
                     <select
                       value={hallBlock.endTime}
                       onChange={(e) =>
@@ -2191,7 +2369,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
 
                   <div className="md:col-span-4">
-                    <label className="mb-2 block text-sm text-stone-400">Note</label>
+                    <label className="mb-2 block text-sm text-stone-400">
+                      {adminLanguage === "bg" ? "Бележка" : "Note"}
+                    </label>
                     <textarea
                       value={hallBlock.note}
                       onChange={(e) =>
@@ -2201,18 +2381,38 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                         }))
                       }
                       rows={3}
-                      placeholder="Private event, maintenance, full buyout..."
+                      placeholder={
+                        adminLanguage === "bg"
+                          ? "Частно събитие, ремонт, запазен ресторант..."
+                          : "Private event, maintenance, full buyout..."
+                      }
                       className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none placeholder:text-white/30 focus:border-amber-300"
                     />
                   </div>
 
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm text-stone-300 md:col-span-4">
-                    {buildTimeRange(hallBlock.startTime, hallBlock.endTime).length} slots ·{" "}
-                    {(areaTableIds[hallBlock.area] || indoorTableIds).length} tables
+                  <div className="grid gap-3 text-sm text-stone-300 md:col-span-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="text-stone-500">{adminLanguage === "bg" ? "Часове" : "Slots"}</div>
+                      <div className="mt-1 text-lg font-semibold text-[#fff4df]">
+                        {buildTimeRange(hallBlock.startTime, hallBlock.endTime).length}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                      <div className="text-stone-500">{adminLanguage === "bg" ? "Маси" : "Tables"}</div>
+                      <div className="mt-1 text-lg font-semibold text-[#fff4df]">
+                        {(areaTableIds[hallBlock.area] || indoorTableIds).length}
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-[#c9a56a]/20 bg-[#c9a56a]/10 p-4">
+                      <div className="text-[#f2d39a]/70">{adminLanguage === "bg" ? "Статус" : "Status"}</div>
+                      <div className="mt-1 text-lg font-semibold text-[#f2d39a]">
+                        {adminLanguage === "bg" ? "Блокираща резервация" : "Blocking reservation"}
+                      </div>
+                    </div>
                   </div>
 
-                  <button className="rounded-2xl bg-amber-400 px-6 py-4 font-semibold text-black md:col-span-4">
-                    Block selected area
+                  <button className="luxury-button rounded-2xl px-6 py-4 font-semibold md:col-span-4">
+                    {adminLanguage === "bg" ? "Блокирай избраната зона" : "Block selected area"}
                   </button>
                 </form>
               </Panel>
@@ -2462,7 +2662,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                             <button
                               key={category.id}
                               type="button"
-                              onClick={() => setSelectedMenuCategory(category.id)}
+                              onClick={() => selectAdminMenuCategory(category.id)}
                               className={`menu-spark rounded-[24px] border p-5 text-left transition ${
                                 selected
                                   ? "border-[#c9a56a]/45 bg-[#c9a56a]/15 shadow-xl shadow-black/20"
@@ -2493,7 +2693,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     )}
 
                     {selectedCategoryData && (
-                      <div className="rounded-[26px] border border-white/10 bg-black/20 p-4 md:p-5">
+                      <div ref={menuItemsRef} className="scroll-mt-6 rounded-[26px] border border-white/10 bg-black/20 p-4 md:p-5">
                         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                           <div>
                             <div className="section-kicker">
