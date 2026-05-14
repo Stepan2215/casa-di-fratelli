@@ -1020,7 +1020,7 @@ function ReservationOperationsMap({
                   <button
                     type="button"
                     onClick={() => setSelectedReservationId(isSelected ? null : reservation.id)}
-                    className={`relative z-40 min-w-[128px] rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-2xl backdrop-blur transition hover:scale-[1.03] ${
+                    className={`relative z-40 min-w-[96px] rounded-full border px-2.5 py-1 text-[9px] font-semibold shadow-2xl backdrop-blur transition hover:scale-[1.03] sm:min-w-[112px] sm:px-3 sm:py-1.5 sm:text-[10px] lg:min-w-[128px] lg:text-[11px] ${
                       reservation.isArrived
                         ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-100"
                         : isLate
@@ -1029,13 +1029,13 @@ function ReservationOperationsMap({
                     }`}
                   >
                     <span className="block truncate">{reservation.guestName}</span>
-                    <span className="block text-[9px] font-medium uppercase tracking-[0.14em] opacity-70">
+                    <span className="block text-[7px] font-medium uppercase tracking-[0.12em] opacity-70 sm:text-[8px] lg:text-[9px]">
                       {getReservationTimingLabel(reservation, text, now)}
                     </span>
                   </button>
 
                   {isSelected && (
-                    <div className={`absolute left-1/2 ${popoverPosition} z-[70] w-[230px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur`}>
+                    <div className={`absolute left-1/2 ${popoverPosition} z-[70] w-[210px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-2.5 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur sm:w-[220px] lg:w-[230px] lg:p-3`}>
                       <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
                       <div className="mt-1 text-xs text-white/50">
                         {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
@@ -1097,8 +1097,8 @@ function ReservationOperationsMap({
                 <div
                   className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition ${
                     isGroupTable
-                      ? "h-12 min-w-[68px] px-4 md:h-16 md:min-w-[88px]"
-                      : "h-11 w-11 md:h-14 md:w-14"
+                      ? "h-9 min-w-[50px] px-2 text-xs sm:h-10 sm:min-w-[58px] sm:px-3 md:h-12 md:min-w-[68px] lg:h-16 lg:min-w-[88px]"
+                      : "h-8 w-8 text-xs sm:h-9 sm:w-9 md:h-11 md:w-11 lg:h-14 lg:w-14 lg:text-sm"
                   } ${
                     reservation?.isArrived
                       ? "border-emerald-300/55 bg-[linear-gradient(145deg,#214f3b,#10261d)] text-emerald-50"
