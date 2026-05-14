@@ -91,7 +91,9 @@ const adminText = {
       empty: "Няма резервации до 30 минути в тази зона.",
       arrived: "Пристигна",
       noShow: "Не дойде",
-      call: "Позвъни",
+      approve: "Потвърди",
+      openReservation: "Отвори резервацията",
+      call: "Обади се",
       late: "закъснява",
       dueIn: "след",
       now: "сега",
@@ -201,6 +203,8 @@ const adminText = {
       empty: "No reservations due in the next 30 minutes for this area.",
       arrived: "Arrived",
       noShow: "No-show",
+      approve: "Approve",
+      openReservation: "Open reservation",
       call: "Call",
       late: "late",
       dueIn: "in",
@@ -855,8 +859,10 @@ function ReservationOperationsMap({
   reservations,
   selectedArea,
   onAreaChange,
+  onApprove,
   onArrived,
   onNoShow,
+  onOpenReservation,
 }) {
   const [selectedReservationId, setSelectedReservationId] = React.useState(null);
   const [now, setNow] = React.useState(() => new Date());
@@ -877,6 +883,41 @@ function ReservationOperationsMap({
     .filter((item) => item.area === selectedArea && item.isActive)
     .sort((first, second) => first.id.localeCompare(second.id, undefined, { numeric: true }));
   const liveByTable = React.useMemo(() => buildLiveReservationsByTable(reservations, now), [reservations, now]);
+  const getReservationTables = React.useCallback(
+    (reservation) => areaTables.filter((table) => reservation.tableIds.includes(table.id)),
+    [areaTables]
+  );
+  const getReservationBounds = React.useCallback(
+    (reservation) => {
+      const tables = getReservationTables(reservation);
+      if (tables.length === 0) return null;
+
+      const xValues = tables.map((table) => table.x);
+      const yValues = tables.map((table) => table.y);
+      const minX = Math.min(...xValues);
+      const maxX = Math.max(...xValues);
+      const minY = Math.min(...yValues);
+      const maxY = Math.max(...yValues);
+      const width = Math.max(maxX - minX, tables.length > 1 ? 10 : 0);
+      const height = Math.max(maxY - minY, tables.length > 1 ? 8 : 0);
+
+      return {
+        tables,
+        minX,
+        maxX,
+        minY,
+        maxY,
+        centerX: (minX + maxX) / 2,
+        centerY: (minY + maxY) / 2,
+        left: ((minX + maxX) / 2) - width / 2,
+        top: ((minY + maxY) / 2) - height / 2,
+        width,
+        height,
+        labelTop: Math.max(4, minY - 7),
+      };
+    },
+    [getReservationTables]
+  );
   const liveReservations = React.useMemo(() => {
     const unique = new Map();
     areaTables.forEach((table) => {
@@ -937,24 +978,47 @@ function ReservationOperationsMap({
           <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
           <AdminMapDecor area={selectedArea} />
 
-          {areaTables.map((table) => {
-            const reservation = liveByTable.get(table.id);
-            const minutes = reservation ? getReservationMinutesFromNow(reservation, now) : null;
-            const isLate = reservation && !reservation.isArrived && minutes !== null && minutes <= -10;
-            const isSelected = reservation?.id === selectedReservationId;
-            const isGroupTable = reservation?.tableIds?.length > 1;
+          {liveReservations.map((reservation) => {
+            const bounds = getReservationBounds(reservation);
+            if (!bounds) return null;
+
+            const minutes = getReservationMinutesFromNow(reservation, now);
+            const isLate = !reservation.isArrived && minutes !== null && minutes <= -10;
+            const isSelected = reservation.id === selectedReservationId;
+            const canNoShow = minutes !== null && minutes <= -10;
+            const canApprove = reservation.status === "Pending";
+            const popoverPosition = bounds.labelTop > 72 ? "bottom-11" : "top-11";
 
             return (
-              <div
-                key={table.id}
-                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
-                style={{ left: `${table.x}%`, top: `${table.y}%` }}
-              >
-                {reservation && (
+              <React.Fragment key={`reservation-${reservation.id}`}>
+                {bounds.tables.length > 1 && (
+                  <div
+                    className={`pointer-events-none absolute z-[8] rounded-[28px] border shadow-[0_0_38px_rgba(201,165,106,0.16)] ${
+                      reservation.isArrived
+                        ? "border-emerald-300/35 bg-emerald-400/10"
+                        : isLate
+                        ? "border-red-300/45 bg-red-500/10"
+                        : "border-[#f2d39a]/35 bg-[#c9a56a]/10"
+                    }`}
+                    style={{
+                      left: `${bounds.left}%`,
+                      top: `${bounds.top}%`,
+                      width: `${bounds.width}%`,
+                      height: `${bounds.height}%`,
+                    }}
+                  >
+                    <div className="absolute inset-0 rounded-[28px] bg-[radial-gradient(circle_at_center,rgba(242,211,154,0.16),transparent_64%)]" />
+                  </div>
+                )}
+
+                <div
+                  className="absolute z-40 -translate-x-1/2"
+                  style={{ left: `${bounds.centerX}%`, top: `${bounds.labelTop}%` }}
+                >
                   <button
                     type="button"
                     onClick={() => setSelectedReservationId(isSelected ? null : reservation.id)}
-                    className={`absolute left-1/2 top-[-34px] z-20 min-w-[118px] -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-2xl backdrop-blur transition hover:scale-[1.03] ${
+                    className={`relative z-40 min-w-[128px] rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-2xl backdrop-blur transition hover:scale-[1.03] ${
                       reservation.isArrived
                         ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-100"
                         : isLate
@@ -967,8 +1031,65 @@ function ReservationOperationsMap({
                       {getReservationTimingLabel(reservation, text, now)}
                     </span>
                   </button>
-                )}
 
+                  {isSelected && (
+                    <div className={`absolute left-1/2 ${popoverPosition} z-[70] w-[230px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur`}>
+                      <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
+                      <div className="mt-1 text-xs text-white/50">
+                        {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
+                      </div>
+                      <div className={`mt-3 grid gap-2 ${canApprove || canNoShow ? "grid-cols-2" : "grid-cols-1"}`}>
+                        {canApprove && (
+                          <button
+                            type="button"
+                            onClick={() => onApprove(reservation)}
+                            className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/20 px-3 py-2 text-xs font-semibold text-[#f2d39a]"
+                          >
+                            {text.approve}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => onArrived(reservation)}
+                          className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                        >
+                          {text.arrived}
+                        </button>
+                        {canNoShow && (
+                          <button
+                            type="button"
+                            onClick={() => onNoShow(reservation)}
+                            className="rounded-xl border border-red-300/25 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-100"
+                          >
+                            {text.noShow}
+                          </button>
+                        )}
+                      </div>
+                      <a
+                        href={`tel:${reservation.phone}`}
+                        className="mt-2 block rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-center text-xs font-semibold text-[#f2d39a]"
+                      >
+                        {text.call}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </React.Fragment>
+            );
+          })}
+
+          {areaTables.map((table) => {
+            const reservation = liveByTable.get(table.id);
+            const minutes = reservation ? getReservationMinutesFromNow(reservation, now) : null;
+            const isLate = reservation && !reservation.isArrived && minutes !== null && minutes <= -10;
+            const isGroupTable = reservation?.tableIds?.length > 1;
+
+            return (
+              <div
+                key={table.id}
+                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${table.x}%`, top: `${table.y}%` }}
+              >
                 <div
                   className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition ${
                     isGroupTable
@@ -986,37 +1107,6 @@ function ReservationOperationsMap({
                 >
                   {table.id}
                 </div>
-
-                {isSelected && reservation && (
-                  <div className="absolute left-1/2 top-9 z-30 w-[210px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur md:top-12">
-                    <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
-                    <div className="mt-1 text-xs text-white/50">
-                      {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onArrived(reservation)}
-                        className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
-                      >
-                        {text.arrived}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onNoShow(reservation)}
-                        className="rounded-xl border border-red-300/25 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-100"
-                      >
-                        {text.noShow}
-                      </button>
-                    </div>
-                    <a
-                      href={`tel:${reservation.phone}`}
-                      className="mt-2 block rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-center text-xs font-semibold text-[#f2d39a]"
-                    >
-                      {text.call}
-                    </a>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -1071,12 +1161,22 @@ function ReservationOperationsMap({
                 <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl px-4 py-3 text-sm">
                   {text.arrived}
                 </button>
-                <button type="button" onClick={() => onNoShow(selectedReservation)} className="rounded-xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-100">
-                  {text.noShow}
-                </button>
+                {selectedReservation.status === "Pending" && (
+                  <button type="button" onClick={() => onApprove(selectedReservation)} className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-sm font-semibold text-[#f2d39a]">
+                    {text.approve}
+                  </button>
+                )}
+                {(getReservationMinutesFromNow(selectedReservation, now) ?? 9999) <= -10 && (
+                  <button type="button" onClick={() => onNoShow(selectedReservation)} className="rounded-xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-100">
+                    {text.noShow}
+                  </button>
+                )}
                 <a href={`tel:${selectedReservation.phone}`} className="ghost-button rounded-xl px-4 py-3 text-center text-sm font-semibold">
                   {text.call}
                 </a>
+                <button type="button" onClick={() => onOpenReservation(selectedReservation)} className="ghost-button rounded-xl px-4 py-3 text-sm font-semibold">
+                  {text.openReservation}
+                </button>
               </div>
             </div>
           )}
@@ -1376,6 +1476,13 @@ export default function AdminPage({ onMenuChanged }) {
 
     setAdminNotice(adminLanguage === "bg" ? "Резервацията е освободена като no-show." : "Reservation released as no-show.");
     await loadReservations();
+  }
+
+  function openReservationFromMap(reservation) {
+    setSearch("");
+    setStatusFilter("All");
+    setExpandedId(reservation.id);
+    setActiveTab("reservations");
   }
 
   function getTableEdit(reservation) {
@@ -2126,8 +2233,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 reservations={reservations}
                 selectedArea={reservationMapArea}
                 onAreaChange={setReservationMapArea}
+                onApprove={(reservation) => updateStatus(reservation.id, "approve")}
                 onArrived={markReservationArrived}
                 onNoShow={markReservationNoShow}
+                onOpenReservation={openReservationFromMap}
               />
             )}
 
