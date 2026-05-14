@@ -986,10 +986,10 @@ function ReservationOperationsMap({
             const minutes = getReservationMinutesFromNow(reservation, now);
             const isLate = !reservation.isArrived && minutes !== null && minutes <= -10;
             const isSelected = reservation.id === selectedReservationId;
-            const canNoShow = minutes !== null && minutes <= -10;
+            const canNoShow = !reservation.isArrived && minutes !== null && minutes <= -10;
             const canApprove = reservation.status === "Pending";
             const canMarkArrived = !reservation.isArrived;
-            const popoverPosition = bounds.labelTop > 72 ? "bottom-11" : "top-11";
+            const popoverPosition = bounds.labelTop > 72 ? "sm:top-auto sm:bottom-11" : "sm:top-11";
 
             return (
               <React.Fragment key={`reservation-${reservation.id}`}>
@@ -1035,7 +1035,7 @@ function ReservationOperationsMap({
                   </button>
 
                   {isSelected && (
-                    <div className={`absolute left-1/2 ${popoverPosition} z-[70] w-[210px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-2.5 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur sm:w-[220px] lg:w-[230px] lg:p-3`}>
+                    <div className={`fixed left-3 right-3 top-[88px] z-[90] rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur sm:absolute sm:left-1/2 sm:right-auto ${popoverPosition} sm:w-[220px] sm:-translate-x-1/2 lg:w-[230px]`}>
                       <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
                       <div className="mt-1 text-xs text-white/50">
                         {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
@@ -1172,7 +1172,7 @@ function ReservationOperationsMap({
                     {text.approve}
                   </button>
                 )}
-                {(getReservationMinutesFromNow(selectedReservation, now) ?? 9999) <= -10 && (
+                {!selectedReservation.isArrived && (getReservationMinutesFromNow(selectedReservation, now) ?? 9999) <= -10 && (
                   <button type="button" onClick={() => onNoShow(selectedReservation)} className="rounded-xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-100">
                     {text.noShow}
                   </button>
@@ -1271,10 +1271,12 @@ export default function AdminPage({ onMenuChanged }) {
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
   const [expandedId, setExpandedId] = React.useState(null);
+  const [expandedCustomerKey, setExpandedCustomerKey] = React.useState(null);
   const [menuMode, setMenuMode] = React.useState("list");
   const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
   const menuItemsRef = React.useRef(null);
   const [blacklistMode, setBlacklistMode] = React.useState("list");
+  const [customersMode, setCustomersMode] = React.useState("customers");
   const [showCreateReservation, setShowCreateReservation] = React.useState(false);
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
@@ -1470,6 +1472,21 @@ export default function AdminPage({ onMenuChanged }) {
   async function markReservationNoShow(reservation) {
     setAdminNotice("");
     setAdminError("");
+
+    const blacklistPayload = {
+      guestName: reservation.guestName,
+      phone: reservation.phone,
+      email: reservation.email,
+      reason: "No-show",
+      notes: reservation.internalNote || reservation.notes || "",
+    };
+    const isAlreadyBlacklisted = blacklistKeys.has(String(reservation.phone || "").trim().toLowerCase()) ||
+      blacklistKeys.has(String(reservation.email || "").trim().toLowerCase());
+
+    if (!isAlreadyBlacklisted) {
+      const saved = await saveBlacklistPayload(blacklistPayload);
+      if (!saved) return;
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/no-show`, {
       method: "PATCH",
@@ -1702,17 +1719,7 @@ export default function AdminPage({ onMenuChanged }) {
   }
 
   async function addToBlacklist(reservation) {
-    const saved = await saveBlacklistPayload({
-      guestName: reservation.guestName,
-      phone: reservation.phone,
-      email: reservation.email,
-      reason: "No-show",
-      notes: reservation.internalNote || reservation.notes || "",
-    });
-
-    if (saved) {
-      await markReservationNoShow(reservation);
-    }
+    await markReservationNoShow(reservation);
   }
 
   async function addCustomerToBlacklist(customer) {
@@ -1974,11 +1981,13 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
       if (!acc[key]) {
         acc[key] = {
+          key,
           guestName: r.guestName,
           phone: r.phone,
           email: r.email,
           count: 0,
           lastReservation: r.reservedDate,
+          reservations: [],
           isRegularCustomer: false,
           marketingConsent: r.marketingConsent,
           isBlacklisted:
@@ -1989,6 +1998,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
       }
 
       acc[key].count += 1;
+      acc[key].reservations.push(r);
+      if (r.reservedDate > acc[key].lastReservation) {
+        acc[key].lastReservation = r.reservedDate;
+      }
       acc[key].isRegularCustomer = acc[key].isRegularCustomer || r.isRegularCustomer || acc[key].count >= 5;
       acc[key].marketingConsent = acc[key].marketingConsent || r.marketingConsent;
       acc[key].isBlacklisted =
@@ -2099,7 +2112,6 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
     ["layout", a.tabs.layout],
-    ["blacklist", a.tabs.blacklist],
     ["customers", a.tabs.customers],
   ];
 
@@ -3533,37 +3545,169 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
             )}
 
             {activeTab === "customers" && (
-              <Panel title="Customers" subtitle="Автоматично изведено от резервациите.">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-left text-sm">
-                    <thead className="text-stone-400">
-                      <tr className="border-b border-white/10">
-                        <th className="p-4">Guest</th>
-                        <th className="p-4">Phone</th>
-                        <th className="p-4">Email</th>
-                        <th className="p-4">Reservations</th>
-                        <th className="p-4">Flags</th>
-                        <th className="p-4">Actions</th>
-                      </tr>
-                    </thead>
+              <Panel
+                title={adminLanguage === "bg" ? "Клиенти" : "Customers"}
+                subtitle={
+                  adminLanguage === "bg"
+                    ? "Рейтинг по посещения, детайли при отваряне и blacklist в една секция."
+                    : "Visit ranking, expandable details, and blacklist in one section."
+                }
+                right={
+                  <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                    {[
+                      ["customers", adminLanguage === "bg" ? "Клиенти" : "Customers"],
+                      ["blacklist", "Blacklist"],
+                    ].map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setCustomersMode(key)}
+                        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                          customersMode === key ? "luxury-button" : "text-white/70 hover:text-white"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                }
+              >
+                {customersMode === "blacklist" ? (
+                  <div className="space-y-5">
+                    <div className="flex justify-end">
+                      <div className="flex rounded-full border border-white/10 bg-black/20 p-1">
+                        {[
+                          ["list", adminLanguage === "bg" ? "Списък" : "List"],
+                          ["form", adminLanguage === "bg" ? "Добави ръчно" : "Add manually"],
+                        ].map(([key, label]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setBlacklistMode(key)}
+                            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                              blacklistMode === key ? "luxury-button" : "text-white/70 hover:text-white"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                    <tbody>
-                      {customers.map((c) => (
-                        <tr key={c.email || c.phone} className="border-b border-white/10">
-                          <td className="p-4">{c.guestName}</td>
-                          <td className="p-4">{c.phone}</td>
-                          <td className="p-4">{c.email || "—"}</td>
-                          <td className="p-4">{c.count}</td>
-                          <td className="p-4">
-                            <div className="flex flex-wrap gap-2">
+                    {blacklistMode === "form" ? (
+                      <form onSubmit={saveBlacklistEntry} className="grid gap-4 md:grid-cols-3">
+                        {[
+                          ["guestName", adminLanguage === "bg" ? "Име" : "Guest name"],
+                          ["phone", adminLanguage === "bg" ? "Телефон" : "Phone"],
+                          ["email", "Email"],
+                          ["reason", adminLanguage === "bg" ? "Причина" : "Reason"],
+                        ].map(([key, label]) => (
+                          <div key={key}>
+                            <label className="mb-2 block text-sm text-stone-400">{label}</label>
+                            <input
+                              value={blacklistForm[key]}
+                              onChange={(e) =>
+                                setBlacklistForm((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))
+                              }
+                              required={["guestName", "phone", "reason"].includes(key)}
+                              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                            />
+                          </div>
+                        ))}
+
+                        <div className="md:col-span-3">
+                          <label className="mb-2 block text-sm text-stone-400">
+                            {adminLanguage === "bg" ? "Бележки" : "Notes"}
+                          </label>
+                          <textarea
+                            value={blacklistForm.notes}
+                            onChange={(e) =>
+                              setBlacklistForm((prev) => ({
+                                ...prev,
+                                notes: e.target.value,
+                              }))
+                            }
+                            rows={4}
+                            className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-3 md:col-span-3 md:flex-row">
+                          <button className="luxury-button rounded-2xl px-6 py-4 font-semibold">
+                            {adminLanguage === "bg" ? "Добави в blacklist" : "Add to blacklist"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBlacklistMode("list")}
+                            className="ghost-button rounded-2xl px-6 py-4 font-semibold"
+                          >
+                            {adminLanguage === "bg" ? "Назад към списъка" : "Back to list"}
+                          </button>
+                        </div>
+                      </form>
+                    ) : (
+                      <div className="space-y-4">
+                        {blacklist.length === 0 && (
+                          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400">
+                            {adminLanguage === "bg" ? "Blacklist е празен." : "Blacklist is empty."}
+                          </div>
+                        )}
+
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {blacklist.map((item) => (
+                            <div key={item.id || item.Id} className="rounded-3xl border border-red-300/20 bg-red-500/10 p-5">
+                              <div className="font-semibold text-[#fff4df]">{item.guestName || item.GuestName || "—"}</div>
+                              <div className="mt-2 text-sm text-red-100/80">{item.phone || item.Phone}</div>
+                              <div className="mt-1 text-sm text-red-100/70">{item.email || item.Email || "—"}</div>
+                              <div className="mt-4 rounded-2xl border border-red-300/15 bg-black/15 p-3 text-sm text-red-50/90">
+                                {item.reason || item.Reason}
+                              </div>
+                              <div className="mt-2 text-sm text-red-100/60">{item.notes || item.Notes}</div>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteBlacklistEntry(item.id || item.Id)}
+                                className="mt-5 rounded-xl border border-red-300/25 bg-red-500/20 px-4 py-2 text-sm font-semibold text-red-100"
+                              >
+                                {adminLanguage === "bg" ? "Премахни" : "Remove"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {customers.map((c, index) => {
+                      const expanded = expandedCustomerKey === c.key;
+                      const visitsLabel = adminLanguage === "bg" ? "посещения" : "visits";
+
+                      return (
+                        <div key={c.key} className="rounded-3xl border border-white/10 bg-white/[0.04] p-4 md:p-5">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedCustomerKey(expanded ? null : c.key)}
+                            className="flex w-full items-center justify-between gap-4 text-left"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#c9a56a]/25 bg-[#c9a56a]/12 text-sm font-bold text-[#f2d39a]">
+                                #{index + 1}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="truncate text-lg font-semibold text-[#fff4df]">{c.guestName}</div>
+                                <div className="mt-1 text-sm text-stone-400">
+                                  {c.count} {visitsLabel}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
                               {c.isRegularCustomer && (
-                                <span className="rounded-full bg-emerald-400/15 px-3 py-1 text-xs text-emerald-300">
+                                <span className="hidden rounded-full bg-emerald-400/15 px-3 py-1 text-xs text-emerald-300 sm:inline-flex">
                                   Regular
-                                </span>
-                              )}
-                              {c.marketingConsent && (
-                                <span className="rounded-full bg-amber-400/15 px-3 py-1 text-xs text-amber-300">
-                                  Marketing
                                 </span>
                               )}
                               {c.isBlacklisted && (
@@ -3571,23 +3715,57 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   Blacklist
                                 </span>
                               )}
+                              <span className="ghost-button rounded-full px-3 py-1 text-xs">
+                                {expanded ? (adminLanguage === "bg" ? "Скрий" : "Hide") : (adminLanguage === "bg" ? "Детайли" : "Details")}
+                              </span>
                             </div>
-                          </td>
-                          <td className="p-4">
-                            <button
-                              type="button"
-                              onClick={() => addCustomerToBlacklist(c)}
-                              disabled={c.isBlacklisted}
-                              className="rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2 text-xs font-semibold text-yellow-200 disabled:opacity-40"
-                            >
-                              {c.isBlacklisted ? "Blacklisted" : "Add blacklist"}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </button>
+
+                          {expanded && (
+                            <div className="mt-5 grid gap-4 border-t border-white/10 pt-5 lg:grid-cols-[0.8fr_1.2fr]">
+                              <div className="space-y-3 text-sm text-stone-300">
+                                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                  <div className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                                    {adminLanguage === "bg" ? "Контакт" : "Contact"}
+                                  </div>
+                                  <div className="mt-3">{c.phone || "—"}</div>
+                                  <div className="mt-2">{c.email || "—"}</div>
+                                  <div className="mt-2 text-stone-500">
+                                    {adminLanguage === "bg" ? "Последна резервация" : "Last reservation"}: {c.lastReservation || "—"}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => addCustomerToBlacklist(c)}
+                                  disabled={c.isBlacklisted}
+                                  className="w-full rounded-2xl border border-red-300/25 bg-red-500/12 px-4 py-3 text-sm font-semibold text-red-100 disabled:opacity-40"
+                                >
+                                  {c.isBlacklisted
+                                    ? adminLanguage === "bg" ? "В blacklist" : "Blacklisted"
+                                    : adminLanguage === "bg" ? "Добави в blacklist" : "Add to blacklist"}
+                                </button>
+                              </div>
+
+                              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                                <div className="text-xs uppercase tracking-[0.2em] text-stone-500">
+                                  {adminLanguage === "bg" ? "Последни резервации" : "Recent reservations"}
+                                </div>
+                                <div className="mt-3 space-y-2">
+                                  {c.reservations.slice(0, 6).map((reservation) => (
+                                    <div key={reservation.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm">
+                                      <span className="text-[#fff4df]">{reservation.reservedDate} · {reservation.reservedTime}</span>
+                                      <span className="text-stone-400">{reservation.tableIds.join(", ")}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </Panel>
             )}
           </>
