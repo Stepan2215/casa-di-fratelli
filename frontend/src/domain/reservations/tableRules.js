@@ -4,6 +4,7 @@ import {
   gardenGroups,
   indoorGroups,
   openTerraceGroups,
+  tablesByArea,
 } from "./tableConfig.js";
 
 const gardenCellById = gardenGroups.reduce((acc, group, columnIndex) => {
@@ -15,6 +16,10 @@ const gardenCellById = gardenGroups.reduce((acc, group, columnIndex) => {
 
 export function getTablesCapacity(tables, ids) {
   return ids.reduce((sum, id) => sum + (tables.find((table) => table.id === id)?.seats || 0), 0);
+}
+
+export function getAreaTablesCapacity(area, ids, areaTables = tablesByArea[area] || []) {
+  return getTablesCapacity(areaTables, ids);
 }
 
 export function getEligibleIndoorGroups(requestedGuests, tables = defaultIndoorTables) {
@@ -115,25 +120,60 @@ export function canCombineTables(area, selectedTables, nextTable, requestedGuest
 
 export function canUseAdminTableSelection(area, tableIds, options = {}) {
   const uniqueTableIds = [...new Set(tableIds.filter(Boolean))];
+  const requiredSeats = Number(options.requiredSeats || 0);
+  const allowPartial = options.allowPartial !== false;
+  const areaTables = options.areaTables || tablesByArea[area] || [];
 
-  if (uniqueTableIds.length <= 1) return true;
+  const hasEnoughSeats = () => {
+    if (requiredSeats <= 0) return true;
+    return getTablesCapacity(areaTables, uniqueTableIds) >= requiredSeats;
+  };
+
+  const groupCanEventuallyFit = (group) => {
+    if (requiredSeats <= 0 || !allowPartial) return true;
+    return getTablesCapacity(areaTables, group) >= requiredSeats;
+  };
+
+  if (uniqueTableIds.length <= 1) {
+    if (requiredSeats <= 0) return true;
+    return allowPartial
+      ? areaTables.some((table) => table.id === uniqueTableIds[0] && table.seats >= requiredSeats) ||
+          getCandidateGroups(area).some(
+            (group) => group.includes(uniqueTableIds[0]) && groupCanEventuallyFit(group)
+          )
+      : hasEnoughSeats();
+  }
 
   if (area === "garden") {
     const specialIds = options.gardenSpecialIds || [];
     if (uniqueTableIds.some((id) => specialIds.includes(id))) return false;
 
-    return gardenGroups.some(
+    const structurallyValid = gardenGroups.some(
       (group) => uniqueTableIds.every((id) => group.includes(id)) && isContinuousGroup(group, uniqueTableIds)
     );
+
+    if (!structurallyValid) return false;
+    return allowPartial || hasEnoughSeats();
   }
 
   if (area === "openTerrace") {
-    return openTerraceGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
+    const group = openTerraceGroups.find((candidate) => uniqueTableIds.every((id) => candidate.includes(id)));
+    if (!group) return false;
+    return allowPartial ? groupCanEventuallyFit(group) : hasEnoughSeats();
   }
 
   if (area === "all") {
-    return true;
+    return allowPartial || hasEnoughSeats();
   }
 
-  return indoorGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
+  const group = indoorGroups.find((candidate) => uniqueTableIds.every((id) => candidate.includes(id)));
+  if (!group) return false;
+  return allowPartial ? groupCanEventuallyFit(group) : hasEnoughSeats();
+}
+
+function getCandidateGroups(area) {
+  if (area === "garden") return gardenGroups;
+  if (area === "openTerrace") return openTerraceGroups;
+  if (area === "indoor") return indoorGroups;
+  return [];
 }

@@ -81,6 +81,10 @@ test("garden table combinations must be logical, continuous, and cannot start fr
 test("admin table selection accepts only configured combinations per area", () => {
   assert.equal(canUseAdminTableSelection("indoor", ["20", "21", "22", "23"]), true);
   assert.equal(canUseAdminTableSelection("indoor", ["20", "24"]), false);
+  assert.equal(canUseAdminTableSelection("indoor", ["5", "6"], { requiredSeats: 13, allowPartial: false }), false);
+  assert.equal(canUseAdminTableSelection("indoor", ["20"], { requiredSeats: 16, allowPartial: true }), true);
+  assert.equal(canUseAdminTableSelection("indoor", ["20", "21", "22"], { requiredSeats: 16, allowPartial: false }), false);
+  assert.equal(canUseAdminTableSelection("indoor", ["20", "21", "22", "23"], { requiredSeats: 16, allowPartial: false }), true);
   assert.equal(canUseAdminTableSelection("garden", ["42", "43", "44"]), true);
   assert.equal(
     canUseAdminTableSelection("garden", ["34A", "34"], { gardenSpecialIds: ["34A", "30A", "45A"] }),

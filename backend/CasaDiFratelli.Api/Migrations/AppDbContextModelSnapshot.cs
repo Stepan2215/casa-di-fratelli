@@ -170,6 +170,9 @@ namespace CasaDiFratelli.Api.Migrations
                     b.Property<string>("InternalNote")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsArrived")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsBlacklisted")
                         .HasColumnType("INTEGER");
 

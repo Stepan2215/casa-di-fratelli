@@ -87,3 +87,15 @@ tableIdsByArea.all = [
   ...tableIdsByArea.garden,
   ...tableIdsByArea.openTerrace,
 ];
+
+export const tablesByArea = {
+  indoor: defaultIndoorTables,
+  garden: defaultGardenTables,
+  openTerrace: defaultOpenTerraceTables,
+};
+
+tablesByArea.all = [
+  ...tablesByArea.indoor,
+  ...tablesByArea.garden,
+  ...tablesByArea.openTerrace,
+];

@@ -1,8 +1,9 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
-import { defaultGardenTables, reservationTimes, tableIdsByArea } from "../domain/reservations/tableConfig";
+import { defaultGardenTables, reservationTimes, tableIdsByArea, tablesByArea } from "../domain/reservations/tableConfig";
 import {
   canUseAdminTableSelection as canUseAdminTableSelectionRule,
+  getAreaTablesCapacity,
 } from "../domain/reservations/tableRules";
 import {
   getUnavailableSelectedTableIds,
@@ -41,6 +42,7 @@ const adminText = {
       blacklist: "Blacklist",
     },
     tabs: {
+      liveMap: "Карта резервации",
       reservations: "Резервации",
       create: "Нова резервация",
       block: "Блокирай зала",
@@ -78,6 +80,24 @@ const adminText = {
       sourceWebsite: "Сайт",
       open: "Детайли",
       close: "Скрий",
+    },
+    liveMap: {
+      title: "Карта резервации",
+      subtitle: "Оперативен изглед за следващите гости. Показват се резервации до 30 минути преди часа.",
+      indoor: "Зала / непушачи",
+      garden: "Покрита тераса",
+      openTerrace: "Открита тераса",
+      next: "Следваща резервация",
+      empty: "Няма резервации до 30 минути в тази зона.",
+      arrived: "Пристигна",
+      noShow: "Не дойде",
+      call: "Позвъни",
+      late: "закъснява",
+      dueIn: "след",
+      now: "сега",
+      arrivedStatus: "Пристигнал",
+      guests: "гости",
+      tables: "маси",
     },
     menu: {
       title: "Меню CMS",
@@ -132,6 +152,7 @@ const adminText = {
       blacklist: "Blacklist",
     },
     tabs: {
+      liveMap: "Reservation map",
       reservations: "Reservations",
       create: "Create",
       block: "Block hall",
@@ -169,6 +190,24 @@ const adminText = {
       sourceWebsite: "Website",
       open: "Details",
       close: "Hide",
+    },
+    liveMap: {
+      title: "Reservation map",
+      subtitle: "Live host view for the next guests. Reservations appear up to 30 minutes before arrival.",
+      indoor: "Hall / non-smoking",
+      garden: "Covered terrace",
+      openTerrace: "Open terrace",
+      next: "Next reservation",
+      empty: "No reservations due in the next 30 minutes for this area.",
+      arrived: "Arrived",
+      noShow: "No-show",
+      call: "Call",
+      late: "late",
+      dueIn: "in",
+      now: "now",
+      arrivedStatus: "Arrived",
+      guests: "guests",
+      tables: "tables",
     },
     menu: {
       title: "Menu CMS",
@@ -272,8 +311,37 @@ function getCategoryLabel(category, language) {
   return categoryDisplayNames[language]?.[normalized] || normalized;
 }
 
-function canUseAdminTableSelection(area, tableIds) {
-  return canUseAdminTableSelectionRule(area, tableIds, { gardenSpecialIds });
+function canUseAdminTableSelection(area, tableIds, options = {}) {
+  return canUseAdminTableSelectionRule(area, tableIds, { gardenSpecialIds, ...options });
+}
+
+function getTableSelectionCapacity(area, tableIds) {
+  return getAreaTablesCapacity(area, tableIds, tablesByArea[area] || []);
+}
+
+function getTableSelectionError(area, tableIds, guestCount, language) {
+  const requestedGuests = Number(guestCount || 0);
+
+  if (requestedGuests <= 0 || tableIds.length === 0) return "";
+
+  const isValidShape = canUseAdminTableSelectionRule(area, tableIds, {
+    gardenSpecialIds,
+    requiredSeats: requestedGuests,
+    allowPartial: false,
+  });
+
+  if (isValidShape) return "";
+
+  const capacity = getTableSelectionCapacity(area, tableIds);
+  if (capacity < requestedGuests) {
+    return language === "bg"
+      ? `Избраните маси имат капацитет ${capacity}, а резервацията е за ${requestedGuests} гости.`
+      : `Selected tables fit ${capacity}, but the reservation is for ${requestedGuests} guests.`;
+  }
+
+  return language === "bg"
+    ? "Избраната комбинация от маси не е логична за тази зона."
+    : "Selected table combination is not valid for this area.";
 }
 
 function buildTimeRange(startTime, endTime) {
@@ -338,6 +406,7 @@ function TableChipSelector({
   unavailableTableIds = new Set(),
   hideUnavailable = false,
   emptyMessage = "No free tables for this time.",
+  requiredSeats = 0,
 }) {
   const tableIds = areaTableIds[area] || indoorTableIds;
   const visibleTableIds = hideUnavailable
@@ -349,7 +418,13 @@ function TableChipSelector({
       {visibleTableIds.map((tableId) => {
         const selected = selectedTableIds.includes(tableId);
         const unavailable = !selected && unavailableTableIds.has(tableId);
-        const allowed = !unavailable && (selected || canUseAdminTableSelection(area, [...selectedTableIds, tableId]));
+        const allowed =
+          !unavailable &&
+          (selected ||
+            canUseAdminTableSelection(area, [...selectedTableIds, tableId], {
+              requiredSeats,
+              allowPartial: true,
+            }));
 
         return (
           <button
@@ -392,6 +467,70 @@ function normalizeLayoutItem(item) {
     wide: Boolean(item.wide ?? item.Wide),
     isActive: item.isActive ?? item.IsActive ?? true,
   };
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getReservationMinutesFromNow(reservation, now = new Date()) {
+  if (!reservation?.reservedDate || !reservation?.reservedTime) return null;
+
+  const [hours, minutes] = String(reservation.reservedTime).split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+
+  const target = new Date(now);
+  target.setHours(hours, minutes, 0, 0);
+
+  return Math.round((target.getTime() - now.getTime()) / 60000);
+}
+
+function getLiveReservationCandidates(reservations, now = new Date()) {
+  const today = getLocalDateKey(now);
+
+  return reservations
+    .filter((reservation) => {
+      if (reservation.status !== "Approved" || reservation.isNoShow) return false;
+      if (reservation.reservedDate !== today) return false;
+
+      const minutes = getReservationMinutesFromNow(reservation, now);
+      return minutes !== null && minutes <= 30 && minutes >= -90;
+    })
+    .sort((first, second) => {
+      const firstMinutes = getReservationMinutesFromNow(first, now) ?? 9999;
+      const secondMinutes = getReservationMinutesFromNow(second, now) ?? 9999;
+
+      return firstMinutes - secondMinutes;
+    });
+}
+
+function buildLiveReservationsByTable(reservations, now = new Date()) {
+  const byTable = new Map();
+
+  getLiveReservationCandidates(reservations, now).forEach((reservation) => {
+    reservation.tableIds.forEach((tableId) => {
+      if (!byTable.has(tableId)) {
+        byTable.set(tableId, reservation);
+      }
+    });
+  });
+
+  return byTable;
+}
+
+function getReservationTimingLabel(reservation, text, now = new Date()) {
+  const minutes = getReservationMinutesFromNow(reservation, now);
+
+  if (minutes === null) return "";
+  if (reservation.isArrived) return text.arrivedStatus;
+  if (minutes <= -10) return `${Math.abs(minutes)} min ${text.late}`;
+  if (minutes <= 0) return text.now;
+
+  return `${text.dueIn} ${minutes} min`;
 }
 
 function hasLayoutOverlap(layout, candidate) {
@@ -700,6 +839,243 @@ function TableLayoutEditor({
   );
 }
 
+function ReservationOperationsMap({
+  text,
+  layout,
+  reservations,
+  selectedArea,
+  onAreaChange,
+  onArrived,
+  onNoShow,
+}) {
+  const [selectedReservationId, setSelectedReservationId] = React.useState(null);
+  const [now, setNow] = React.useState(() => new Date());
+  const areas = [
+    ["indoor", text.indoor],
+    ["garden", text.garden],
+    ["openTerrace", text.openTerrace],
+  ];
+  const getAreaTableCount = (area) => {
+    const savedCount = layout.filter((item) => item.area === area && item.isActive).length;
+    return savedCount || (tablesByArea[area] || []).length;
+  };
+  const fallbackLayout = (tablesByArea[selectedArea] || []).map((table) =>
+    normalizeLayoutItem({ ...table, area: selectedArea, isActive: true })
+  );
+  const hasAreaLayout = layout.some((item) => item.area === selectedArea);
+  const areaTables = (hasAreaLayout ? layout : fallbackLayout)
+    .filter((item) => item.area === selectedArea && item.isActive)
+    .sort((first, second) => first.id.localeCompare(second.id, undefined, { numeric: true }));
+  const liveByTable = React.useMemo(() => buildLiveReservationsByTable(reservations, now), [reservations, now]);
+  const liveReservations = React.useMemo(() => {
+    const unique = new Map();
+    areaTables.forEach((table) => {
+      const reservation = liveByTable.get(table.id);
+      if (reservation) unique.set(reservation.id, reservation);
+    });
+
+    return Array.from(unique.values()).sort((first, second) => {
+      const firstMinutes = getReservationMinutesFromNow(first, now) ?? 9999;
+      const secondMinutes = getReservationMinutesFromNow(second, now) ?? 9999;
+
+      return firstMinutes - secondMinutes;
+    });
+  }, [areaTables, liveByTable, now]);
+  const selectedReservation = liveReservations.find((reservation) => reservation.id === selectedReservationId);
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 60000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  React.useEffect(() => {
+    setSelectedReservationId(null);
+  }, [selectedArea]);
+
+  return (
+    <Panel title={text.title} subtitle={text.subtitle}>
+      <div className="mb-5 grid gap-2 sm:grid-cols-3">
+        {areas.map(([area, label]) => (
+          <button
+            key={area}
+            type="button"
+            onClick={() => onAreaChange(area)}
+            className={`rounded-2xl border px-4 py-3 text-left transition ${
+              selectedArea === area
+                ? "border-[#f2d39a]/70 bg-[#c9a56a]/20 text-[#fff4df]"
+                : "border-white/10 bg-black/20 text-white/65 hover:border-[#c9a56a]/35 hover:text-white"
+            }`}
+          >
+            <span className="block text-sm font-semibold">{label}</span>
+            <span className="mt-1 block text-xs text-white/45">
+              {getAreaTableCount(area)} {text.tables}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.45fr_0.75fr]">
+        <div
+          className={`relative min-h-[600px] overflow-hidden rounded-[26px] border border-white/10 ${
+            selectedArea === "garden"
+              ? "bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] md:min-h-[820px]"
+              : selectedArea === "openTerrace"
+              ? "bg-[radial-gradient(circle_at_top,_rgba(110,231,183,0.13),_transparent_34%),radial-gradient(circle_at_50%_100%,rgba(201,165,106,0.13),transparent_38%),linear-gradient(180deg,rgba(30,34,25,0.96),rgba(14,16,11,0.96))]"
+              : "bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))] md:min-h-[850px]"
+          }`}
+        >
+          <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
+          <AdminMapDecor area={selectedArea} />
+
+          {areaTables.map((table) => {
+            const reservation = liveByTable.get(table.id);
+            const minutes = reservation ? getReservationMinutesFromNow(reservation, now) : null;
+            const isLate = reservation && !reservation.isArrived && minutes !== null && minutes <= -10;
+            const isSelected = reservation?.id === selectedReservationId;
+            const isGroupTable = reservation?.tableIds?.length > 1;
+
+            return (
+              <div
+                key={table.id}
+                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                style={{ left: `${table.x}%`, top: `${table.y}%` }}
+              >
+                {reservation && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReservationId(isSelected ? null : reservation.id)}
+                    className={`absolute left-1/2 top-[-34px] z-20 min-w-[118px] -translate-x-1/2 rounded-full border px-3 py-1.5 text-[11px] font-semibold shadow-2xl backdrop-blur transition hover:scale-[1.03] ${
+                      reservation.isArrived
+                        ? "border-emerald-300/40 bg-emerald-400/20 text-emerald-100"
+                        : isLate
+                        ? "border-red-300/50 bg-red-500/25 text-red-100"
+                        : "border-[#f2d39a]/45 bg-[#2f241b]/90 text-[#fff4df]"
+                    }`}
+                  >
+                    <span className="block truncate">{reservation.guestName}</span>
+                    <span className="block text-[9px] font-medium uppercase tracking-[0.14em] opacity-70">
+                      {getReservationTimingLabel(reservation, text, now)}
+                    </span>
+                  </button>
+                )}
+
+                <div
+                  className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition ${
+                    isGroupTable
+                      ? "h-12 min-w-[68px] px-4 md:h-16 md:min-w-[88px]"
+                      : "h-11 w-11 md:h-14 md:w-14"
+                  } ${
+                    reservation?.isArrived
+                      ? "border-emerald-300/55 bg-[linear-gradient(145deg,#214f3b,#10261d)] text-emerald-50"
+                      : isLate
+                      ? "border-red-300/70 bg-[linear-gradient(145deg,#6b1f1f,#251010)] text-red-50"
+                      : reservation
+                      ? "border-[#f2d39a]/65 bg-[linear-gradient(145deg,#f2d39a,#9f743d)] text-black"
+                      : "border-[#c9a56a]/35 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white/85"
+                  }`}
+                >
+                  {table.id}
+                </div>
+
+                {isSelected && reservation && (
+                  <div className="absolute left-1/2 top-9 z-30 w-[210px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_18px_60px_rgba(0,0,0,0.55)] backdrop-blur md:top-12">
+                    <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
+                    <div className="mt-1 text-xs text-white/50">
+                      {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onArrived(reservation)}
+                        className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                      >
+                        {text.arrived}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onNoShow(reservation)}
+                        className="rounded-xl border border-red-300/25 bg-red-500/15 px-3 py-2 text-xs font-semibold text-red-100"
+                      >
+                        {text.noShow}
+                      </button>
+                    </div>
+                    <a
+                      href={`tel:${reservation.phone}`}
+                      className="mt-2 block rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-center text-xs font-semibold text-[#f2d39a]"
+                    >
+                      {text.call}
+                    </a>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
+            <div className="section-kicker">{text.next}</div>
+            {liveReservations.length === 0 ? (
+              <p className="mt-3 text-sm text-white/55">{text.empty}</p>
+            ) : (
+              <div className="mt-3 space-y-2">
+                {liveReservations.map((reservation) => {
+                  const minutes = getReservationMinutesFromNow(reservation, now);
+                  const isLate = !reservation.isArrived && minutes !== null && minutes <= -10;
+
+                  return (
+                    <button
+                      key={reservation.id}
+                      type="button"
+                      onClick={() => setSelectedReservationId(reservation.id)}
+                      className={`w-full rounded-2xl border p-3 text-left transition ${
+                        selectedReservationId === reservation.id
+                          ? "border-[#f2d39a]/55 bg-[#c9a56a]/16"
+                          : isLate
+                          ? "border-red-300/25 bg-red-500/10"
+                          : "border-white/10 bg-white/[0.03] hover:border-[#c9a56a]/35"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="font-semibold text-[#fff4df]">{reservation.guestName}</span>
+                        <span className="text-xs text-white/50">{reservation.reservedTime}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-white/45">
+                        {getReservationTimingLabel(reservation, text, now)} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {selectedReservation && (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="text-xs uppercase tracking-[0.22em] text-[#c9a56a]">{selectedReservation.reservedTime}</div>
+              <div className="mt-2 text-xl font-semibold text-[#fff4df]">{selectedReservation.guestName}</div>
+              <div className="mt-1 text-sm text-white/55">
+                {selectedReservation.guestCount} {text.guests} · {selectedReservation.tableIds.join(", ")}
+              </div>
+              <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl px-4 py-3 text-sm">
+                  {text.arrived}
+                </button>
+                <button type="button" onClick={() => onNoShow(selectedReservation)} className="rounded-xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-100">
+                  {text.noShow}
+                </button>
+                <a href={`tel:${selectedReservation.phone}`} className="ghost-button rounded-xl px-4 py-3 text-center text-sm font-semibold">
+                  {text.call}
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 function normalizeReservation(r) {
   const tables = getValue(r, "tableIds") || getValue(r, "tables") || [];
 
@@ -721,6 +1097,7 @@ function normalizeReservation(r) {
     privacyConsent: Boolean(getValue(r, "privacyConsent")),
     isBlacklisted: Boolean(getValue(r, "isBlacklisted")),
     isRegularCustomer: Boolean(getValue(r, "isRegularCustomer")),
+    isArrived: Boolean(getValue(r, "isArrived")),
     isNoShow: Boolean(getValue(r, "isNoShow")),
     createdByAdmin: Boolean(getValue(r, "createdByAdmin")),
     tableIds: Array.isArray(tables)
@@ -769,7 +1146,7 @@ function Panel({ title, subtitle, children, right }) {
 }
 
 export default function AdminPage({ onMenuChanged }) {
-  const [activeTab, setActiveTab] = React.useState("reservations");
+  const [activeTab, setActiveTab] = React.useState("liveMap");
   const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
   const [menuItems, setMenuItems] = React.useState([]);
@@ -789,6 +1166,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [tableEdits, setTableEdits] = React.useState({});
   const [tableLayout, setTableLayout] = React.useState([]);
   const [layoutArea, setLayoutArea] = React.useState("indoor");
+  const [reservationMapArea, setReservationMapArea] = React.useState("indoor");
   const [noteEdits, setNoteEdits] = React.useState({});
   const [hallBlock, setHallBlock] = React.useState(emptyHallBlock);
   const [adminNotice, setAdminNotice] = React.useState("");
@@ -850,6 +1228,7 @@ export default function AdminPage({ onMenuChanged }) {
   React.useEffect(() => {
     loadReservations();
     loadBlacklist();
+    loadTableLayout();
   }, []);
 
   React.useEffect(() => {
@@ -863,7 +1242,7 @@ export default function AdminPage({ onMenuChanged }) {
       loadBlacklist();
     }
 
-    if (activeTab === "layout") {
+    if (activeTab === "layout" || activeTab === "liveMap") {
       loadTableLayout();
     }
   }, [activeTab]);
@@ -955,11 +1334,46 @@ export default function AdminPage({ onMenuChanged }) {
     await loadReservations();
   }
 
+  async function markReservationArrived(reservation) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/arrive`, {
+      method: "PATCH",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to mark reservation as arrived."));
+      return;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Гостът е отбелязан като пристигнал." : "Guest marked as arrived.");
+    await loadReservations();
+  }
+
+  async function markReservationNoShow(reservation) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/no-show`, {
+      method: "PATCH",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to mark reservation as no-show."));
+      return;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Резервацията е освободена като no-show." : "Reservation released as no-show.");
+    await loadReservations();
+  }
+
   function getTableEdit(reservation) {
     return (
       tableEdits[reservation.id] || {
         area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
         tableIds: reservation.tableIds,
+        guestCount: reservation.guestCount,
       }
     );
   }
@@ -970,6 +1384,19 @@ export default function AdminPage({ onMenuChanged }) {
       [reservation.id]: {
         area,
         tableIds: [],
+        guestCount: getTableEdit(reservation).guestCount,
+      },
+    }));
+  }
+
+  function setTableEditGuestCount(reservation, guestCount) {
+    const current = getTableEdit(reservation);
+
+    setTableEdits((prev) => ({
+      ...prev,
+      [reservation.id]: {
+        ...current,
+        guestCount,
       },
     }));
   }
@@ -981,7 +1408,10 @@ export default function AdminPage({ onMenuChanged }) {
       ? current.tableIds.filter((id) => id !== tableId)
       : [...current.tableIds, tableId];
 
-    if (!canUseAdminTableSelection(current.area, nextTableIds)) {
+    if (!canUseAdminTableSelection(current.area, nextTableIds, {
+      requiredSeats: Number(current.guestCount || reservation.guestCount || 0),
+      allowPartial: true,
+    })) {
       return;
     }
 
@@ -1012,7 +1442,10 @@ export default function AdminPage({ onMenuChanged }) {
       ? currentTableIds.filter((id) => id !== tableId)
       : [...currentTableIds, tableId];
 
-    if (!canUseAdminTableSelection(adminReservation.area, nextTableIds)) {
+    if (!canUseAdminTableSelection(adminReservation.area, nextTableIds, {
+      requiredSeats: Number(adminReservation.guestCount || 0),
+      allowPartial: true,
+    })) {
       return;
     }
 
@@ -1072,6 +1505,18 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
+    const selectionError = getTableSelectionError(
+      edit.area,
+      edit.tableIds,
+      edit.guestCount,
+      adminLanguage
+    );
+
+    if (selectionError) {
+      setAdminError(selectionError);
+      return;
+    }
+
     const unavailableTableIds = getUnavailableTableIdsForSlot(
       reservations,
       reservation.reservedDate,
@@ -1095,6 +1540,7 @@ export default function AdminPage({ onMenuChanged }) {
       body: JSON.stringify({
         area: edit.area,
         tableIds: edit.tableIds,
+        guestCount: Number(edit.guestCount || reservation.guestCount || 0),
       }),
     });
 
@@ -1133,13 +1579,17 @@ export default function AdminPage({ onMenuChanged }) {
   }
 
   async function addToBlacklist(reservation) {
-    await saveBlacklistPayload({
+    const saved = await saveBlacklistPayload({
       guestName: reservation.guestName,
       phone: reservation.phone,
       email: reservation.email,
       reason: "No-show",
       notes: reservation.internalNote || reservation.notes || "",
     });
+
+    if (saved) {
+      await markReservationNoShow(reservation);
+    }
   }
 
   async function addCustomerToBlacklist(customer) {
@@ -1239,6 +1689,18 @@ export default function AdminPage({ onMenuChanged }) {
 
     setAdminNotice("");
     setAdminError("");
+
+    const selectionError = getTableSelectionError(
+      payload.area,
+      payload.tableIds,
+      payload.guestCount,
+      adminLanguage
+    );
+
+    if (selectionError) {
+      setAdminError(selectionError);
+      return;
+    }
 
     const unavailableTableIds = getUnavailableTableIdsForSlot(
       reservations,
@@ -1509,6 +1971,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
       }));
 
   const tabs = [
+    ["liveMap", a.tabs.liveMap],
     ["reservations", a.tabs.reservations],
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
@@ -1530,6 +1993,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
     if (activeTab === "layout") {
       await loadTableLayout();
+      return;
+    }
+
+    if (activeTab === "liveMap") {
+      await Promise.all([loadReservations(), loadTableLayout()]);
       return;
     }
 
@@ -1641,6 +2109,18 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           <Panel title="Loading">Loading...</Panel>
         ) : (
           <>
+            {activeTab === "liveMap" && (
+              <ReservationOperationsMap
+                text={a.liveMap}
+                layout={tableLayout}
+                reservations={reservations}
+                selectedArea={reservationMapArea}
+                onAreaChange={setReservationMapArea}
+                onArrived={markReservationArrived}
+                onNoShow={markReservationNoShow}
+              />
+            )}
+
             {activeTab === "reservations" && (
               <Panel
                 title={a.reservations.title}
@@ -1830,6 +2310,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                             selectedTableIds={adminReservationTableIds}
                             onToggle={toggleAdminReservationTable}
                             unavailableTableIds={adminReservationUnavailableTableIds}
+                            requiredSeats={Number(adminReservation.guestCount || 0)}
                             hideUnavailable={Boolean(adminReservation.reservedDate && adminReservation.reservedTime)}
                             emptyMessage={
                               adminLanguage === "bg"
@@ -1993,6 +2474,20 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                               </div>
                               <p className="mt-2 text-sm text-stone-400">{a.reservations.changeTablesHint}</p>
                               <div className="mt-4 flex flex-col gap-2 md:flex-row">
+                                <label className="min-w-[140px]">
+                                  <span className="mb-1 block text-xs text-stone-500">
+                                    {a.reservations.guests}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min="1"
+                                    max="40"
+                                    value={tableEdit.guestCount}
+                                    onChange={(e) => setTableEditGuestCount(r, e.target.value)}
+                                    disabled={r.status === "Cancelled"}
+                                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                  />
+                                </label>
                                 <select
                                   value={tableEdit.area}
                                   onChange={(e) => setTableEditArea(r, e.target.value)}
@@ -2017,6 +2512,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   area={tableEdit.area}
                                   selectedTableIds={tableEdit.tableIds}
                                   onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                  requiredSeats={Number(tableEdit.guestCount || r.guestCount || 0)}
                                   unavailableTableIds={getUnavailableTableIdsForSlot(
                                     reservations,
                                     r.reservedDate,
@@ -2185,6 +2681,20 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                       </div>
 
                                       <div className="flex flex-col gap-2 sm:flex-row">
+                                        <label className="min-w-[140px]">
+                                          <span className="mb-1 block text-xs text-stone-500">
+                                            {a.reservations.guests}
+                                          </span>
+                                          <input
+                                            type="number"
+                                            min="1"
+                                            max="40"
+                                            value={tableEdit.guestCount}
+                                            onChange={(e) => setTableEditGuestCount(r, e.target.value)}
+                                            disabled={r.status === "Cancelled"}
+                                            className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                          />
+                                        </label>
                                         <select
                                           value={tableEdit.area}
                                           onChange={(e) => setTableEditArea(r, e.target.value)}
@@ -2212,6 +2722,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         area={tableEdit.area}
                                         selectedTableIds={tableEdit.tableIds}
                                         onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                        requiredSeats={Number(tableEdit.guestCount || r.guestCount || 0)}
                                         unavailableTableIds={getUnavailableTableIdsForSlot(
                                           reservations,
                                           r.reservedDate,

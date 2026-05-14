@@ -41,6 +41,8 @@ public class Reservation
 
     public bool IsNoShow { get; set; } = false;
 
+    public bool IsArrived { get; set; } = false;
+
     public bool IsBlacklisted { get; set; } = false;
     
     public bool IsRegularCustomer { get; set; } = false;

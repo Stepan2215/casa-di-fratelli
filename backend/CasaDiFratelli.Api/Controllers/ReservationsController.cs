@@ -50,6 +50,7 @@ public ReservationsController(
                 x.Notes,
                 x.CreatedByAdmin,
                 x.InternalNote,
+                x.IsArrived,
                 x.IsNoShow,
                 x.IsBlacklisted,
                 x.IsRegularCustomer,
@@ -104,6 +105,9 @@ public ReservationsController(
 
         if (tableIds.Count == 0)
             return BadRequest("At least one valid table must be selected.");
+
+        if (!TableCapacityService.HasEnoughSeats(tableIds, request.GuestCount))
+            return BadRequest("Selected tables do not have enough seats.");
 
         var conflict = await _reservationConflictService.FindTableConflictAsync(request.ReservedDate, request.ReservedTime, tableIds);
 
@@ -255,6 +259,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         }
 
         reservation.Status = "Approved";
+        reservation.IsNoShow = false;
         await _db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(reservation.Email))
@@ -284,6 +289,53 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         });
     }
 
+    [HttpPatch("{id}/arrive")]
+    public async Task<IActionResult> MarkArrived(int id)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+
+        if (reservation == null)
+            return NotFound();
+
+        if (reservation.Status == "Cancelled")
+            return BadRequest("Cancelled reservations cannot be marked as arrived.");
+
+        reservation.Status = "Approved";
+        reservation.IsArrived = true;
+        reservation.IsNoShow = false;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            reservation.Id,
+            reservation.Status,
+            reservation.IsArrived,
+            reservation.IsNoShow
+        });
+    }
+
+    [HttpPatch("{id}/no-show")]
+    public async Task<IActionResult> MarkNoShow(int id)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+
+        if (reservation == null)
+            return NotFound();
+
+        reservation.Status = "Cancelled";
+        reservation.IsArrived = false;
+        reservation.IsNoShow = true;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            reservation.Id,
+            reservation.Status,
+            reservation.IsArrived,
+            reservation.IsNoShow
+        });
+    }
+
     [HttpPatch("{id}/tables")]
     public async Task<IActionResult> UpdateTables(int id, [FromBody] UpdateReservationTablesRequest request)
     {
@@ -301,6 +353,13 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
 
         if (tableIds.Count == 0)
             return BadRequest("At least one valid table must be selected.");
+
+        var nextGuestCount = request.GuestCount ?? reservation.GuestCount;
+        if (nextGuestCount <= 0)
+            return BadRequest("Invalid guests.");
+
+        if (!TableCapacityService.HasEnoughSeats(tableIds, nextGuestCount))
+            return BadRequest("Selected tables do not have enough seats.");
 
         var conflict = await _reservationConflictService.FindTableConflictAsync(
             reservation.ReservedDate,
@@ -321,12 +380,16 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         if (!string.IsNullOrWhiteSpace(request.Area))
             reservation.Area = request.Area.Trim();
 
+        if (request.GuestCount.HasValue)
+            reservation.GuestCount = request.GuestCount.Value;
+
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
             reservation.Id,
             reservation.Area,
+            reservation.GuestCount,
             TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
         });
     }
@@ -418,6 +481,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             return NotFound();
 
         reservation.Status = "Cancelled";
+        reservation.IsArrived = false;
         await _db.SaveChangesAsync();
 
         if (!string.IsNullOrWhiteSpace(reservation.Email))

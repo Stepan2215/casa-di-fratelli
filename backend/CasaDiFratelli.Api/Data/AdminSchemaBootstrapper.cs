@@ -10,6 +10,7 @@ public static class AdminSchemaBootstrapper
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "BirthDate" date NULL;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "CreatedByAdmin" boolean NOT NULL DEFAULT false;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "InternalNote" text NULL;
+            ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "IsArrived" boolean NOT NULL DEFAULT false;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "IsBlacklisted" boolean NOT NULL DEFAULT false;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "IsNoShow" boolean NOT NULL DEFAULT false;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "IsRegularCustomer" boolean NOT NULL DEFAULT false;
