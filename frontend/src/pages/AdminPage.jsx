@@ -371,6 +371,36 @@ function canUseAdminTableSelection(area, tableIds) {
   return indoorCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
 }
 
+function timeToMinutes(value) {
+  const [hours, minutes] = String(value || "").split(":").map(Number);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  return hours * 60 + minutes;
+}
+
+function isWithinTableBuffer(firstTime, secondTime) {
+  const firstMinutes = timeToMinutes(firstTime);
+  const secondMinutes = timeToMinutes(secondTime);
+  if (firstMinutes === null || secondMinutes === null) return firstTime === secondTime;
+  return Math.abs(firstMinutes - secondMinutes) < 60;
+}
+
+function getUnavailableTableIdsForSlot(reservations, reservedDate, reservedTime, excludeReservationId = null) {
+  if (!reservedDate || !reservedTime) return new Set();
+
+  return new Set(
+    reservations
+      .filter((reservation) => {
+        if (reservation.status !== "Approved") return false;
+        if (excludeReservationId && reservation.id === excludeReservationId) return false;
+        return (
+          String(reservation.reservedDate) === String(reservedDate) &&
+          isWithinTableBuffer(reservation.reservedTime, reservedTime)
+        );
+      })
+      .flatMap((reservation) => reservation.tableIds)
+  );
+}
+
 function buildTimeRange(startTime, endTime) {
   const toMinutes = (value) => {
     const [hours, minutes] = String(value || "").split(":").map(Number);
@@ -426,14 +456,25 @@ async function fetchJsonOrEmpty(url, fallback) {
   }
 }
 
-function TableChipSelector({ area, selectedTableIds, onToggle }) {
+function TableChipSelector({
+  area,
+  selectedTableIds,
+  onToggle,
+  unavailableTableIds = new Set(),
+  hideUnavailable = false,
+  emptyMessage = "No free tables for this time.",
+}) {
   const tableIds = areaTableIds[area] || indoorTableIds;
+  const visibleTableIds = hideUnavailable
+    ? tableIds.filter((tableId) => selectedTableIds.includes(tableId) || !unavailableTableIds.has(tableId))
+    : tableIds;
 
   return (
     <div className="flex flex-wrap gap-2">
-      {tableIds.map((tableId) => {
+      {visibleTableIds.map((tableId) => {
         const selected = selectedTableIds.includes(tableId);
-        const allowed = selected || canUseAdminTableSelection(area, [...selectedTableIds, tableId]);
+        const unavailable = !selected && unavailableTableIds.has(tableId);
+        const allowed = !unavailable && (selected || canUseAdminTableSelection(area, [...selectedTableIds, tableId]));
 
         return (
           <button
@@ -441,9 +482,12 @@ function TableChipSelector({ area, selectedTableIds, onToggle }) {
             type="button"
             disabled={!allowed}
             onClick={() => onToggle(tableId)}
+            title={unavailable ? "Reserved around this time" : tableId}
             className={`rounded-xl border px-3 py-2 text-xs transition ${
               selected
                 ? "border-amber-300 bg-amber-400 text-black"
+                : unavailable
+                ? "cursor-not-allowed border-red-400/10 bg-red-500/5 text-red-200/35"
                 : !allowed
                 ? "cursor-not-allowed border-white/5 bg-black/10 text-white/25"
                 : "border-white/10 bg-black/20 text-white/65 hover:border-amber-300/50 hover:text-white"
@@ -453,6 +497,11 @@ function TableChipSelector({ area, selectedTableIds, onToggle }) {
           </button>
         );
       })}
+      {visibleTableIds.length === 0 && (
+        <div className="rounded-2xl border border-red-400/15 bg-red-500/10 px-4 py-3 text-sm text-red-100/80">
+          {emptyMessage}
+        </div>
+      )}
     </div>
   );
 }
@@ -1078,6 +1127,10 @@ export default function AdminPage({ onMenuChanged }) {
   }
 
   function toggleAdminReservationTable(tableId) {
+    if (adminReservationUnavailableTableIds.has(tableId)) {
+      return;
+    }
+
     const currentTableIds = getAdminReservationTableIds();
     const exists = currentTableIds.includes(tableId);
     const nextTableIds = exists
@@ -1143,6 +1196,23 @@ export default function AdminPage({ onMenuChanged }) {
 
     setAdminNotice("");
     setAdminError("");
+
+    const unavailableTableIds = getUnavailableTableIdsForSlot(
+      reservations,
+      reservation.reservedDate,
+      reservation.reservedTime,
+      reservation.id
+    );
+    const unavailableSelectedTableIds = edit.tableIds.filter((tableId) => unavailableTableIds.has(tableId));
+
+    if (unavailableSelectedTableIds.length > 0) {
+      setAdminError(
+        adminLanguage === "bg"
+          ? `Маса ${unavailableSelectedTableIds.join(", ")} вече е заета около този час.`
+          : `Table ${unavailableSelectedTableIds.join(", ")} is already reserved around this time.`
+      );
+      return;
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
       method: "PATCH",
@@ -1294,6 +1364,22 @@ export default function AdminPage({ onMenuChanged }) {
 
     setAdminNotice("");
     setAdminError("");
+
+    const unavailableTableIds = getUnavailableTableIdsForSlot(
+      reservations,
+      payload.reservedDate,
+      payload.reservedTime
+    );
+    const unavailableSelectedTableIds = payload.tableIds.filter((tableId) => unavailableTableIds.has(tableId));
+
+    if (unavailableSelectedTableIds.length > 0) {
+      setAdminError(
+        adminLanguage === "bg"
+          ? `Маса ${unavailableSelectedTableIds.join(", ")} вече е заета около този час.`
+          : `Table ${unavailableSelectedTableIds.join(", ")} is already reserved around this time.`
+      );
+      return;
+    }
 
     const response = await fetch(`${API_BASE_URL}/api/reservations`, {
       method: "POST",
@@ -1503,6 +1589,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     menuCategories.find((category) => category.id === selectedMenuCategory) || menuCategories[0];
   const selectedCategoryItems = selectedCategoryData?.items || [];
   const adminReservationTableIds = getAdminReservationTableIds();
+  const adminReservationUnavailableTableIds = getUnavailableTableIdsForSlot(
+    reservations,
+    adminReservation.reservedDate,
+    adminReservation.reservedTime
+  );
   const reservationAreaOptions = [
     {
       value: "indoor",
@@ -1753,6 +1844,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 setAdminReservation((prev) => ({
                                   ...prev,
                                   reservedTime: e.target.value,
+                                  tableIds: "",
                                 }))
                               }
                               required
@@ -1773,6 +1865,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 setAdminReservation((prev) => ({
                                   ...prev,
                                   [key]: e.target.value,
+                                  ...(key === "reservedDate" ? { tableIds: "" } : {}),
                                 }))
                               }
                               required={["phone", "reservedDate", "guestCount", "tableIds"].includes(key)}
@@ -1861,6 +1954,13 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                             area={adminReservation.area}
                             selectedTableIds={adminReservationTableIds}
                             onToggle={toggleAdminReservationTable}
+                            unavailableTableIds={adminReservationUnavailableTableIds}
+                            hideUnavailable={Boolean(adminReservation.reservedDate && adminReservation.reservedTime)}
+                            emptyMessage={
+                              adminLanguage === "bg"
+                                ? "Няма свободни маси за този час."
+                                : "No free tables for this time."
+                            }
                           />
                         </div>
                       </div>
@@ -2042,6 +2142,12 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   area={tableEdit.area}
                                   selectedTableIds={tableEdit.tableIds}
                                   onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                  unavailableTableIds={getUnavailableTableIdsForSlot(
+                                    reservations,
+                                    r.reservedDate,
+                                    r.reservedTime,
+                                    r.id
+                                  )}
                                 />
                               </div>
                             </div>
@@ -2231,6 +2337,12 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         area={tableEdit.area}
                                         selectedTableIds={tableEdit.tableIds}
                                         onToggle={(tableId) => toggleTableEdit(r, tableId)}
+                                        unavailableTableIds={getUnavailableTableIdsForSlot(
+                                          reservations,
+                                          r.reservedDate,
+                                          r.reservedTime,
+                                          r.id
+                                        )}
                                       />
                                     </div>
                                   </div>
