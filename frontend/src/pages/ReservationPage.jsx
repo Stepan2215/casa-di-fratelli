@@ -957,15 +957,17 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   }, [requestedGuests, selectedArea]);
 
   React.useEffect(() => {
-  if (canShowSearchParams && window.innerWidth < 1024) {
-    setTimeout(() => {
+    if (!canShowSearchParams || window.innerWidth >= 1024 || showBookingForm) return;
+
+    const scrollTimeout = setTimeout(() => {
       mapSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
     }, 250);
-  }
-}, [canShowSearchParams]);
+
+    return () => clearTimeout(scrollTimeout);
+  }, [canShowSearchParams, guestCount, reservationDate, selectedArea, selectedTime, showBookingForm]);
 
 
   const bookingMode =
