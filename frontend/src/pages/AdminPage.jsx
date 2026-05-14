@@ -469,6 +469,90 @@ function hasLayoutOverlap(layout, candidate) {
   });
 }
 
+function AdminMapWindow({ className = "", label, vertical = false }) {
+  return (
+    <div className={`pointer-events-none absolute z-[3] ${className}`}>
+      <div className="relative h-full w-full overflow-hidden rounded-full border border-sky-200/35 bg-sky-100/[0.065] shadow-[0_0_26px_rgba(125,211,252,0.14)] backdrop-blur">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.22),transparent_36%),repeating-linear-gradient(90deg,transparent_0_18%,rgba(186,230,253,0.2)_18%_19%,transparent_19%_38%)]" />
+        <div className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-sky-100/35" />
+        <div
+          className={`relative flex h-full w-full items-center justify-center text-[8px] font-bold uppercase tracking-[0.28em] text-sky-100/86 ${
+            vertical ? "-rotate-90 whitespace-nowrap" : ""
+          }`}
+        >
+          {label}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AdminMapDecor({ area }) {
+  if (area === "garden") {
+    return (
+      <>
+        <AdminMapWindow className="left-5 right-5 top-3 h-4" label="Прозорци" />
+        <AdminMapWindow className="bottom-5 left-3 top-5 w-4" label="Прозорци" vertical />
+        <AdminMapWindow className="bottom-5 right-3 top-5 w-4" label="Прозорци" vertical />
+        <div className="pointer-events-none absolute left-[4%] top-[50%] z-[3]">
+          <div className="relative h-16 w-6 rounded-lg border border-white/18 bg-[#080706] shadow-[0_0_24px_rgba(0,0,0,0.42)]">
+            <div className="absolute inset-1 rounded-lg bg-[linear-gradient(160deg,rgba(56,189,248,0.28),rgba(255,255,255,0.08)_42%,rgba(20,184,166,0.16))]" />
+          </div>
+          <div className="mt-1 -translate-x-4 rounded-full border border-white/10 bg-black/30 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.16em] text-white/60">
+            Телевизор
+          </div>
+        </div>
+        <div className="pointer-events-none absolute bottom-1 left-1/2 z-[3] w-[24%] -translate-x-1/2 text-center">
+          <div className="mx-auto h-6 w-16 rounded-t-full border-x border-t border-[#d6b278]/55 bg-[radial-gradient(circle_at_50%_100%,rgba(214,178,120,0.28),transparent_62%)]" />
+          <div className="mx-auto h-1 w-20 rounded-full bg-[#d6b278]/55" />
+          <div className="mx-auto mt-0.5 max-w-[96px] rounded-full border border-[#c9a56a]/28 bg-black/48 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.16em] text-[#f2d39a] backdrop-blur">
+            Вход към терасата
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (area === "openTerrace") {
+    return (
+      <>
+        <AdminMapWindow className="left-5 right-5 top-3 h-4" label="Открито" />
+        <div className="pointer-events-none absolute bottom-5 left-1/2 z-[3] -translate-x-1/2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[8px] font-bold uppercase tracking-[0.22em] text-emerald-100/80 backdrop-blur">
+          Открита тераса
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <AdminMapWindow className="left-3 top-5 h-[50%] w-4" label="Прозорци" vertical />
+      <AdminMapWindow className="bottom-5 left-3 top-[70%] w-4" label="Прозорци" vertical />
+      <div className="pointer-events-none absolute right-5 top-[51%] z-[3] h-4 w-[50%] -translate-y-1/2">
+        <div className="relative h-full w-full rounded-full border border-stone-200/14 bg-[linear-gradient(180deg,rgba(255,244,223,0.18),rgba(63,47,34,0.78),rgba(255,244,223,0.12))] shadow-[0_0_28px_rgba(0,0,0,0.34)]">
+          <div className="absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-[#f2d39a]/20" />
+        </div>
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.18em] text-white/55 backdrop-blur">
+          Стена
+        </div>
+      </div>
+      <div className="pointer-events-none absolute left-1 top-[60%] z-[3] flex -translate-y-1/2 items-center">
+        <div className="h-14 w-5 rounded-r-full border-y border-r border-[#d6b278]/55 bg-[radial-gradient(circle_at_0%_50%,rgba(214,178,120,0.32),transparent_68%)]" />
+        <div className="ml-1 rounded-full border border-[#c9a56a]/28 bg-black/48 px-2 py-1 text-[7px] font-bold uppercase tracking-[0.16em] text-[#f2d39a] backdrop-blur">
+          Вход
+        </div>
+      </div>
+      <div className="pointer-events-none absolute bottom-1 left-[25%] z-[3] w-[28%] -translate-x-1/2 text-center">
+        <div className="mx-auto h-6 w-16 rounded-t-full border-x border-t border-emerald-200/45 bg-[radial-gradient(circle_at_50%_100%,rgba(110,231,183,0.2),transparent_64%)]" />
+        <div className="mx-auto h-1 w-20 rounded-full bg-emerald-200/45" />
+        <div className="mx-auto mt-0.5 max-w-[104px] rounded-full border border-emerald-200/20 bg-black/48 px-2 py-0.5 text-[7px] font-bold uppercase tracking-[0.14em] text-emerald-100/90 backdrop-blur">
+          Вход към терасата
+        </div>
+      </div>
+    </>
+  );
+}
+
 function TableLayoutEditor({
   text,
   layout,
@@ -482,6 +566,7 @@ function TableLayoutEditor({
 }) {
   const mapRef = React.useRef(null);
   const [draggingId, setDraggingId] = React.useState(null);
+  const [selectedTableId, setSelectedTableId] = React.useState("");
   const areas = [
     ["indoor", "Зала / Непушачи"],
     ["garden", "Покрита тераса"],
@@ -489,6 +574,11 @@ function TableLayoutEditor({
   ];
   const areaTables = layout.filter((item) => item.area === selectedArea);
   const activeAreaTables = areaTables.filter((item) => item.isActive);
+  const selectedTable = areaTables.find((item) => item.id === selectedTableId) || areaTables[0];
+
+  React.useEffect(() => {
+    setSelectedTableId("");
+  }, [selectedArea]);
 
   const moveTable = (tableId, clientX, clientY) => {
     const box = mapRef.current?.getBoundingClientRect();
@@ -542,7 +632,13 @@ function TableLayoutEditor({
 
           <div
             ref={mapRef}
-            className="relative min-h-[560px] overflow-hidden rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(201,165,106,0.14),transparent_34%),linear-gradient(180deg,rgba(28,25,20,0.96),rgba(11,10,8,0.96))]"
+            className={`relative min-h-[560px] overflow-hidden rounded-[26px] border border-white/10 ${
+              selectedArea === "garden"
+                ? "bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))]"
+                : selectedArea === "openTerrace"
+                ? "bg-[radial-gradient(circle_at_top,_rgba(110,231,183,0.13),_transparent_34%),radial-gradient(circle_at_50%_100%,rgba(201,165,106,0.13),transparent_38%),linear-gradient(180deg,rgba(30,34,25,0.96),rgba(14,16,11,0.96))]"
+                : "bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))]"
+            }`}
             onPointerMove={(event) => {
               if (!draggingId) return;
               moveTable(draggingId, event.clientX, event.clientY);
@@ -551,6 +647,7 @@ function TableLayoutEditor({
             onPointerCancel={() => setDraggingId(null)}
           >
             <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
+            <AdminMapDecor area={selectedArea} />
 
             {activeAreaTables.map((table) => (
               <button
@@ -558,9 +655,14 @@ function TableLayoutEditor({
                 type="button"
                 onPointerDown={(event) => {
                   event.currentTarget.setPointerCapture(event.pointerId);
+                  setSelectedTableId(table.id);
                   setDraggingId(table.id);
                 }}
-                className="absolute z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-2xl border border-[#c9a56a]/40 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-sm font-semibold text-white shadow-2xl transition hover:scale-105"
+                className={`absolute z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-2xl border text-sm font-semibold shadow-2xl transition hover:scale-105 ${
+                  selectedTable?.id === table.id
+                    ? "border-[#f2d39a] bg-[linear-gradient(145deg,#f6d99e,#b88b4d)] text-black"
+                    : "border-[#c9a56a]/40 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white"
+                }`}
                 style={{ left: `${table.x}%`, top: `${table.y}%` }}
               >
                 {table.id}
@@ -574,28 +676,48 @@ function TableLayoutEditor({
             {text.overlap}
           </div>
 
-          <div className="max-h-[620px] space-y-3 overflow-y-auto pr-1">
+          <div className="max-h-[230px] overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-2">
             {areaTables.map((table) => (
-              <div key={table.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="text-lg font-semibold text-[#fff4df]">{table.id}</div>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(table.id)}
-                    className="rounded-full border border-red-300/20 px-3 py-1 text-xs text-red-200"
-                  >
-                    {text.remove}
-                  </button>
+              <button
+                key={table.id}
+                type="button"
+                onClick={() => setSelectedTableId(table.id)}
+                className={`mb-2 flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition last:mb-0 ${
+                  selectedTable?.id === table.id
+                    ? "border-[#f2d39a]/50 bg-[#c9a56a]/16 text-[#fff4df]"
+                    : "border-white/10 bg-white/[0.03] text-white/70 hover:border-[#c9a56a]/35"
+                }`}
+              >
+                <span className="font-semibold">{table.id}</span>
+                <span className="text-xs text-white/45">{table.seats} seats · {Math.round(table.x)}, {Math.round(table.y)}</span>
+              </button>
+            ))}
+          </div>
+
+          {selectedTable ? (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.22em] text-[#c9a56a]">Table</div>
+                  <div className="mt-1 text-2xl font-semibold text-[#fff4df]">{selectedTable.id}</div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => onRemove(selectedTable.id)}
+                  className="rounded-full border border-red-300/20 px-3 py-1 text-xs text-red-200"
+                >
+                  {text.remove}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                   <label className="text-xs text-white/55">
                     X
                     <input
                       type="number"
                       min="5"
                       max="95"
-                      value={table.x}
-                      onChange={(event) => onUpdate(table.id, { ...table, x: Number(event.target.value) })}
+                      value={selectedTable.x}
+                      onChange={(event) => onUpdate(selectedTable.id, { ...selectedTable, x: Number(event.target.value) })}
                       className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
                     />
                   </label>
@@ -605,8 +727,8 @@ function TableLayoutEditor({
                       type="number"
                       min="5"
                       max="95"
-                      value={table.y}
-                      onChange={(event) => onUpdate(table.id, { ...table, y: Number(event.target.value) })}
+                      value={selectedTable.y}
+                      onChange={(event) => onUpdate(selectedTable.id, { ...selectedTable, y: Number(event.target.value) })}
                       className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
                     />
                   </label>
@@ -616,23 +738,26 @@ function TableLayoutEditor({
                       type="number"
                       min="1"
                       max="20"
-                      value={table.seats}
-                      onChange={(event) => onUpdate(table.id, { ...table, seats: Number(event.target.value) })}
+                      value={selectedTable.seats}
+                      onChange={(event) => onUpdate(selectedTable.id, { ...selectedTable, seats: Number(event.target.value) })}
                       className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
                     />
                   </label>
                   <label className="flex items-end gap-2 text-xs text-white/70">
                     <input
                       type="checkbox"
-                      checked={table.isActive}
-                      onChange={(event) => onUpdate(table.id, { ...table, isActive: event.target.checked })}
+                      checked={selectedTable.isActive}
+                      onChange={(event) => onUpdate(selectedTable.id, { ...selectedTable, isActive: event.target.checked })}
                     />
                     {text.active}
                   </label>
-                </div>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
+              Select a table from the list.
+            </div>
+          )}
         </div>
       </div>
     </Panel>
