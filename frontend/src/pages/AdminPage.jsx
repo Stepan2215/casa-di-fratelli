@@ -37,6 +37,7 @@ const adminText = {
       create: "Нова резервация",
       block: "Блокирай зала",
       menu: "Меню",
+      layout: "Карта",
       blacklist: "Blacklist",
       customers: "Клиенти",
     },
@@ -94,6 +95,18 @@ const adminText = {
       empty: "Още няма ястия в CMS.",
       priceHelp: "Цената се пази и показва в евро. Въведете крайната цена за гостите.",
     },
+    layout: {
+      title: "Карта на ресторанта",
+      subtitle: "Премествайте масите, добавяйте нови и скривайте неактивни. Сайтът използва тази карта автоматично.",
+      save: "Запази картата",
+      reset: "Върни оригиналната",
+      add: "Добави маса",
+      area: "Зона",
+      seats: "Места",
+      active: "Активна",
+      remove: "Премахни",
+      overlap: "Масите не трябва да се застъпват.",
+    },
   },
   en: {
     appTitle: "Restaurant CRM",
@@ -115,6 +128,7 @@ const adminText = {
       create: "Create",
       block: "Block hall",
       menu: "Menu",
+      layout: "Map",
       blacklist: "Blacklist",
       customers: "Customers",
     },
@@ -171,6 +185,18 @@ const adminText = {
       delete: "Delete",
       empty: "No dishes in the CMS yet.",
       priceHelp: priceHelperText,
+    },
+    layout: {
+      title: "Restaurant map",
+      subtitle: "Move tables, add new ones, and hide inactive tables. The public site uses this map automatically.",
+      save: "Save map",
+      reset: "Restore original",
+      add: "Add table",
+      area: "Area",
+      seats: "Seats",
+      active: "Active",
+      remove: "Remove",
+      overlap: "Tables cannot overlap.",
     },
   },
 };
@@ -245,7 +271,8 @@ const gardenTableIds = [
 const areaTableIds = {
   indoor: indoorTableIds,
   garden: gardenTableIds,
-  all: [...indoorTableIds, ...gardenTableIds],
+  openTerrace: ["46", "47", "48", "49"],
+  all: [...indoorTableIds, ...gardenTableIds, "46", "47", "48", "49"],
 };
 
 const adminReservationTimes = Array.from({ length: 13 }, (_, index) => {
@@ -418,6 +445,200 @@ function TableChipSelector({ area, selectedTableIds, onToggle }) {
   );
 }
 
+function normalizeLayoutItem(item) {
+  return {
+    id: String(item.id || item.Id || "").trim(),
+    area: item.area || item.Area || "indoor",
+    x: Number(item.x ?? item.X ?? 50),
+    y: Number(item.y ?? item.Y ?? 50),
+    seats: Number(item.seats ?? item.Seats ?? 4),
+    special: Boolean(item.special ?? item.Special),
+    wide: Boolean(item.wide ?? item.Wide),
+    isActive: item.isActive ?? item.IsActive ?? true,
+  };
+}
+
+function hasLayoutOverlap(layout, candidate) {
+  return layout.some((item) => {
+    if (item.id === candidate.id || item.area !== candidate.area || !item.isActive || !candidate.isActive) {
+      return false;
+    }
+
+    const distance = Math.hypot(item.x - candidate.x, item.y - candidate.y);
+    return distance < 6;
+  });
+}
+
+function TableLayoutEditor({
+  text,
+  layout,
+  selectedArea,
+  onAreaChange,
+  onUpdate,
+  onAdd,
+  onRemove,
+  onSave,
+  onReset,
+}) {
+  const mapRef = React.useRef(null);
+  const [draggingId, setDraggingId] = React.useState(null);
+  const areas = [
+    ["indoor", "Зала / Непушачи"],
+    ["garden", "Покрита тераса"],
+    ["openTerrace", "Открита тераса"],
+  ];
+  const areaTables = layout.filter((item) => item.area === selectedArea);
+  const activeAreaTables = areaTables.filter((item) => item.isActive);
+
+  const moveTable = (tableId, clientX, clientY) => {
+    const box = mapRef.current?.getBoundingClientRect();
+    if (!box) return;
+
+    const x = Math.min(94, Math.max(6, ((clientX - box.left) / box.width) * 100));
+    const y = Math.min(94, Math.max(6, ((clientY - box.top) / box.height) * 100));
+    const current = layout.find((item) => item.id === tableId);
+    if (!current) return;
+
+    const next = { ...current, x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+    if (hasLayoutOverlap(layout, next)) return;
+
+    onUpdate(tableId, next);
+  };
+
+  return (
+    <Panel
+      title={text.title}
+      subtitle={text.subtitle}
+      right={
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onAdd} className="luxury-button rounded-full px-4 py-2 text-sm">
+            {text.add}
+          </button>
+          <button type="button" onClick={onReset} className="ghost-button rounded-full px-4 py-2 text-sm">
+            {text.reset}
+          </button>
+          <button type="button" onClick={onSave} className="luxury-button rounded-full px-4 py-2 text-sm">
+            {text.save}
+          </button>
+        </div>
+      }
+    >
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_0.8fr]">
+        <div>
+          <div className="mb-4 flex flex-wrap gap-2">
+            {areas.map(([area, label]) => (
+              <button
+                key={area}
+                type="button"
+                onClick={() => onAreaChange(area)}
+                className={`rounded-full px-4 py-2 text-sm transition ${
+                  selectedArea === area ? "luxury-button" : "ghost-button"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div
+            ref={mapRef}
+            className="relative min-h-[560px] overflow-hidden rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(201,165,106,0.14),transparent_34%),linear-gradient(180deg,rgba(28,25,20,0.96),rgba(11,10,8,0.96))]"
+            onPointerMove={(event) => {
+              if (!draggingId) return;
+              moveTable(draggingId, event.clientX, event.clientY);
+            }}
+            onPointerUp={() => setDraggingId(null)}
+            onPointerCancel={() => setDraggingId(null)}
+          >
+            <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
+
+            {activeAreaTables.map((table) => (
+              <button
+                key={table.id}
+                type="button"
+                onPointerDown={(event) => {
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setDraggingId(table.id);
+                }}
+                className="absolute z-10 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 touch-none items-center justify-center rounded-2xl border border-[#c9a56a]/40 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-sm font-semibold text-white shadow-2xl transition hover:scale-105"
+                style={{ left: `${table.x}%`, top: `${table.y}%` }}
+              >
+                {table.id}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-100">
+            {text.overlap}
+          </div>
+
+          <div className="max-h-[620px] space-y-3 overflow-y-auto pr-1">
+            {areaTables.map((table) => (
+              <div key={table.id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="text-lg font-semibold text-[#fff4df]">{table.id}</div>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(table.id)}
+                    className="rounded-full border border-red-300/20 px-3 py-1 text-xs text-red-200"
+                  >
+                    {text.remove}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-xs text-white/55">
+                    X
+                    <input
+                      type="number"
+                      min="5"
+                      max="95"
+                      value={table.x}
+                      onChange={(event) => onUpdate(table.id, { ...table, x: Number(event.target.value) })}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="text-xs text-white/55">
+                    Y
+                    <input
+                      type="number"
+                      min="5"
+                      max="95"
+                      value={table.y}
+                      onChange={(event) => onUpdate(table.id, { ...table, y: Number(event.target.value) })}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="text-xs text-white/55">
+                    {text.seats}
+                    <input
+                      type="number"
+                      min="1"
+                      max="20"
+                      value={table.seats}
+                      onChange={(event) => onUpdate(table.id, { ...table, seats: Number(event.target.value) })}
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white"
+                    />
+                  </label>
+                  <label className="flex items-end gap-2 text-xs text-white/70">
+                    <input
+                      type="checkbox"
+                      checked={table.isActive}
+                      onChange={(event) => onUpdate(table.id, { ...table, isActive: event.target.checked })}
+                    />
+                    {text.active}
+                  </label>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Panel>
+  );
+}
+
 function normalizeReservation(r) {
   const tables = getValue(r, "tableIds") || getValue(r, "tables") || [];
 
@@ -503,6 +724,8 @@ export default function AdminPage({ onMenuChanged }) {
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
   const [tableEdits, setTableEdits] = React.useState({});
+  const [tableLayout, setTableLayout] = React.useState([]);
+  const [layoutArea, setLayoutArea] = React.useState("indoor");
   const [noteEdits, setNoteEdits] = React.useState({});
   const [hallBlock, setHallBlock] = React.useState(emptyHallBlock);
   const [adminNotice, setAdminNotice] = React.useState("");
@@ -551,6 +774,16 @@ export default function AdminPage({ onMenuChanged }) {
     }
   }
 
+  async function loadTableLayout() {
+    try {
+      const layoutData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/table-layouts`, []);
+      setTableLayout(Array.isArray(layoutData) ? layoutData.map(normalizeLayoutItem) : []);
+    } catch (error) {
+      console.error("Failed to load table layout", error);
+      setAdminError(error?.message || "Failed to load table layout.");
+    }
+  }
+
   React.useEffect(() => {
     loadReservations();
     loadBlacklist();
@@ -566,7 +799,82 @@ export default function AdminPage({ onMenuChanged }) {
     if (activeTab === "blacklist") {
       loadBlacklist();
     }
+
+    if (activeTab === "layout") {
+      loadTableLayout();
+    }
   }, [activeTab]);
+
+  function updateTableLayoutItem(tableId, nextItem) {
+    const normalized = normalizeLayoutItem(nextItem);
+    if (hasLayoutOverlap(tableLayout, normalized)) {
+      setAdminError(a.layout.overlap);
+      return;
+    }
+
+    setAdminError("");
+    setTableLayout((prev) => prev.map((item) => (item.id === tableId ? normalized : item)));
+  }
+
+  function addTableLayoutItem() {
+    const areaItems = tableLayout.filter((item) => item.area === layoutArea);
+    const nextNumber = Math.max(
+      0,
+      ...tableLayout.map((item) => Number.parseInt(String(item.id).replace(/\D/g, ""), 10)).filter(Number.isFinite)
+    ) + 1;
+    const candidate = {
+      id: String(nextNumber),
+      area: layoutArea,
+      x: 50,
+      y: Math.min(90, 18 + areaItems.length * 8),
+      seats: 4,
+      special: false,
+      wide: layoutArea === "indoor",
+      isActive: true,
+    };
+
+    setTableLayout((prev) => [...prev, candidate]);
+  }
+
+  function removeTableLayoutItem(tableId) {
+    setTableLayout((prev) => prev.filter((item) => item.id !== tableId));
+  }
+
+  async function saveTableLayout() {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/table-layouts`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(tableLayout),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to save table layout."));
+      return;
+    }
+
+    setAdminNotice("Table layout saved.");
+    await loadTableLayout();
+  }
+
+  async function resetTableLayout() {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/table-layouts/reset`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to reset table layout."));
+      return;
+    }
+
+    setAdminNotice("Table layout reset.");
+    await loadTableLayout();
+  }
 
   async function updateStatus(id, action) {
     setAdminNotice("");
@@ -1038,6 +1346,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["create", a.tabs.create],
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
+    ["layout", a.tabs.layout],
     ["blacklist", a.tabs.blacklist],
     ["customers", a.tabs.customers],
   ];
@@ -1050,6 +1359,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
     if (activeTab === "blacklist") {
       await loadBlacklist();
+      return;
+    }
+
+    if (activeTab === "layout") {
+      await loadTableLayout();
       return;
     }
 
@@ -2109,6 +2423,20 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 )}
               </Panel>
+            )}
+
+            {activeTab === "layout" && (
+              <TableLayoutEditor
+                text={a.layout}
+                layout={tableLayout}
+                selectedArea={layoutArea}
+                onAreaChange={setLayoutArea}
+                onUpdate={updateTableLayoutItem}
+                onAdd={addTableLayoutItem}
+                onRemove={removeTableLayoutItem}
+                onSave={saveTableLayout}
+                onReset={resetTableLayout}
+              />
             )}
 
             {activeTab === "blacklist" && (

@@ -1,7 +1,7 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
 
-const gardenTables = [
+const defaultGardenTables = [
   { id: "42", x: 17, y: 22, seats: 4 },
   { id: "43", x: 17, y: 42, seats: 4 },
   { id: "44", x: 17, y: 62, seats: 4 },
@@ -23,7 +23,7 @@ const gardenTables = [
   { id: "45A", x: 28, y: 93, seats: 2, special: true },
 ];
 
-const indoorTables = [
+const defaultIndoorTables = [
   { id: "1", x: 83, y: 12, seats: 4, wide: true },
   { id: "2", x: 83, y: 22, seats: 4, wide: true },
   { id: "3", x: 83, y: 32, seats: 4, wide: true },
@@ -47,7 +47,7 @@ const indoorTables = [
   { id: "29", x: 16, y: 80, seats: 6, wide: true },
 ];
 
-const openTerraceTables = [
+const defaultOpenTerraceTables = [
   { id: "46", x: 34, y: 40, seats: 4 },
   { id: "47", x: 66, y: 40, seats: 4 },
   { id: "48", x: 34, y: 68, seats: 2, special: true },
@@ -83,12 +83,12 @@ function getTablesCapacity(tables, ids) {
   return ids.reduce((sum, id) => sum + (tables.find((table) => table.id === id)?.seats || 0), 0);
 }
 
-function getEligibleIndoorGroups(requestedGuests) {
-  return indoorGroups.filter((group) => getTablesCapacity(indoorTables, group) >= requestedGuests);
+function getEligibleIndoorGroups(requestedGuests, tables = defaultIndoorTables) {
+  return indoorGroups.filter((group) => getTablesCapacity(tables, group) >= requestedGuests);
 }
 
-function getEligibleOpenTerraceGroups(requestedGuests) {
-  return openTerraceGroups.filter((group) => getTablesCapacity(openTerraceTables, group) >= requestedGuests);
+function getEligibleOpenTerraceGroups(requestedGuests, tables = defaultOpenTerraceTables) {
+  return openTerraceGroups.filter((group) => getTablesCapacity(tables, group) >= requestedGuests);
 }
 
 const reservationTimes = Array.from({ length: 13 }, (_, index) => {
@@ -199,7 +199,7 @@ function isLogicalTerraceSelection(selectedTables, nextTable) {
   });
 }
 
-function canCombineTables(area, selectedTables, nextTable, requestedGuests) {
+function canCombineTables(area, selectedTables, nextTable, requestedGuests, areaTables = []) {
   if (!selectedTables.length) return true;
 
   if (area === "garden") {
@@ -210,8 +210,8 @@ function canCombineTables(area, selectedTables, nextTable, requestedGuests) {
 
   const allowedGroups =
     area === "openTerrace"
-      ? getEligibleOpenTerraceGroups(requestedGuests)
-      : getEligibleIndoorGroups(requestedGuests);
+      ? getEligibleOpenTerraceGroups(requestedGuests, areaTables)
+      : getEligibleIndoorGroups(requestedGuests, areaTables);
 
   const currentIds = selectedTables.map((table) => table.id);
   const nextIds = [...currentIds, nextTable.id];
@@ -489,7 +489,7 @@ function GardenTable({ table, selected, reserved, onSelect, area = "garden" }) {
   );
 }
 
-function OpenTerraceMap({ tables, selectedIds, onSelect, labels }) {
+function OpenTerraceMap({ tables, allTables, selectedIds, onSelect, labels }) {
   return (
     <div className="relative min-h-[440px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(110,231,183,0.13),_transparent_34%),radial-gradient(circle_at_50%_100%,rgba(201,165,106,0.13),transparent_38%),linear-gradient(180deg,rgba(30,34,25,0.96),rgba(14,16,11,0.96))] shadow-inner md:min-h-[520px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
@@ -497,7 +497,7 @@ function OpenTerraceMap({ tables, selectedIds, onSelect, labels }) {
       <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-full border border-emerald-200/20 bg-emerald-300/10 px-3 py-1 text-[8px] font-bold uppercase tracking-[0.22em] text-emerald-100/80 backdrop-blur">
         {labels.openTerraceTitle}
       </div>
-      <MergedHorizontalTableRail tables={openTerraceTables} selectedIds={selectedIds} groups={openTerraceGroups} />
+      <MergedHorizontalTableRail tables={allTables} selectedIds={selectedIds} groups={openTerraceGroups} />
 
       {tables.map((table) => (
         <GardenTable
@@ -513,7 +513,7 @@ function OpenTerraceMap({ tables, selectedIds, onSelect, labels }) {
   );
 }
 
-function GardenMap({ tables, selectedIds, onSelect, labels }) {
+function GardenMap({ tables, allTables, selectedIds, onSelect, labels }) {
   return (
     <div className="relative min-h-[560px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(60,169,126,0.13),_transparent_34%),linear-gradient(180deg,rgba(34,40,28,0.96),rgba(16,18,13,0.96))] shadow-inner md:min-h-[800px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
@@ -522,7 +522,7 @@ function GardenMap({ tables, selectedIds, onSelect, labels }) {
       <MapWindow className="bottom-5 right-3 top-5 w-4" label={labels.windows} vertical />
       <WallTv label={labels.tv} />
       <TerraceEntry label={labels.terraceEntrance} />
-      <MergedTableRail tables={gardenTables} selectedIds={selectedIds} groups={gardenGroups} />
+      <MergedTableRail tables={allTables} selectedIds={selectedIds} groups={gardenGroups} />
 
       {tables.map((table) => (
         <GardenTable
@@ -610,7 +610,7 @@ function IndoorTable({ table, selected, reserved, onSelect, labels }) {
   );
 }
 
-function IndoorMap({ tables, selectedIds, onSelect, labels }) {
+function IndoorMap({ tables, allTables, selectedIds, onSelect, labels }) {
   return (
     <div className="relative min-h-[760px] overflow-hidden rounded-[24px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(201,165,106,0.16),_transparent_34%),radial-gradient(circle_at_18%_60%,rgba(125,211,252,0.08),transparent_25%),linear-gradient(180deg,rgba(39,27,21,0.96),rgba(16,12,10,0.96))] md:min-h-[830px]">
       <div className="absolute inset-5 rounded-[22px] border border-[#c9a56a]/14 bg-[linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(180deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[length:42px_42px]" />
@@ -619,7 +619,7 @@ function IndoorMap({ tables, selectedIds, onSelect, labels }) {
       <SideEntry label={labels.entrance} />
       <IndoorPartitionWall label={labels.wall} />
       <IndoorTerraceEntry label={labels.terraceEntrance} />
-      <MergedTableRail tables={indoorTables} selectedIds={selectedIds} groups={indoorGroups} />
+      <MergedTableRail tables={allTables} selectedIds={selectedIds} groups={indoorGroups} />
 
       {tables.map((table) => (
         <IndoorTable
@@ -851,6 +851,25 @@ function BookingModal({
   );
 }
 
+function normalizeLayoutTables(items, area, fallback) {
+  if (!Array.isArray(items)) return fallback;
+
+  const normalized = items
+    .filter((item) => (item.area || item.Area) === area)
+    .map((item) => ({
+      id: String(item.id || item.Id || "").trim(),
+      x: Number(item.x ?? item.X ?? 50),
+      y: Number(item.y ?? item.Y ?? 50),
+      seats: Number(item.seats ?? item.Seats ?? 4),
+      special: Boolean(item.special ?? item.Special),
+      wide: Boolean(item.wide ?? item.Wide),
+      isActive: item.isActive ?? item.IsActive ?? true,
+    }))
+    .filter((item) => item.id && item.isActive);
+
+  return normalized.length ? normalized : fallback;
+}
+
 export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const today = React.useMemo(() => getTodayInputValue(), []);
 
@@ -865,8 +884,17 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
   const [showBookingForm, setShowBookingForm] = React.useState(false);
   const [partyNoticeType, setPartyNoticeType] = React.useState("");
   const [blockedSlots, setBlockedSlots] = React.useState([]);
+  const [layoutTables, setLayoutTables] = React.useState({
+    indoor: defaultIndoorTables,
+    garden: defaultGardenTables,
+    openTerrace: defaultOpenTerraceTables,
+  });
   const timeSelectionRef = React.useRef(null);
   const mapSectionRef = React.useRef(null);
+
+  const indoorTables = layoutTables.indoor;
+  const gardenTables = layoutTables.garden;
+  const openTerraceTables = layoutTables.openTerrace;
 
   React.useEffect(() => {
     async function loadBlockedSlots() {
@@ -883,6 +911,26 @@ export default function ReservationPage({ t, language, setLanguage, onBack }) {
     const intervalId = setInterval(loadBlockedSlots, 10000);
 
     return () => clearInterval(intervalId);
+  }, []);
+
+  React.useEffect(() => {
+    async function loadTableLayout() {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/table-layouts`);
+        if (!response.ok) return;
+
+        const items = await response.json();
+        setLayoutTables({
+          indoor: normalizeLayoutTables(items, "indoor", defaultIndoorTables),
+          garden: normalizeLayoutTables(items, "garden", defaultGardenTables),
+          openTerrace: normalizeLayoutTables(items, "openTerrace", defaultOpenTerraceTables),
+        });
+      } catch (error) {
+        console.warn("Using fallback table layout.", error);
+      }
+    }
+
+    loadTableLayout();
   }, []);
 
   React.useEffect(() => {
@@ -1014,16 +1062,18 @@ if (bookingMode === "single") {
     if (selectedTables.length === 0) {
       if (area === "garden") return !table.special;
       if (area === "openTerrace") {
-        const eligibleOpenTerraceIds = getEligibleOpenTerraceGroups(requestedGuests).flat();
+        const eligibleOpenTerraceIds = getEligibleOpenTerraceGroups(requestedGuests, openTerraceTables).flat();
         return eligibleOpenTerraceIds.includes(table.id);
       }
-      const eligibleIndoorIds = getEligibleIndoorGroups(requestedGuests).flat();
+      const eligibleIndoorIds = getEligibleIndoorGroups(requestedGuests, indoorTables).flat();
       return eligibleIndoorIds.includes(table.id);
     }
 
     if (isSelected) return true;
 
-    return canCombineTables(area, selectedTables, table, requestedGuests);
+    const areaTables =
+      area === "openTerrace" ? openTerraceTables : area === "garden" ? gardenTables : indoorTables;
+    return canCombineTables(area, selectedTables, table, requestedGuests, areaTables);
   };
 
   const visibleGardenTables = gardenTables.filter((table) => canShowTable(table, "garden"));
@@ -1059,7 +1109,9 @@ if (bookingMode === "single") {
       const currentSeats = prev.reduce((sum, item) => sum + item.seats, 0);
       if (currentSeats >= requestedGuests) return prev;
 
-      if (!canCombineTables(area, prev, table, requestedGuests)) return prev;
+      const areaTables =
+        area === "openTerrace" ? openTerraceTables : area === "garden" ? gardenTables : indoorTables;
+      if (!canCombineTables(area, prev, table, requestedGuests, areaTables)) return prev;
 
       return [...prev, table];
     });
@@ -1455,11 +1507,11 @@ if (bookingMode === "single") {
               <div ref={mapSectionRef}>
                 <ZoneCard title={zoneTitle} subtitle={zoneSubtitle} accent={zoneAccent}>
                   {selectedArea === "garden" ? (
-                    <GardenMap tables={visibleGardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                    <GardenMap tables={visibleGardenTables} allTables={gardenTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
                   ) : selectedArea === "openTerrace" ? (
-                    <OpenTerraceMap tables={visibleOpenTerraceTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                    <OpenTerraceMap tables={visibleOpenTerraceTables} allTables={openTerraceTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
                   ) : (
-                    <IndoorMap tables={visibleIndoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
+                    <IndoorMap tables={visibleIndoorTables} allTables={indoorTables} selectedIds={selectedIds} onSelect={handleSelect} labels={labels} />
                   )}
                 </ZoneCard>
               </div>
