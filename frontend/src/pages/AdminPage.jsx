@@ -1277,6 +1277,8 @@ export default function AdminPage({ onMenuChanged }) {
   const menuItemsRef = React.useRef(null);
   const [blacklistMode, setBlacklistMode] = React.useState("list");
   const [customersMode, setCustomersMode] = React.useState("customers");
+  const [customerPeriod, setCustomerPeriod] = React.useState("all");
+  const [customerSort, setCustomerSort] = React.useState("visits");
   const [showCreateReservation, setShowCreateReservation] = React.useState(false);
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
@@ -1986,6 +1988,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           phone: r.phone,
           email: r.email,
           count: 0,
+          firstReservation: r.reservedDate,
           lastReservation: r.reservedDate,
           reservations: [],
           isRegularCustomer: false,
@@ -1999,6 +2002,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
       acc[key].count += 1;
       acc[key].reservations.push(r);
+      if (r.reservedDate < acc[key].firstReservation) {
+        acc[key].firstReservation = r.reservedDate;
+      }
       if (r.reservedDate > acc[key].lastReservation) {
         acc[key].lastReservation = r.reservedDate;
       }
@@ -2013,6 +2019,64 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
       return acc;
     }, {})
   ).sort((a, b) => b.count - a.count);
+
+  function isInCustomerPeriod(dateValue) {
+    if (customerPeriod === "all") return true;
+    if (!dateValue) return false;
+
+    const date = new Date(dateValue);
+    const now = new Date();
+    const start = new Date(now);
+
+    if (customerPeriod === "today") {
+      start.setHours(0, 0, 0, 0);
+    }
+
+    if (customerPeriod === "week") {
+      start.setDate(now.getDate() - 7);
+    }
+
+    if (customerPeriod === "month") {
+      start.setMonth(now.getMonth() - 1);
+    }
+
+    return date >= start;
+  }
+
+  const customersForPeriod = customers
+    .map((customer) => {
+      const periodReservations = customer.reservations.filter((reservation) =>
+        isInCustomerPeriod(reservation.reservedDate)
+      );
+
+      return {
+        ...customer,
+        periodCount: customerPeriod === "all" ? customer.count : periodReservations.length,
+        periodReservations: customerPeriod === "all" ? customer.reservations : periodReservations,
+      };
+    })
+    .filter((customer) => customer.periodCount > 0);
+
+  const sortedCustomers = [...customersForPeriod].sort((first, second) => {
+    if (customerSort === "new") {
+      return new Date(second.firstReservation) - new Date(first.firstReservation);
+    }
+
+    if (customerSort === "recent") {
+      return new Date(second.lastReservation) - new Date(first.lastReservation);
+    }
+
+    if (customerSort === "name") {
+      return first.guestName.localeCompare(second.guestName, adminLanguage === "bg" ? "bg" : "en");
+    }
+
+    return second.periodCount - first.periodCount || second.count - first.count;
+  });
+
+  const newCustomersCount = customers.filter((customer) =>
+    isInCustomerPeriod(customer.firstReservation)
+  ).length;
+  const totalCustomerVisits = customersForPeriod.reduce((total, customer) => total + customer.periodCount, 0);
 
   const a = adminText[adminLanguage];
 
@@ -3682,7 +3746,78 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {customers.map((c, index) => {
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <div className="rounded-3xl border border-[#c9a56a]/18 bg-[#c9a56a]/10 p-5">
+                        <div className="text-xs uppercase tracking-[0.22em] text-[#f2d39a]/70">
+                          {adminLanguage === "bg" ? "Клиенти" : "Customers"}
+                        </div>
+                        <div className="mt-2 text-3xl font-semibold text-[#fff4df]">{customersForPeriod.length}</div>
+                      </div>
+                      <div className="rounded-3xl border border-emerald-300/18 bg-emerald-400/10 p-5">
+                        <div className="text-xs uppercase tracking-[0.22em] text-emerald-100/70">
+                          {adminLanguage === "bg" ? "Нови клиенти" : "New customers"}
+                        </div>
+                        <div className="mt-2 text-3xl font-semibold text-emerald-100">{newCustomersCount}</div>
+                      </div>
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+                        <div className="text-xs uppercase tracking-[0.22em] text-stone-500">
+                          {adminLanguage === "bg" ? "Посещения" : "Visits"}
+                        </div>
+                        <div className="mt-2 text-3xl font-semibold text-[#fff4df]">{totalCustomerVisits}</div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/10 bg-black/20 p-3">
+                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            ["today", adminLanguage === "bg" ? "Днес" : "Today"],
+                            ["week", adminLanguage === "bg" ? "Седмица" : "Week"],
+                            ["month", adminLanguage === "bg" ? "Месец" : "Month"],
+                            ["all", adminLanguage === "bg" ? "Цялото време" : "All time"],
+                          ].map(([key, label]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setCustomerPeriod(key)}
+                              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                customerPeriod === key ? "luxury-button" : "ghost-button text-white/75"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            ["visits", adminLanguage === "bg" ? "Най-чести" : "Top visits"],
+                            ["new", adminLanguage === "bg" ? "Най-нови" : "Newest"],
+                            ["recent", adminLanguage === "bg" ? "Последно дошли" : "Recent"],
+                            ["name", adminLanguage === "bg" ? "Име" : "Name"],
+                          ].map(([key, label]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => setCustomerSort(key)}
+                              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                customerSort === key ? "border border-[#f2d39a]/35 bg-[#c9a56a]/18 text-[#f2d39a]" : "border border-white/10 bg-white/[0.03] text-white/65"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {sortedCustomers.length === 0 && (
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 text-stone-400">
+                        {adminLanguage === "bg" ? "Няма клиенти за избрания период." : "No customers for the selected period."}
+                      </div>
+                    )}
+
+                    {sortedCustomers.map((c, index) => {
                       const expanded = expandedCustomerKey === c.key;
                       const visitsLabel = adminLanguage === "bg" ? "посещения" : "visits";
 
@@ -3700,7 +3835,8 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                               <div className="min-w-0">
                                 <div className="truncate text-lg font-semibold text-[#fff4df]">{c.guestName}</div>
                                 <div className="mt-1 text-sm text-stone-400">
-                                  {c.count} {visitsLabel}
+                                  {c.periodCount} {visitsLabel}
+                                  {customerPeriod !== "all" ? ` · ${c.count} ${adminLanguage === "bg" ? "общо" : "total"}` : ""}
                                 </div>
                               </div>
                             </div>
@@ -3732,6 +3868,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   <div className="mt-2">{c.email || "—"}</div>
                                   <div className="mt-2 text-stone-500">
                                     {adminLanguage === "bg" ? "Последна резервация" : "Last reservation"}: {c.lastReservation || "—"}
+                                  </div>
+                                  <div className="mt-2 text-stone-500">
+                                    {adminLanguage === "bg" ? "Първа резервация" : "First reservation"}: {c.firstReservation || "—"}
                                   </div>
                                 </div>
                                 <button
