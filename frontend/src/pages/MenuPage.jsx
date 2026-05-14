@@ -13,6 +13,7 @@ export default function MenuPage({
   setLanguage,
   onOpenReservation,
   onBackHome,
+  onOpenPrivacy,
   cmsMenuItems,
 }) {
   const data = React.useMemo(
@@ -147,7 +148,7 @@ export default function MenuPage({
         </div>
       </div>
 
-      <Footer t={t} />
+      <Footer t={t} onOpenPrivacy={onOpenPrivacy} />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage";
 import ReservationPage from "./pages/ReservationPage";
 import MenuPage from "./pages/MenuPage";
 import AdminPage from "./pages/AdminPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import { API_BASE_URL } from "./config/api";
 import BackToTopButton from "./components/layout/BackToTopButton";
 
@@ -28,6 +29,10 @@ const getInitialPage = () => {
 
   if (window.location.pathname === "/menu") {
     return "menu";
+  }
+
+  if (window.location.pathname === "/privacy") {
+    return "privacy";
   }
 
   return "home";
@@ -77,6 +82,7 @@ export default function App() {
       admin: "/admin",
       "reservation-map": "/reservation",
       menu: "/menu",
+      privacy: "/privacy",
       home: "/",
     };
     const nextPath = pagePaths[currentPage] || "/";
@@ -103,6 +109,11 @@ export default function App() {
 
       if (path === "/menu") {
         setCurrentPage("menu");
+        return;
+      }
+
+      if (path === "/privacy") {
+        setCurrentPage("privacy");
         return;
       }
 
@@ -137,6 +148,7 @@ export default function App() {
           language={language}
           setLanguage={setLanguage}
           onBack={() => setCurrentPage("home")}
+          onOpenPrivacy={() => setCurrentPage("privacy")}
         />
         <BackToTopButton />
       </>
@@ -152,7 +164,24 @@ export default function App() {
           setLanguage={setLanguage}
           onOpenReservation={() => setCurrentPage("reservation-map")}
           onBackHome={() => setCurrentPage("home")}
+          onOpenPrivacy={() => setCurrentPage("privacy")}
           cmsMenuItems={cmsMenuItems}
+        />
+        <BackToTopButton />
+      </>
+    );
+  }
+
+  if (currentPage === "privacy") {
+    return (
+      <>
+        <PrivacyPage
+          t={t}
+          language={language}
+          setLanguage={setLanguage}
+          onOpenReservation={() => setCurrentPage("reservation-map")}
+          onOpenMenu={() => setCurrentPage("menu")}
+          onBackHome={() => setCurrentPage("home")}
         />
         <BackToTopButton />
       </>
@@ -167,6 +196,7 @@ export default function App() {
         setLanguage={setLanguage}
         onOpenReservation={() => setCurrentPage("reservation-map")}
         onOpenMenu={() => setCurrentPage("menu")}
+        onOpenPrivacy={() => setCurrentPage("privacy")}
         cmsMenuItems={cmsMenuItems}
       />
       <BackToTopButton />

@@ -449,6 +449,7 @@ function BookingModal({
   isSubmitting,
   submitError,
   submitSuccess,
+  onOpenPrivacy,
 }) {
   const formRef = React.useRef(null);
   const areaLabel =
@@ -610,8 +611,16 @@ function BookingModal({
                 <input name="privacyConsent" type="checkbox" required className="mt-1" />
                 <span>
                   {language === "bg"
-                    ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията. Политика за поверителност: използваме данните само за потвърждение, обслужване на резервацията и, ако сте отметнали, за оферти."
-                    : "I agree that Casa di Fratelli may process my data for this reservation. Privacy policy: we use the data only to confirm and manage the reservation and, if checked, to send offers."}
+                    ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията и приемам "
+                    : "I agree that Casa di Fratelli may process my data for this reservation and I accept the "}
+                  <button
+                    type="button"
+                    onClick={onOpenPrivacy}
+                    className="font-semibold text-[#f2d39a] underline underline-offset-4 transition hover:text-white"
+                  >
+                    {language === "bg" ? "Политиката за поверителност" : "Privacy Policy"}
+                  </button>
+                  .
                 </span>
               </label>
             </div>
@@ -671,7 +680,7 @@ function normalizeLayoutTables(items, area, fallback) {
   return normalized.length ? normalized : fallback;
 }
 
-export default function ReservationPage({ t, language, setLanguage, onBack }) {
+export default function ReservationPage({ t, language, setLanguage, onBack, onOpenPrivacy }) {
   const today = React.useMemo(() => getTodayInputValue(), []);
 
   const [reservationDate, setReservationDate] = React.useState("");
@@ -1425,6 +1434,7 @@ if (bookingMode === "single") {
           isSubmitting={isSubmitting}
           submitError={submitError}
           submitSuccess={submitSuccess}
+          onOpenPrivacy={onOpenPrivacy}
         />
       )}
     </>

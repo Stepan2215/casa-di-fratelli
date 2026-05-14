@@ -15,6 +15,7 @@ export default function HomePage({
   setLanguage,
   onOpenReservation,
   onOpenMenu,
+  onOpenPrivacy,
   cmsMenuItems,
 }) {
   return (
@@ -47,7 +48,7 @@ export default function HomePage({
       <ReservationPreviewSection t={t} onOpenReservation={onOpenReservation} />
       <ReviewsSection language={language} />
       <EventsSection language={language} />
-      <Footer t={t} />
+      <Footer t={t} onOpenPrivacy={onOpenPrivacy} />
     </div>
   );
 }

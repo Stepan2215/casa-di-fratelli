@@ -17,6 +17,7 @@ const translations = {
     navReviews: "Отзиви",
     navEvents: "Събития",
     navReservation: "Резервация",
+    privacyPolicy: "Политика за поверителност",
     heroTag: "Автентично италианско изживяване",
     heroTitle: "Casa di Fratelli – вкусът на Италия в Пловдив.",
     heroText:
@@ -118,6 +119,7 @@ const translations = {
     navReviews: "Reviews",
     navEvents: "Events",
     navReservation: "Reservation",
+    privacyPolicy: "Privacy Policy",
     heroTag: "Authentic Italian experience",
     heroTitle: "Casa di Fratelli – the taste of Italy in Plovdiv.",
     heroText:

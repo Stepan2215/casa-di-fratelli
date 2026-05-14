@@ -7,6 +7,7 @@ export default function BookingModal({
   sectionLabels,
   onClose,
   onSubmit,
+  onOpenPrivacy,
 }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -153,8 +154,25 @@ export default function BookingModal({
               />
               <span>
                 {language === "bg"
-                  ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията. Данните се използват за потвърждение и обслужване на резервацията."
-                  : "I agree that Casa di Fratelli may process my data for this reservation. The data is used to confirm and manage the reservation."}
+                  ? "Съгласявам се Casa di Fratelli да обработи данните ми за целите на резервацията и приемам "
+                  : "I agree that Casa di Fratelli may process my data for this reservation and I accept the "}
+                {onOpenPrivacy ? (
+                  <button
+                    type="button"
+                    onClick={onOpenPrivacy}
+                    className="font-semibold text-amber-200 underline underline-offset-4 transition hover:text-white"
+                  >
+                    {language === "bg" ? "Политиката за поверителност" : "Privacy Policy"}
+                  </button>
+                ) : (
+                  <a
+                    href="/privacy"
+                    className="font-semibold text-amber-200 underline underline-offset-4 transition hover:text-white"
+                  >
+                    {language === "bg" ? "Политиката за поверителност" : "Privacy Policy"}
+                  </a>
+                )}
+                .
               </span>
             </label>
           </div>
