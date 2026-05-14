@@ -360,12 +360,14 @@ function buildTimeRange(startTime, endTime) {
   const start = toMinutes(startTime);
   const end = toMinutes(endTime);
 
-  if (start === null || end === null || start > end) return [];
+  if (start === null || end === null) return [];
+
+  const normalizedEnd = end < start ? end + 24 * 60 : end;
 
   const times = [];
 
-  for (let value = start; value <= end; value += 60) {
-    times.push(fromMinutes(value));
+  for (let value = start; value <= normalizedEnd; value += 60) {
+    times.push(fromMinutes(value % (24 * 60)));
   }
 
   return times;

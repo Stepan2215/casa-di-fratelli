@@ -28,16 +28,17 @@ import {
 
 const byId = (tables, id) => tables.find((table) => table.id === id);
 
-test("reservation times cover the restaurant day from 10:00 to 22:00", () => {
-  assert.equal(reservationTimes.length, 13);
+test("reservation times temporarily cover the restaurant day from 10:00 to 03:00", () => {
+  assert.equal(reservationTimes.length, 18);
   assert.equal(reservationTimes[0], "10:00");
-  assert.equal(reservationTimes.at(-1), "22:00");
+  assert.equal(reservationTimes.at(-1), "03:00");
 });
 
 test("time helpers keep the 60 minute reservation buffer exclusive", () => {
   assert.equal(timeToMinutes("19:30"), 1170);
   assert.equal(isWithinReservationBuffer("19:00", "19:59"), true);
   assert.equal(isWithinReservationBuffer("19:00", "20:00"), false);
+  assert.equal(isWithinReservationBuffer("23:30", "00:00"), true);
   assert.equal(isWithinReservationBuffer("bad", "bad"), true);
   assert.equal(isWithinReservationBuffer("bad", "19:00"), false);
 });

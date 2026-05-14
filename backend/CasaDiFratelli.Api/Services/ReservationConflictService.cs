@@ -74,7 +74,8 @@ public class ReservationConflictService
             if (!TimeOnly.TryParse(candidate.ReservedTime, out var candidateTime))
                 continue;
 
-            var minutes = Math.Abs((candidateTime - targetTime).TotalMinutes);
+            var distance = Math.Abs((candidateTime - targetTime).TotalMinutes);
+            var minutes = Math.Min(distance, 24 * 60 - distance);
             if (minutes < TableBufferMinutes)
             {
                 return new TableConflict(

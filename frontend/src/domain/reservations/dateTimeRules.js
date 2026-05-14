@@ -36,5 +36,8 @@ export function isWithinReservationBuffer(
 
   if (first === null || second === null) return firstTime === secondTime;
 
-  return Math.abs(first - second) < bufferMinutes;
+  const distance = Math.abs(first - second);
+  const dayAwareDistance = Math.min(distance, 24 * 60 - distance);
+
+  return dayAwareDistance < bufferMinutes;
 }
