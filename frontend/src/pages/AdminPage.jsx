@@ -1060,7 +1060,7 @@ function ReservationOperationsMap({
                           <button
                             type="button"
                             onClick={() => onArrived(reservation)}
-                            className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                            className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 py-2 pl-2 pr-3 text-left text-xs font-semibold text-emerald-100"
                           >
                             {text.arrived}
                           </button>
@@ -1169,7 +1169,7 @@ function ReservationOperationsMap({
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
                 {!selectedReservation.isArrived && (
-                  <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl px-4 py-3 text-sm">
+                  <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl py-3 pl-3 pr-4 text-left text-sm">
                     {text.arrived}
                   </button>
                 )}
@@ -3773,8 +3773,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       </div>
                     </div>
 
-                    <div className="rounded-3xl border border-white/10 bg-black/20 p-3">
-                      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="grid gap-3 xl:grid-cols-2">
+                      <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                        <div className="mb-3 text-xs uppercase tracking-[0.22em] text-stone-500">
+                          {adminLanguage === "bg" ? "Период" : "Period"}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {[
                             ["today", adminLanguage === "bg" ? "Днес" : "Today"],
@@ -3794,7 +3797,12 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                             </button>
                           ))}
                         </div>
+                      </div>
 
+                      <div className="rounded-3xl border border-white/10 bg-black/20 p-4">
+                        <div className="mb-3 text-xs uppercase tracking-[0.22em] text-stone-500">
+                          {adminLanguage === "bg" ? "Сортиране" : "Sort"}
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {[
                             ["visits", adminLanguage === "bg" ? "Най-чести" : "Top visits"],

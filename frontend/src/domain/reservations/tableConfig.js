@@ -71,13 +71,10 @@ export const openTerraceGroups = [
   ["48", "49"],
 ];
 
-export const reservationTimes = [
-  ...Array.from({ length: 14 }, (_, index) => `${String(10 + index).padStart(2, "0")}:00`),
-  "00:00",
-  "01:00",
-  "02:00",
-  "03:00",
-];
+export const reservationTimes = Array.from({ length: 13 }, (_, index) => {
+  const hour = 10 + index;
+  return `${String(hour).padStart(2, "0")}:00`;
+});
 
 export const tableIdsByArea = {
   indoor: defaultIndoorTables.map((table) => table.id),
