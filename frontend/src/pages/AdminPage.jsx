@@ -987,6 +987,7 @@ function ReservationOperationsMap({
             const isSelected = reservation.id === selectedReservationId;
             const canNoShow = minutes !== null && minutes <= -10;
             const canApprove = reservation.status === "Pending";
+            const canMarkArrived = !reservation.isArrived;
             const popoverPosition = bounds.labelTop > 72 ? "bottom-11" : "top-11";
 
             return (
@@ -1048,13 +1049,15 @@ function ReservationOperationsMap({
                             {text.approve}
                           </button>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => onArrived(reservation)}
-                          className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
-                        >
-                          {text.arrived}
-                        </button>
+                        {canMarkArrived && (
+                          <button
+                            type="button"
+                            onClick={() => onArrived(reservation)}
+                            className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                          >
+                            {text.arrived}
+                          </button>
+                        )}
                         {canNoShow && (
                           <button
                             type="button"
@@ -1158,9 +1161,11 @@ function ReservationOperationsMap({
                 {selectedReservation.guestCount} {text.guests} · {selectedReservation.tableIds.join(", ")}
               </div>
               <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
-                <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl px-4 py-3 text-sm">
-                  {text.arrived}
-                </button>
+                {!selectedReservation.isArrived && (
+                  <button type="button" onClick={() => onArrived(selectedReservation)} className="luxury-button rounded-xl px-4 py-3 text-sm">
+                    {text.arrived}
+                  </button>
+                )}
                 {selectedReservation.status === "Pending" && (
                   <button type="button" onClick={() => onApprove(selectedReservation)} className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-sm font-semibold text-[#f2d39a]">
                     {text.approve}
