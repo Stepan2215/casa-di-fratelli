@@ -1,0 +1,71 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+  buildMenuDataFromCms,
+  formatEuro,
+  localizeStaticMenuPrices,
+  priceTextToEuro,
+} from "../../utils/menuUtils.js";
+
+const fallbackData = {
+  categories: [
+    {
+      id: "fallback",
+      title: "Fallback",
+      items: [{ name: "Old", price: "12,30 лв" }],
+    },
+  ],
+};
+
+test("formatEuro always returns guest-facing EUR text", () => {
+  assert.equal(formatEuro(12), "€12.00");
+  assert.equal(formatEuro("12.5"), "€12.50");
+  assert.equal(formatEuro("bad"), "€0.00");
+  assert.equal(formatEuro(-1), "€0.00");
+});
+
+test("static menu fallback prices are normalized to EUR", () => {
+  assert.equal(priceTextToEuro("12,30 лв"), "€12.30");
+  assert.equal(priceTextToEuro("no price"), "no price");
+  assert.equal(localizeStaticMenuPrices(fallbackData).categories[0].items[0].price, "€12.30");
+});
+
+test("CMS menu builder hides inactive items and localizes category labels", () => {
+  const result = buildMenuDataFromCms(
+    [
+      {
+        category: "salads",
+        nameBg: "Салата",
+        nameEn: "Salad",
+        descriptionBg: "Домати",
+        descriptionEn: "Tomatoes",
+        weight: "300 гр",
+        price: 10.4,
+        isActive: true,
+      },
+      {
+        category: "salads",
+        nameBg: "Скрита",
+        price: 4,
+        isActive: false,
+      },
+    ],
+    "en",
+    fallbackData
+  );
+
+  assert.equal(result.categories.length, 1);
+  assert.equal(result.categories[0].id, "salads");
+  assert.equal(result.categories[0].title, "Salads");
+  assert.equal(result.categories[0].items.length, 1);
+  assert.equal(result.categories[0].items[0].name, "Salad");
+  assert.equal(result.categories[0].items[0].price, "€10.40");
+});
+
+test("CMS menu builder falls back when no active CMS items exist", () => {
+  const result = buildMenuDataFromCms([{ nameBg: "Hidden", isActive: false }], "bg", fallbackData);
+
+  assert.equal(result.categories[0].id, "fallback");
+  assert.equal(result.categories[0].items[0].price, "€12.30");
+});

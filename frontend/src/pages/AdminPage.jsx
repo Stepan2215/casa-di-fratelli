@@ -1,5 +1,13 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
+import { defaultGardenTables, reservationTimes, tableIdsByArea } from "../domain/reservations/tableConfig";
+import {
+  canUseAdminTableSelection as canUseAdminTableSelectionRule,
+} from "../domain/reservations/tableRules";
+import {
+  getUnavailableSelectedTableIds,
+  getUnavailableTableIdsForSlot,
+} from "../domain/reservations/availability";
 
 const emptyMenuItem = {
   nameBg: "",
@@ -222,63 +230,11 @@ const emptyHallBlock = {
   note: "",
 };
 
-const indoorTableIds = [
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "11",
-  "20",
-  "21",
-  "22",
-  "23",
-  "24",
-  "25",
-  "26",
-  "27",
-  "28",
-  "29",
-];
-
-const gardenTableIds = [
-  "30",
-  "31",
-  "32",
-  "33",
-  "34",
-  "35",
-  "36",
-  "37",
-  "38",
-  "39",
-  "40",
-  "41",
-  "42",
-  "43",
-  "44",
-  "45",
-  "30A",
-  "34A",
-  "45A",
-];
-
-const areaTableIds = {
-  indoor: indoorTableIds,
-  garden: gardenTableIds,
-  openTerrace: ["46", "47", "48", "49"],
-  all: [...indoorTableIds, ...gardenTableIds, "46", "47", "48", "49"],
-};
-
-const adminReservationTimes = Array.from({ length: 13 }, (_, index) => {
-  const hour = 10 + index;
-  return `${String(hour).padStart(2, "0")}:00`;
-});
+const indoorTableIds = tableIdsByArea.indoor;
+const gardenTableIds = tableIdsByArea.garden;
+const areaTableIds = tableIdsByArea;
+const adminReservationTimes = reservationTimes;
+const gardenSpecialIds = defaultGardenTables.filter((table) => table.special).map((table) => table.id);
 
 const categoryDisplayNames = {
   bg: {
@@ -303,24 +259,6 @@ const categoryDisplayNames = {
   },
 };
 
-const gardenGroups = [
-  ["42", "43", "44", "45"],
-  ["38", "39", "40", "41"],
-  ["34", "35", "36", "37"],
-  ["30", "31", "32", "33"],
-];
-
-const gardenSpecialIds = ["30A", "34A", "45A"];
-const indoorCombinationGroups = [
-  ["5", "6"],
-  ["20", "21", "22", "23"],
-  ["28", "29"],
-];
-const openTerraceCombinationGroups = [
-  ["46", "47"],
-  ["48", "49"],
-];
-
 function getValue(item, key) {
   return item?.[key] ?? item?.[key[0].toUpperCase() + key.slice(1)];
 }
@@ -334,71 +272,8 @@ function getCategoryLabel(category, language) {
   return categoryDisplayNames[language]?.[normalized] || normalized;
 }
 
-function isContinuousGroup(group, tableIds) {
-  const indexes = tableIds
-    .map((id) => group.indexOf(id))
-    .sort((aIndex, bIndex) => aIndex - bIndex);
-
-  if (indexes.some((index) => index < 0)) return false;
-
-  for (let index = 1; index < indexes.length; index += 1) {
-    if (indexes[index] - indexes[index - 1] !== 1) return false;
-  }
-
-  return true;
-}
-
 function canUseAdminTableSelection(area, tableIds) {
-  const uniqueTableIds = [...new Set(tableIds.filter(Boolean))];
-
-  if (uniqueTableIds.length <= 1) return true;
-
-  if (area === "garden") {
-    if (uniqueTableIds.some((id) => gardenSpecialIds.includes(id))) return false;
-    return gardenGroups.some((group) =>
-      uniqueTableIds.every((id) => group.includes(id)) && isContinuousGroup(group, uniqueTableIds)
-    );
-  }
-
-  if (area === "openTerrace") {
-    return openTerraceCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
-  }
-
-  if (area === "all") {
-    return true;
-  }
-
-  return indoorCombinationGroups.some((group) => uniqueTableIds.every((id) => group.includes(id)));
-}
-
-function timeToMinutes(value) {
-  const [hours, minutes] = String(value || "").split(":").map(Number);
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-  return hours * 60 + minutes;
-}
-
-function isWithinTableBuffer(firstTime, secondTime) {
-  const firstMinutes = timeToMinutes(firstTime);
-  const secondMinutes = timeToMinutes(secondTime);
-  if (firstMinutes === null || secondMinutes === null) return firstTime === secondTime;
-  return Math.abs(firstMinutes - secondMinutes) < 60;
-}
-
-function getUnavailableTableIdsForSlot(reservations, reservedDate, reservedTime, excludeReservationId = null) {
-  if (!reservedDate || !reservedTime) return new Set();
-
-  return new Set(
-    reservations
-      .filter((reservation) => {
-        if (reservation.status !== "Approved") return false;
-        if (excludeReservationId && reservation.id === excludeReservationId) return false;
-        return (
-          String(reservation.reservedDate) === String(reservedDate) &&
-          isWithinTableBuffer(reservation.reservedTime, reservedTime)
-        );
-      })
-      .flatMap((reservation) => reservation.tableIds)
-  );
+  return canUseAdminTableSelectionRule(area, tableIds, { gardenSpecialIds });
 }
 
 function buildTimeRange(startTime, endTime) {
@@ -1203,7 +1078,7 @@ export default function AdminPage({ onMenuChanged }) {
       reservation.reservedTime,
       reservation.id
     );
-    const unavailableSelectedTableIds = edit.tableIds.filter((tableId) => unavailableTableIds.has(tableId));
+    const unavailableSelectedTableIds = getUnavailableSelectedTableIds(edit.tableIds, unavailableTableIds);
 
     if (unavailableSelectedTableIds.length > 0) {
       setAdminError(
@@ -1370,7 +1245,7 @@ export default function AdminPage({ onMenuChanged }) {
       payload.reservedDate,
       payload.reservedTime
     );
-    const unavailableSelectedTableIds = payload.tableIds.filter((tableId) => unavailableTableIds.has(tableId));
+    const unavailableSelectedTableIds = getUnavailableSelectedTableIds(payload.tableIds, unavailableTableIds);
 
     if (unavailableSelectedTableIds.length > 0) {
       setAdminError(

@@ -1,223 +1,24 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
-
-const defaultGardenTables = [
-  { id: "42", x: 17, y: 22, seats: 4 },
-  { id: "43", x: 17, y: 42, seats: 4 },
-  { id: "44", x: 17, y: 62, seats: 4 },
-  { id: "45", x: 17, y: 82, seats: 4 },
-  { id: "38", x: 38, y: 24, seats: 4 },
-  { id: "39", x: 38, y: 44, seats: 4 },
-  { id: "40", x: 38, y: 64, seats: 4 },
-  { id: "41", x: 38, y: 84, seats: 4 },
-  { id: "34", x: 59, y: 24, seats: 4 },
-  { id: "35", x: 59, y: 44, seats: 4 },
-  { id: "36", x: 59, y: 64, seats: 4 },
-  { id: "37", x: 59, y: 84, seats: 4 },
-  { id: "30", x: 78, y: 22, seats: 4 },
-  { id: "31", x: 78, y: 42, seats: 4 },
-  { id: "32", x: 78, y: 62, seats: 4 },
-  { id: "33", x: 78, y: 82, seats: 4 },
-  { id: "34A", x: 58, y: 10, seats: 2, special: true },
-  { id: "30A", x: 75, y: 10, seats: 2, special: true },
-  { id: "45A", x: 28, y: 93, seats: 2, special: true },
-];
-
-const defaultIndoorTables = [
-  { id: "1", x: 83, y: 12, seats: 4, wide: true },
-  { id: "2", x: 83, y: 22, seats: 4, wide: true },
-  { id: "3", x: 83, y: 32, seats: 4, wide: true },
-  { id: "4", x: 83, y: 42, seats: 4, wide: true },
-  { id: "5", x: 51, y: 22, seats: 6, wide: true },
-  { id: "6", x: 51, y: 35, seats: 6, wide: true },
-  { id: "7", x: 16, y: 10, seats: 4, wide: true },
-  { id: "8", x: 16, y: 20, seats: 6, wide: true },
-  { id: "9", x: 16, y: 30, seats: 6, wide: true },
-  { id: "10", x: 16, y: 40, seats: 6, wide: true },
-  { id: "11", x: 16, y: 50, seats: 6, wide: true },
-  { id: "20", x: 82, y: 60, seats: 4, wide: true },
-  { id: "21", x: 82, y: 70, seats: 4, wide: true },
-  { id: "22", x: 82, y: 80, seats: 4, wide: true },
-  { id: "23", x: 82, y: 90, seats: 4, wide: true },
-  { id: "24", x: 53, y: 65, seats: 6, wide: true },
-  { id: "25", x: 54, y: 78, seats: 6 },
-  { id: "26", x: 55, y: 90, seats: 4, wide: true },
-  { id: "27", x: 35, y: 92, seats: 4, wide: true },
-  { id: "28", x: 16, y: 90, seats: 6, wide: true },
-  { id: "29", x: 16, y: 80, seats: 6, wide: true },
-];
-
-const defaultOpenTerraceTables = [
-  { id: "46", x: 34, y: 40, seats: 4 },
-  { id: "47", x: 66, y: 40, seats: 4 },
-  { id: "48", x: 34, y: 68, seats: 2, special: true },
-  { id: "49", x: 66, y: 68, seats: 2, special: true },
-];
-
-const gardenGroups = [
-  ["42", "43", "44", "45"],
-  ["38", "39", "40", "41"],
-  ["34", "35", "36", "37"],
-  ["30", "31", "32", "33"],
-];
-
-const indoorGroups = [
-  ["5", "6"],
-  ["20", "21", "22", "23"],
-  ["28", "29"],
-];
-
-const openTerraceGroups = [
-  ["46", "47"],
-  ["48", "49"],
-];
-
-const gardenCellById = gardenGroups.reduce((acc, group, columnIndex) => {
-  group.forEach((id, rowIndex) => {
-    acc[id] = { columnIndex, rowIndex };
-  });
-  return acc;
-}, {});
-
-function getTablesCapacity(tables, ids) {
-  return ids.reduce((sum, id) => sum + (tables.find((table) => table.id === id)?.seats || 0), 0);
-}
-
-function getEligibleIndoorGroups(requestedGuests, tables = defaultIndoorTables) {
-  return indoorGroups.filter((group) => getTablesCapacity(tables, group) >= requestedGuests);
-}
-
-function getEligibleOpenTerraceGroups(requestedGuests, tables = defaultOpenTerraceTables) {
-  return openTerraceGroups.filter((group) => getTablesCapacity(tables, group) >= requestedGuests);
-}
-
-const reservationTimes = Array.from({ length: 13 }, (_, index) => {
-  const hour = 10 + index;
-  return `${String(hour).padStart(2, "0")}:00`;
-});
-
-function getTodayInputValue() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function isPastTimeForDate(dateValue, timeValue) {
-  if (!dateValue || !timeValue) return false;
-
-  const today = getTodayInputValue();
-  if (dateValue !== today) return false;
-
-  const now = new Date();
-  const [hours, minutes] = timeValue.split(":").map(Number);
-  const selected = new Date();
-  selected.setHours(hours, minutes, 0, 0);
-
-  return selected <= now;
-}
-
-function isWithinReservationBuffer(firstTime, secondTime) {
-  const toMinutes = (value) => {
-    const [hours, minutes] = String(value || "").split(":").map(Number);
-    if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
-    return hours * 60 + minutes;
-  };
-
-  const first = toMinutes(firstTime);
-  const second = toMinutes(secondTime);
-
-  if (first === null || second === null) return firstTime === secondTime;
-
-  return Math.abs(first - second) < 60;
-}
-
-function isContinuousTerraceColumnSelection(selectedTables, nextTable) {
-  const ids = [...selectedTables.map((table) => table.id), nextTable.id];
-
-  const matchingGroup = gardenGroups.find((group) =>
-    ids.every((id) => group.includes(id))
-  );
-
-  if (!matchingGroup) return false;
-
-  const indexes = [...new Set(ids)]
-    .map((id) => matchingGroup.indexOf(id))
-    .sort((a, b) => a - b);
-
-  for (let i = 1; i < indexes.length; i += 1) {
-    if (indexes[i] - indexes[i - 1] !== 1) return false;
-  }
-
-  return true;
-}
-
-function isLogicalTerraceSelection(selectedTables, nextTable) {
-  const ids = [...new Set([...selectedTables.map((table) => table.id), nextTable.id])];
-  const cells = ids.map((id) => gardenCellById[id]).filter(Boolean);
-
-  if (cells.length !== ids.length) return false;
-
-  if (cells.length <= 4) {
-    return isContinuousTerraceColumnSelection(selectedTables, nextTable);
-  }
-
-  const selectedCells = new Set(cells.map((cell) => `${cell.columnIndex}:${cell.rowIndex}`));
-  const columns = [...new Set(cells.map((cell) => cell.columnIndex))].sort((a, b) => a - b);
-  const rows = [...new Set(cells.map((cell) => cell.rowIndex))].sort((a, b) => a - b);
-
-  const hasNoGaps = (values) =>
-    values.every((value, index) => index === 0 || value - values[index - 1] === 1);
-
-  if (!hasNoGaps(columns) || !hasNoGaps(rows)) return false;
-
-  const nextCell = gardenCellById[nextTable.id];
-  const touchesCurrentSelection = selectedTables.some((table) => {
-    const cell = gardenCellById[table.id];
-    if (!cell) return false;
-
-    const columnDistance = Math.abs(cell.columnIndex - nextCell.columnIndex);
-    const rowDistance = Math.abs(cell.rowIndex - nextCell.rowIndex);
-
-    return columnDistance + rowDistance === 1;
-  });
-
-  if (!touchesCurrentSelection) return false;
-
-  return cells.every((cell) => {
-    const rowCells = cells
-      .filter((item) => item.rowIndex === cell.rowIndex)
-      .map((item) => item.columnIndex)
-      .sort((a, b) => a - b);
-    const columnCells = cells
-      .filter((item) => item.columnIndex === cell.columnIndex)
-      .map((item) => item.rowIndex)
-      .sort((a, b) => a - b);
-
-    return hasNoGaps(rowCells) && hasNoGaps(columnCells) && selectedCells.has(`${cell.columnIndex}:${cell.rowIndex}`);
-  });
-}
-
-function canCombineTables(area, selectedTables, nextTable, requestedGuests, areaTables = []) {
-  if (!selectedTables.length) return true;
-
-  if (area === "garden") {
-    if (nextTable.special) return false;
-    if (selectedTables.some((table) => table.special)) return false;
-    return isLogicalTerraceSelection(selectedTables, nextTable);
-  }
-
-  const allowedGroups =
-    area === "openTerrace"
-      ? getEligibleOpenTerraceGroups(requestedGuests, areaTables)
-      : getEligibleIndoorGroups(requestedGuests, areaTables);
-
-  const currentIds = selectedTables.map((table) => table.id);
-  const nextIds = [...currentIds, nextTable.id];
-
-  return allowedGroups.some((group) => nextIds.every((id) => group.includes(id)));
-}
+import {
+  defaultGardenTables,
+  defaultIndoorTables,
+  defaultOpenTerraceTables,
+  gardenGroups,
+  indoorGroups,
+  openTerraceGroups,
+  reservationTimes,
+} from "../domain/reservations/tableConfig";
+import {
+  canCombineTables,
+  getEligibleIndoorGroups,
+  getEligibleOpenTerraceGroups,
+} from "../domain/reservations/tableRules";
+import {
+  getTodayInputValue,
+  isPastTimeForDate,
+  isWithinReservationBuffer,
+} from "../domain/reservations/dateTimeRules";
 
 function ZoneCard({ title, subtitle, accent, children }) {
   return (
