@@ -990,6 +990,12 @@ function ReservationOperationsMap({
             const canApprove = reservation.status === "Pending";
             const canMarkArrived = !reservation.isArrived;
             const popoverPosition = bounds.labelTop > 72 ? "sm:top-auto sm:bottom-11" : "sm:top-11";
+            const mobilePopoverOffset =
+              bounds.centerX < 28
+                ? "left-0 translate-x-0"
+                : bounds.centerX > 72
+                ? "right-0 translate-x-0"
+                : "left-1/2 -translate-x-1/2";
 
             return (
               <React.Fragment key={`reservation-${reservation.id}`}>
@@ -1035,7 +1041,7 @@ function ReservationOperationsMap({
                   </button>
 
                   {isSelected && (
-                    <div className={`absolute left-1/2 ${popoverPosition} z-[70] hidden w-[220px] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#15110e]/95 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur sm:block lg:w-[230px]`}>
+                    <div className={`absolute ${mobilePopoverOffset} top-9 z-[70] w-[190px] rounded-2xl border border-white/12 bg-[#15110e]/95 p-2.5 text-left shadow-[0_22px_70px_rgba(0,0,0,0.68)] backdrop-blur sm:left-1/2 sm:right-auto ${popoverPosition} sm:w-[220px] sm:-translate-x-1/2 sm:p-3 lg:w-[230px]`}>
                       <div className="text-sm font-semibold text-[#fff4df]">{reservation.guestName}</div>
                       <div className="mt-1 text-xs text-white/50">
                         {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
@@ -1078,63 +1084,6 @@ function ReservationOperationsMap({
                     </div>
                   )}
                 </div>
-
-                {isSelected && (
-                  <div className="fixed inset-x-3 bottom-4 z-[120] rounded-[26px] border border-white/12 bg-[#15110e]/95 p-4 text-left shadow-[0_24px_90px_rgba(0,0,0,0.78)] backdrop-blur-xl sm:hidden">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-2xl font-semibold text-[#fff4df]">{reservation.guestName}</div>
-                        <div className="mt-2 text-sm leading-6 text-white/55">
-                          {reservation.reservedTime} · {reservation.guestCount} {text.guests} · {reservation.tableIds.join(", ")}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedReservationId(null)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-lg text-white/70"
-                        aria-label="Close"
-                      >
-                        ×
-                      </button>
-                    </div>
-
-                    <div className="mt-4 grid gap-2">
-                      {canApprove && (
-                        <button
-                          type="button"
-                          onClick={() => onApprove(reservation)}
-                          className="rounded-2xl border border-[#f2d39a]/25 bg-[#c9a56a]/20 px-4 py-3 text-sm font-semibold text-[#f2d39a]"
-                        >
-                          {text.approve}
-                        </button>
-                      )}
-                      {canMarkArrived && (
-                        <button
-                          type="button"
-                          onClick={() => onArrived(reservation)}
-                          className="rounded-2xl border border-emerald-300/25 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100"
-                        >
-                          {text.arrived}
-                        </button>
-                      )}
-                      {canNoShow && (
-                        <button
-                          type="button"
-                          onClick={() => onNoShow(reservation)}
-                          className="rounded-2xl border border-red-300/25 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-100"
-                        >
-                          {text.noShow}
-                        </button>
-                      )}
-                      <a
-                        href={`tel:${reservation.phone}`}
-                        className="rounded-2xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-center text-sm font-semibold text-[#f2d39a]"
-                      >
-                        {text.call}
-                      </a>
-                    </div>
-                  </div>
-                )}
               </React.Fragment>
             );
           })}
