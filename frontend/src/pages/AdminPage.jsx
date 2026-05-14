@@ -933,6 +933,7 @@ function ReservationOperationsMap({
     });
   }, [areaTables, liveByTable, now]);
   const selectedReservation = liveReservations.find((reservation) => reservation.id === selectedReservationId);
+  const nextReservations = liveReservations.filter((reservation) => !reservation.isArrived);
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60000);
@@ -1118,11 +1119,11 @@ function ReservationOperationsMap({
         <div className="space-y-3">
           <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
             <div className="section-kicker">{text.next}</div>
-            {liveReservations.length === 0 ? (
+            {nextReservations.length === 0 ? (
               <p className="mt-3 text-sm text-white/55">{text.empty}</p>
             ) : (
               <div className="mt-3 space-y-2">
-                {liveReservations.map((reservation) => {
+                {nextReservations.map((reservation) => {
                   const minutes = getReservationMinutesFromNow(reservation, now);
                   const isLate = !reservation.isArrived && minutes !== null && minutes <= -10;
 
