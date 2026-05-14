@@ -845,6 +845,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [menuMode, setMenuMode] = React.useState("list");
   const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
   const [blacklistMode, setBlacklistMode] = React.useState("list");
+  const [showCreateReservation, setShowCreateReservation] = React.useState(false);
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
@@ -1265,6 +1266,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("Reservation created.");
     await loadReservations();
     setActiveTab("reservations");
+    setShowCreateReservation(false);
   }
 
   async function createHallBlock(event) {
@@ -1468,7 +1470,6 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
   const tabs = [
     ["reservations", a.tabs.reservations],
-    ["create", a.tabs.create],
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
     ["layout", a.tabs.layout],
@@ -1606,6 +1607,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 subtitle={a.reservations.subtitle}
                 right={
                   <div className="flex flex-col gap-3 md:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateReservation((isOpen) => !isOpen)}
+                      className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
+                    >
+                      {adminLanguage === "bg" ? "Нова резервация" : "New reservation"}
+                    </button>
+
                     <input
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
@@ -1626,6 +1635,124 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 }
               >
+                {showCreateReservation && (
+                  <div className="mb-6 overflow-hidden rounded-[26px] border border-[#c9a56a]/22 bg-[radial-gradient(circle_at_top_left,rgba(201,165,106,0.16),transparent_36%),rgba(0,0,0,0.2)] p-5 shadow-2xl shadow-black/20">
+                    <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                      <div>
+                        <div className="section-kicker">
+                          {adminLanguage === "bg" ? "Бързо добавяне" : "Quick create"}
+                        </div>
+                        <h3 className="mt-2 text-2xl font-semibold text-[#fff4df]">
+                          {adminLanguage === "bg" ? "Нова резервация" : "New reservation"}
+                        </h3>
+                        <p className="mt-2 text-sm text-stone-400">
+                          {adminLanguage === "bg"
+                            ? "За телефонни резервации. Email може да остане празен."
+                            : "For phone reservations. Email can stay empty."}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowCreateReservation(false)}
+                        className="ghost-button rounded-full px-4 py-2 text-sm"
+                      >
+                        {adminLanguage === "bg" ? "Скрий" : "Hide"}
+                      </button>
+                    </div>
+
+                    <form onSubmit={createAdminReservation} className="grid gap-4 md:grid-cols-3">
+                      {[
+                        ["guestName", adminLanguage === "bg" ? "Име на гост" : "Guest name"],
+                        ["phone", adminLanguage === "bg" ? "Телефон" : "Phone"],
+                        ["email", adminLanguage === "bg" ? "Email по желание" : "Email optional"],
+                        ["reservedDate", adminLanguage === "bg" ? "Дата" : "Date"],
+                        ["reservedTime", adminLanguage === "bg" ? "Час" : "Time"],
+                        ["guestCount", adminLanguage === "bg" ? "Гости" : "Guests"],
+                        ["tableIds", adminLanguage === "bg" ? "Маси, разделени със запетая" : "Tables comma separated"],
+                      ].map(([key, label]) => (
+                        <div key={key}>
+                          <label className="mb-2 block text-sm text-stone-400">{label}</label>
+                          {key === "reservedTime" ? (
+                            <select
+                              value={adminReservation.reservedTime}
+                              onChange={(e) =>
+                                setAdminReservation((prev) => ({
+                                  ...prev,
+                                  reservedTime: e.target.value,
+                                }))
+                              }
+                              required
+                              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                            >
+                              <option value="">{adminLanguage === "bg" ? "Избери час" : "Select time"}</option>
+                              {adminReservationTimes.map((time) => (
+                                <option key={time} value={time}>
+                                  {time}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              type={key === "reservedDate" ? "date" : key === "guestCount" ? "number" : "text"}
+                              value={adminReservation[key]}
+                              onChange={(e) =>
+                                setAdminReservation((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))
+                              }
+                              required={["phone", "reservedDate", "guestCount", "tableIds"].includes(key)}
+                              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                            />
+                          )}
+                        </div>
+                      ))}
+
+                      <div>
+                        <label className="mb-2 block text-sm text-stone-400">
+                          {adminLanguage === "bg" ? "Зона" : "Area"}
+                        </label>
+                        <select
+                          value={adminReservation.area}
+                          onChange={(e) =>
+                            setAdminReservation((prev) => ({
+                              ...prev,
+                              area: e.target.value,
+                            }))
+                          }
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        >
+                          <option value="indoor">Hall / Non-smoking</option>
+                          <option value="garden">Terrace / Smoking</option>
+                          <option value="openTerrace">Open terrace / Smoking</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-3">
+                        <label className="mb-2 block text-sm text-stone-400">
+                          {adminLanguage === "bg" ? "Вътрешна бележка" : "Internal note"}
+                        </label>
+                        <textarea
+                          value={adminReservation.internalNote}
+                          onChange={(e) =>
+                            setAdminReservation((prev) => ({
+                              ...prev,
+                              internalNote: e.target.value,
+                            }))
+                          }
+                          rows={4}
+                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
+                        />
+                      </div>
+
+                      <button className="luxury-button rounded-2xl px-6 py-4 font-semibold md:col-span-3">
+                        {adminLanguage === "bg" ? "Създай резервация" : "Create reservation"}
+                      </button>
+                    </form>
+                  </div>
+                )}
+
                 <div className="grid gap-3 lg:hidden">
                   {filteredReservations.map((r) => {
                     const expanded = expandedId === r.id;
@@ -1978,98 +2105,6 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     </tbody>
                   </table>
                 </div>
-              </Panel>
-            )}
-
-            {activeTab === "create" && (
-              <Panel
-                title="Create reservation"
-                subtitle="Бърза резервация по телефон. Email може да остане празен."
-              >
-                <form onSubmit={createAdminReservation} className="grid gap-4 md:grid-cols-3">
-                  {[
-                    ["guestName", "Guest name"],
-                    ["phone", "Phone"],
-                    ["email", "Email optional"],
-                    ["reservedDate", "Date"],
-                    ["reservedTime", "Time"],
-                    ["guestCount", "Guests"],
-                    ["tableIds", "Tables comma separated"],
-                  ].map(([key, label]) => (
-                    <div key={key}>
-                      <label className="mb-2 block text-sm text-stone-400">{label}</label>
-                      {key === "reservedTime" ? (
-                        <select
-                          value={adminReservation.reservedTime}
-                          onChange={(e) =>
-                            setAdminReservation((prev) => ({
-                              ...prev,
-                              reservedTime: e.target.value,
-                            }))
-                          }
-                          required
-                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                        >
-                          <option value="">Select time</option>
-                          {adminReservationTimes.map((time) => (
-                            <option key={time} value={time}>
-                              {time}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type={key === "reservedDate" ? "date" : key === "guestCount" ? "number" : "text"}
-                          value={adminReservation[key]}
-                          onChange={(e) =>
-                            setAdminReservation((prev) => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          required={["phone", "reservedDate", "guestCount", "tableIds"].includes(key)}
-                          className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                        />
-                      )}
-                    </div>
-                  ))}
-
-                  <div>
-                    <label className="mb-2 block text-sm text-stone-400">Area</label>
-                    <select
-                      value={adminReservation.area}
-                      onChange={(e) =>
-                        setAdminReservation((prev) => ({
-                          ...prev,
-                          area: e.target.value,
-                        }))
-                      }
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    >
-                      <option value="indoor">Hall / Non-smoking</option>
-                      <option value="garden">Terrace / Smoking</option>
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-3">
-                    <label className="mb-2 block text-sm text-stone-400">Internal note</label>
-                    <textarea
-                      value={adminReservation.internalNote}
-                      onChange={(e) =>
-                        setAdminReservation((prev) => ({
-                          ...prev,
-                          internalNote: e.target.value,
-                        }))
-                      }
-                      rows={4}
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
-                    />
-                  </div>
-
-                  <button className="rounded-2xl bg-amber-400 px-6 py-4 font-semibold text-black md:col-span-3">
-                    Create reservation
-                  </button>
-                </form>
               </Panel>
             )}
 
