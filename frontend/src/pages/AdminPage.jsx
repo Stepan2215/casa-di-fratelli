@@ -42,7 +42,7 @@ const adminText = {
       blacklist: "Blacklist",
     },
     tabs: {
-      liveMap: "Карта резервации",
+      liveMap: "Карта на резервациите",
       reservations: "Резервации",
       create: "Нова резервация",
       block: "Блокирай зала",
@@ -74,7 +74,7 @@ const adminText = {
       internal: "Вътрешна",
       flags: "Маркери",
       changeTables: "Смяна на маси",
-      changeTablesHint: "Запазването проверява потвърдени резервации с 60 минути буфер.",
+      changeTablesHint: "Запазването проверява потвърдени резервации с 3 часа буфер.",
       saveTables: "Запази масите",
       sourceAdmin: "Admin",
       sourceWebsite: "Сайт",
@@ -82,7 +82,7 @@ const adminText = {
       close: "Скрий",
     },
     liveMap: {
-      title: "Карта резервации",
+      title: "Карта на резервациите",
       subtitle: "Оперативен изглед за следващите гости. Показват се резервации до 30 минути преди часа.",
       indoor: "Зала / непушачи",
       garden: "Покрита тераса",
@@ -105,6 +105,7 @@ const adminText = {
       now: "сега",
       arrivedStatus: "Пристигнал",
       guests: "гости",
+      table: "Маса",
       tables: "маси",
     },
     menu: {
@@ -192,7 +193,7 @@ const adminText = {
       internal: "Internal",
       flags: "Flags",
       changeTables: "Change tables",
-      changeTablesHint: "Saving checks approved reservations with a 60 minute buffer.",
+      changeTablesHint: "Saving checks approved reservations with a 3 hour buffer.",
       saveTables: "Save tables",
       sourceAdmin: "Admin",
       sourceWebsite: "Website",
@@ -223,6 +224,7 @@ const adminText = {
       now: "now",
       arrivedStatus: "Arrived",
       guests: "guests",
+      table: "Table",
       tables: "tables",
     },
     menu: {
@@ -971,7 +973,10 @@ function ReservationOperationsMap({
         if (reservation.reservedDate !== today) return false;
         if (!reservation.tableIds.includes(selectedTableId)) return false;
         if (reservation.isNoShow || ["Cancelled", "Released"].includes(reservation.status)) return false;
-        return true;
+        if (reservation.isArrived) return false;
+
+        const minutes = getReservationMinutesFromNow(reservation, now);
+        return minutes !== null && minutes >= 0;
       })
       .sort((first, second) => String(first.reservedTime).localeCompare(String(second.reservedTime)));
   }, [now, reservations, selectedArea, selectedTableId]);
@@ -1243,13 +1248,13 @@ function ReservationOperationsMap({
             return (
               <div
                 key={table.id}
-                className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
+                className={`absolute -translate-x-1/2 -translate-y-1/2 ${isSelectedTable ? "z-[75]" : "z-10"}`}
                 style={{ left: `${table.x}%`, top: `${table.y}%` }}
               >
                 <button
                   type="button"
                   onClick={() => setSelectedTableId((current) => (current === table.id ? null : table.id))}
-                  className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition ${
+                  className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition hover:scale-[1.04] ${
                     isGroupTable
                       ? "h-9 min-w-[50px] px-2 text-xs sm:h-10 sm:min-w-[58px] sm:px-3 md:h-12 md:min-w-[68px] lg:h-16 lg:min-w-[88px]"
                       : "h-8 w-8 text-xs sm:h-9 sm:w-9 md:h-11 md:w-11 lg:h-14 lg:w-14 lg:text-sm"
@@ -1263,49 +1268,73 @@ function ReservationOperationsMap({
                       : isSelectedTable
                       ? "border-[#f2d39a]/70 bg-[linear-gradient(145deg,#6f5236,#221812)] text-[#fff4df] ring-2 ring-[#f2d39a]/25"
                       : "border-[#c9a56a]/35 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white/85"
-                  }`}
+                  } ${isSelectedTable ? "ring-2 ring-[#f2d39a]/35" : ""}`}
                 >
                   {table.id}
                 </button>
+
+                {isSelectedTable && (
+                  <div
+                    className={`absolute z-[80] w-[210px] rounded-2xl border border-[#f2d39a]/18 bg-[#15110e]/95 p-3 text-left shadow-[0_22px_70px_rgba(0,0,0,0.7)] backdrop-blur sm:w-[240px] ${
+                      table.y > 72 ? "bottom-10 sm:bottom-12 lg:bottom-16" : "top-10 sm:top-12 lg:top-16"
+                    } ${
+                      table.x < 28
+                        ? "left-0"
+                        : table.x > 72
+                        ? "right-0"
+                        : "left-1/2 -translate-x-1/2"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="section-kicker text-[9px]">{text.tableTodayTitle}</div>
+                        <div className="mt-1 text-base font-semibold text-[#fff4df]">
+                          {text.table} {table.id}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTableId(null)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/[0.04] text-white/55 transition hover:text-white"
+                        aria-label="Close table reservations"
+                      >
+                        ×
+                      </button>
+                    </div>
+
+                    {todayReservationsForSelectedTable.length === 0 ? (
+                      <p className="mt-3 text-sm leading-6 text-white/55">{text.tableTodayEmpty}</p>
+                    ) : (
+                      <div className="mt-3 space-y-2">
+                        {todayReservationsForSelectedTable.map((reservation) => (
+                          <button
+                            key={reservation.id}
+                            type="button"
+                            onClick={() => setSelectedReservationId(reservation.id)}
+                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                              selectedReservationId === reservation.id
+                                ? "border-[#f2d39a]/55 bg-[#c9a56a]/18"
+                                : "border-white/10 bg-white/[0.035] hover:border-[#c9a56a]/35"
+                            }`}
+                          >
+                            <span className="min-w-0 truncate text-sm font-semibold text-[#fff4df]">
+                              {reservation.guestName}
+                            </span>
+                            <span className="shrink-0 rounded-full border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-[#f2d39a]">
+                              {reservation.reservedTime}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
 
         <div className="space-y-3">
-          {selectedTableId && (
-            <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
-              <div className="section-kicker">
-                {text.tableTodayTitle} · {selectedTableId}
-              </div>
-              {todayReservationsForSelectedTable.length === 0 ? (
-                <p className="mt-3 text-sm text-white/55">{text.tableTodayEmpty}</p>
-              ) : (
-                <div className="mt-3 space-y-2">
-                  {todayReservationsForSelectedTable.map((reservation) => (
-                    <button
-                      key={reservation.id}
-                      type="button"
-                      onClick={() => setSelectedReservationId(reservation.id)}
-                      className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-3 text-left transition ${
-                        selectedReservationId === reservation.id
-                          ? "border-[#f2d39a]/55 bg-[#c9a56a]/16"
-                          : "border-white/10 bg-white/[0.03] hover:border-[#c9a56a]/35"
-                      }`}
-                    >
-                      <span className="min-w-0 truncate font-semibold text-[#fff4df]">
-                        {reservation.guestName}
-                      </span>
-                      <span className="shrink-0 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
-                        {reservation.reservedTime}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
           <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
             <div className="section-kicker">{text.next}</div>
             {nextReservations.length === 0 ? (
@@ -1534,7 +1563,7 @@ function Panel({ title, subtitle, children, right }) {
 }
 
 export default function AdminPage({ onMenuChanged }) {
-  const [activeTab, setActiveTab] = React.useState("liveMap");
+  const [activeTab, setActiveTab] = React.useState("home");
   const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
   const [menuItems, setMenuItems] = React.useState([]);
@@ -2527,6 +2556,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   ];
 
   async function refreshActiveTab() {
+    if (activeTab === "home") {
+      await Promise.all([loadReservations(), loadBlacklist(), loadTableLayout()]);
+      return;
+    }
+
     if (activeTab === "menu") {
       await loadMenuItems();
       return;
@@ -2549,6 +2583,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
     await loadReservations();
   }
+
+  const isDashboard = activeTab === "home";
+  const activeTabLabel = tabs.find(([key]) => key === activeTab)?.[1] || a.appTitle;
 
   return (
     <div className="luxury-shell min-h-screen text-white">
@@ -2596,48 +2633,62 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
             </button>
           </div>
         </div>
-        <div className="mb-4 flex flex-wrap gap-2">
-  {[
-    ["today", a.stats.today],
-    ["week", a.stats.week],
-    ["month", a.stats.month],
-    ["year", a.stats.year],
-  ].map(([key, label]) => (
-    <button
-      key={key}
-      onClick={() => setStatsPeriod(key)}
-      className={`rounded-full px-4 py-2 text-sm transition ${
-        statsPeriod === key
-          ? "luxury-button"
-          : "ghost-button"
-      }`}
-    >
-      {label}
-    </button>
-  ))}
-</div>
-        <div className="mb-8 grid gap-4 md:grid-cols-4">
-          <StatCard label={a.stats.allReservations} value={statsReservations.length} />
-          <StatCard label={a.stats.pending} value={pendingCount} />
-          <StatCard label={a.stats.approved} value={approvedCount} />
-          <StatCard label={a.stats.blacklist} value={blacklistCount} />
-        </div>
+        {isDashboard ? (
+          <>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {[
+                ["today", a.stats.today],
+                ["week", a.stats.week],
+                ["month", a.stats.month],
+                ["year", a.stats.year],
+              ].map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setStatsPeriod(key)}
+                  className={`rounded-full px-4 py-2 text-sm transition ${
+                    statsPeriod === key ? "luxury-button" : "ghost-button"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-        <div className="mb-8 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-black/20 p-2 sm:grid-cols-3 lg:flex lg:flex-wrap">
-          {tabs.map(([key, label]) => (
+            <div className="mb-8 grid gap-4 md:grid-cols-4">
+              <StatCard label={a.stats.allReservations} value={statsReservations.length} />
+              <StatCard label={a.stats.pending} value={pendingCount} />
+              <StatCard label={a.stats.approved} value={approvedCount} />
+              <StatCard label={a.stats.blacklist} value={blacklistCount} />
+            </div>
+
+            <div className="mb-8 grid grid-cols-2 gap-2 rounded-[22px] border border-white/10 bg-black/20 p-2 sm:grid-cols-3">
+              {tabs.map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`rounded-2xl px-4 py-3 text-center text-sm transition ${
+                    key === "liveMap" ? "luxury-button" : "ghost-button text-white/80"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="mb-8 flex flex-col gap-3 rounded-[22px] border border-white/10 bg-black/20 p-3 sm:flex-row sm:items-center sm:justify-between">
             <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`rounded-2xl px-4 py-3 text-center text-sm transition ${
-                activeTab === key
-             ? "luxury-button"
-              : "ghost-button text-white/80"
-          }`}
+              type="button"
+              onClick={() => setActiveTab("home")}
+              className="ghost-button w-full rounded-2xl px-4 py-3 text-sm font-semibold sm:w-auto"
             >
-              {label}
+              ← {adminLanguage === "bg" ? "Назад" : "Back"}
             </button>
-          ))}
-        </div>
+            <div className="px-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#c9a56a]">
+              {activeTabLabel}
+            </div>
+          </div>
+        )}
 
         {adminError && (
           <div className="mb-6 rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
@@ -2651,9 +2702,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
           </div>
         )}
 
-        {loading ? (
+        {loading && !isDashboard ? (
           <Panel title="Loading">Loading...</Panel>
-        ) : (
+        ) : !isDashboard ? (
           <>
             {activeTab === "liveMap" && (
               <ReservationOperationsMap
@@ -4265,7 +4316,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
               </Panel>
             )}
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );

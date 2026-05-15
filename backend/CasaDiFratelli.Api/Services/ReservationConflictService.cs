@@ -7,7 +7,7 @@ public sealed record TableConflict(int Id, string ReservedTime, List<string> Tab
 
 public class ReservationConflictService
 {
-    private const int TableBufferMinutes = 60;
+    private const int TableBufferMinutes = 180;
     private readonly AppDbContext _db;
 
     public ReservationConflictService(AppDbContext db)
@@ -37,7 +37,7 @@ public class ReservationConflictService
     {
         return new
         {
-            message = "One or more selected tables are reserved less than one hour from this time.",
+            message = "One or more selected tables are reserved less than three hours from this time.",
             conflict.ReservedTime,
             conflict.TableIds
         };

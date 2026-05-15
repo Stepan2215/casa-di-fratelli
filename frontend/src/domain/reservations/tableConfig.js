@@ -1,4 +1,4 @@
-export const RESERVATION_BUFFER_MINUTES = 60;
+export const RESERVATION_BUFFER_MINUTES = 180;
 
 export const defaultGardenTables = [
   { id: "42", x: 17, y: 22, seats: 4 },

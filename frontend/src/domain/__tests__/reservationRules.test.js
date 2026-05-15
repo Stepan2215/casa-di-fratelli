@@ -34,10 +34,11 @@ test("reservation times cover the restaurant day from 10:00 to 22:00", () => {
   assert.equal(reservationTimes.at(-1), "22:00");
 });
 
-test("time helpers keep the 60 minute reservation buffer exclusive", () => {
+test("time helpers keep the 3 hour reservation buffer exclusive", () => {
   assert.equal(timeToMinutes("19:30"), 1170);
   assert.equal(isWithinReservationBuffer("19:00", "19:59"), true);
-  assert.equal(isWithinReservationBuffer("19:00", "20:00"), false);
+  assert.equal(isWithinReservationBuffer("19:00", "21:59"), true);
+  assert.equal(isWithinReservationBuffer("19:00", "22:00"), false);
   assert.equal(isWithinReservationBuffer("23:30", "00:00"), true);
   assert.equal(isWithinReservationBuffer("10:00 - 22:00", "19:00"), true);
   assert.equal(isWithinReservationBuffer("bad", "bad"), true);
@@ -96,13 +97,15 @@ test("admin table selection accepts only configured combinations per area", () =
   assert.equal(canUseAdminTableSelection("openTerrace", ["46", "49"]), false);
 });
 
-test("availability excludes approved reservations within the buffer and ignores pending/cancelled rows", () => {
+test("availability excludes approved reservations within the 3 hour buffer and ignores pending/cancelled rows", () => {
   const reservations = [
     { id: 1, status: "Approved", reservedDate: "2026-05-14", reservedTime: "19:00", tableIds: ["20", "21"] },
     { id: 2, status: "Pending", reservedDate: "2026-05-14", reservedTime: "19:00", tableIds: ["22"] },
     { id: 3, status: "Cancelled", reservedDate: "2026-05-14", reservedTime: "19:30", tableIds: ["23"] },
     { id: 4, status: "Approved", reservedDate: "2026-05-15", reservedTime: "19:00", tableIds: ["24"] },
-    { id: 5, status: "Approved", reservedDate: "2026-05-14", reservedTime: "20:00", tableIds: ["25"] },
+    { id: 5, status: "Approved", reservedDate: "2026-05-14", reservedTime: "22:29", tableIds: ["25"] },
+    { id: 6, status: "Approved", reservedDate: "2026-05-14", reservedTime: "22:30", tableIds: ["26"] },
+    { id: 7, status: "Released", reservedDate: "2026-05-14", reservedTime: "20:00", tableIds: ["27"] },
   ];
 
   const unavailable = getUnavailableTableIdsForSlot(reservations, "2026-05-14", "19:30");
