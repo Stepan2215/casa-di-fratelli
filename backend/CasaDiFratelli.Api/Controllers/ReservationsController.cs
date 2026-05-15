@@ -1,6 +1,7 @@
 using CasaDiFratelli.Api.Data;
 using CasaDiFratelli.Api.Dtos;
 using CasaDiFratelli.Api.Models;
+using CasaDiFratelli.Api.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CasaDiFratelli.Api.Services;
@@ -15,20 +16,27 @@ private readonly AppDbContext _db;
 private readonly EmailService _emailService;
 private readonly IConfiguration _configuration;
 private readonly ReservationConflictService _reservationConflictService;
+private readonly AdminAuthService _adminAuth;
+private readonly AuditService _audit;
 
 public ReservationsController(
     AppDbContext db,
     EmailService emailService,
     IConfiguration configuration,
-    ReservationConflictService reservationConflictService)
+    ReservationConflictService reservationConflictService,
+    AdminAuthService adminAuth,
+    AuditService audit)
 {
     _db = db;
     _emailService = emailService;
     _configuration = configuration;
     _reservationConflictService = reservationConflictService;
+    _adminAuth = adminAuth;
+    _audit = audit;
 }
 
     [HttpGet]
+    [AdminAuthorize]
     public async Task<IActionResult> GetAll()
     {
         var reservations = await _db.Reservations
@@ -83,6 +91,9 @@ public ReservationsController(
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReservationRequest request)
     {
+        if (request.CreatedByAdmin && !await _adminAuth.IsAuthorizedAsync(Request))
+            return Unauthorized(new { message = "Admin password is required." });
+
         if (string.IsNullOrWhiteSpace(request.GuestName))
             return BadRequest("Guest name is required.");
 
@@ -236,6 +247,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/approve")]
+    [AdminAuthorize]
     public async Task<IActionResult> Approve(int id)
     {
         var reservation = await _db.Reservations
@@ -261,6 +273,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.Status = "Approved";
         reservation.IsNoShow = false;
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "approve", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status });
 
         if (!string.IsNullOrWhiteSpace(reservation.Email))
 {
@@ -290,6 +303,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/arrive")]
+    [AdminAuthorize]
     public async Task<IActionResult> MarkArrived(int id)
     {
         var reservation = await _db.Reservations.FindAsync(id);
@@ -304,6 +318,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.IsArrived = true;
         reservation.IsNoShow = false;
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "arrive", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status, reservation.IsArrived });
 
         return Ok(new
         {
@@ -315,6 +330,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/no-show")]
+    [AdminAuthorize]
     public async Task<IActionResult> MarkNoShow(int id)
     {
         var reservation = await _db.Reservations.FindAsync(id);
@@ -326,6 +342,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.IsArrived = false;
         reservation.IsNoShow = true;
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "no-show", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status, reservation.IsNoShow });
 
         return Ok(new
         {
@@ -337,6 +354,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/tables")]
+    [AdminAuthorize]
     public async Task<IActionResult> UpdateTables(int id, [FromBody] UpdateReservationTablesRequest request)
     {
         var reservation = await _db.Reservations
@@ -370,6 +388,13 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         if (conflict != null)
             return Conflict(ReservationConflictService.ToConflictResponse(conflict));
 
+        var beforeTables = new
+        {
+            reservation.Area,
+            reservation.GuestCount,
+            TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
+        };
+
         _db.ReservationTables.RemoveRange(reservation.Tables);
         reservation.Tables = tableIds.Select(tableId => new ReservationTable
         {
@@ -384,6 +409,12 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             reservation.GuestCount = request.GuestCount.Value;
 
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "move-tables", "Reservation", reservation.Id.ToString(), beforeTables, new
+        {
+            reservation.Area,
+            reservation.GuestCount,
+            TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
+        });
 
         return Ok(new
         {
@@ -395,6 +426,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/note")]
+    [AdminAuthorize]
     public async Task<IActionResult> UpdateNote(int id, [FromBody] UpdateReservationNoteRequest request)
     {
         var reservation = await _db.Reservations.FindAsync(id);
@@ -402,11 +434,13 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         if (reservation == null)
             return NotFound();
 
+        var beforeNote = reservation.InternalNote;
         reservation.InternalNote = string.IsNullOrWhiteSpace(request.InternalNote)
             ? null
             : request.InternalNote.Trim();
 
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "update-note", "Reservation", reservation.Id.ToString(), new { InternalNote = beforeNote }, new { reservation.InternalNote });
 
         return Ok(new
         {
@@ -416,6 +450,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPost("block")]
+    [AdminAuthorize]
     public async Task<IActionResult> BlockTables([FromBody] CreateHallBlockRequest request)
     {
         var tableIds = ReservationConflictService.NormalizeTableIds(request.TableIds);
@@ -464,6 +499,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
 
         _db.Reservations.Add(block);
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "block-hall", "Reservation", block.Id.ToString(), after: new { block.ReservedDate, block.ReservedTime, TableIds = tableIds });
 
         return Ok(new
         {
@@ -475,6 +511,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/release")]
+    [AdminAuthorize]
     public async Task<IActionResult> Release(int id)
     {
         var reservation = await _db.Reservations.FindAsync(id);
@@ -486,6 +523,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.IsArrived = false;
         reservation.IsNoShow = false;
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "release", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status });
 
         return Ok(new
         {
@@ -497,6 +535,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     }
 
     [HttpPatch("{id}/cancel")]
+    [AdminAuthorize]
     public async Task<IActionResult> Cancel(int id)
     {
         var reservation = await _db.Reservations
@@ -509,6 +548,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.Status = "Cancelled";
         reservation.IsArrived = false;
         await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "cancel", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status });
 
         if (!string.IsNullOrWhiteSpace(reservation.Email))
 {

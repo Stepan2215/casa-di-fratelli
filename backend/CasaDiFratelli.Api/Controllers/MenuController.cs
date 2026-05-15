@@ -1,4 +1,5 @@
 using CasaDiFratelli.Api.Data;
+using CasaDiFratelli.Api.Filters;
 using CasaDiFratelli.Api.Models;
 using CasaDiFratelli.Api.Services;
 using System.Data;
@@ -14,15 +15,18 @@ public class MenuController : ControllerBase
     private readonly AppDbContext _db;
     private readonly EmailService _emailService;
     private readonly ILogger<MenuController> _logger;
+    private readonly AuditService _audit;
 
     public MenuController(
         AppDbContext db,
         EmailService emailService,
-        ILogger<MenuController> logger)
+        ILogger<MenuController> logger,
+        AuditService audit)
     {
         _db = db;
         _emailService = emailService;
         _logger = logger;
+        _audit = audit;
     }
 
     private static void AddParameter(IDbCommand command, string name, object? value)
@@ -160,6 +164,7 @@ public class MenuController : ControllerBase
     }
 
     [HttpPost("seed")]
+    [AdminAuthorize]
     public async Task<IActionResult> Seed()
     {
         try
@@ -182,6 +187,7 @@ public class MenuController : ControllerBase
     }
 
     [HttpPost]
+    [AdminAuthorize]
     public async Task<IActionResult> Create([FromBody] MenuItem item)
     {
         try
@@ -221,6 +227,7 @@ public class MenuController : ControllerBase
             AddParameter(command, "@notifySubscribers", item.NotifySubscribers);
 
             item.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            await _audit.RecordAsync(HttpContext, "create", "MenuItem", item.Id.ToString(), after: item);
 
             if (item.NotifySubscribers)
             {
@@ -281,10 +288,12 @@ public class MenuController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [AdminAuthorize]
     public async Task<IActionResult> Update(int id, [FromBody] MenuItem updated)
     {
         await EnsureMenuStorageAsync();
 
+        var before = await _db.MenuItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         await using var command = _db.Database.GetDbConnection().CreateCommand();
         command.CommandText = """
             UPDATE "MenuItems"
@@ -316,6 +325,8 @@ public class MenuController : ControllerBase
         if (affectedRows == 0)
             return NotFound();
 
+        await _audit.RecordAsync(HttpContext, "update", "MenuItem", id.ToString(), before, updated);
+
         return Ok(new
         {
             Id = id,
@@ -332,10 +343,12 @@ public class MenuController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [AdminAuthorize]
     public async Task<IActionResult> Delete(int id)
     {
         await EnsureMenuStorageAsync();
 
+        var before = await _db.MenuItems.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         await using var command = _db.Database.GetDbConnection().CreateCommand();
         command.CommandText = """
             DELETE FROM "MenuItems"
@@ -346,6 +359,8 @@ public class MenuController : ControllerBase
         var affectedRows = await command.ExecuteNonQueryAsync();
         if (affectedRows == 0)
             return NotFound();
+
+        await _audit.RecordAsync(HttpContext, "delete", "MenuItem", id.ToString(), before);
 
         return Ok();
     }

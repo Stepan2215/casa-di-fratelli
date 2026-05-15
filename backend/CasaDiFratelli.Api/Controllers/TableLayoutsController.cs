@@ -1,5 +1,7 @@
 using System.Data;
 using System.Text.Json;
+using CasaDiFratelli.Api.Filters;
+using CasaDiFratelli.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CasaDiFratelli.Api.Data;
@@ -12,11 +14,13 @@ public class TableLayoutsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<TableLayoutsController> _logger;
+    private readonly AuditService _audit;
 
-    public TableLayoutsController(AppDbContext db, ILogger<TableLayoutsController> logger)
+    public TableLayoutsController(AppDbContext db, ILogger<TableLayoutsController> logger, AuditService audit)
     {
         _db = db;
         _logger = logger;
+        _audit = audit;
     }
 
     public sealed record TableLayoutItem(
@@ -132,6 +136,7 @@ public class TableLayoutsController : ControllerBase
     }
 
     [HttpPut]
+    [AdminAuthorize]
     public async Task<IActionResult> Save([FromBody] List<TableLayoutItem> layout)
     {
         try
@@ -159,6 +164,7 @@ public class TableLayoutsController : ControllerBase
             command.Parameters.Add(parameter);
 
             await command.ExecuteNonQueryAsync();
+            await _audit.RecordAsync(HttpContext, "save", "TableLayout", "1", after: layout);
 
             return Ok(layout);
         }
@@ -170,6 +176,7 @@ public class TableLayoutsController : ControllerBase
     }
 
     [HttpPost("reset")]
+    [AdminAuthorize]
     public async Task<IActionResult> Reset()
     {
         return await Save(DefaultLayout);

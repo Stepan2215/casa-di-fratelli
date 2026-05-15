@@ -1,5 +1,7 @@
 using CasaDiFratelli.Api.Data;
+using CasaDiFratelli.Api.Filters;
 using CasaDiFratelli.Api.Models;
+using CasaDiFratelli.Api.Services;
 using System.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,15 +10,18 @@ namespace CasaDiFratelli.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[AdminAuthorize]
 public class BlacklistController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly ILogger<BlacklistController> _logger;
+    private readonly AuditService _audit;
 
-    public BlacklistController(AppDbContext db, ILogger<BlacklistController> logger)
+    public BlacklistController(AppDbContext db, ILogger<BlacklistController> logger, AuditService audit)
     {
         _db = db;
         _logger = logger;
+        _audit = audit;
     }
 
     private static void AddParameter(IDbCommand command, string name, object? value)
@@ -140,6 +145,7 @@ public class BlacklistController : ControllerBase
             AddParameter(command, "@notes", entry.Notes);
 
             entry.Id = Convert.ToInt32(await command.ExecuteScalarAsync());
+            await _audit.RecordAsync(HttpContext, "create", "BlacklistEntry", entry.Id.ToString(), after: entry);
 
             return Ok(new
             {
@@ -175,6 +181,8 @@ public class BlacklistController : ControllerBase
             var affectedRows = await command.ExecuteNonQueryAsync();
             if (affectedRows == 0)
                 return NotFound();
+
+            await _audit.RecordAsync(HttpContext, "delete", "BlacklistEntry", id.ToString());
 
             return Ok();
         }

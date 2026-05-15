@@ -402,8 +402,8 @@ async function readErrorMessage(response, fallback) {
   }
 }
 
-async function fetchJsonOrEmpty(url, fallback) {
-  const response = await fetch(url);
+async function fetchJsonOrEmpty(url, fallback, options = {}) {
+  const response = await fetch(url, options);
 
   if (!response.ok) {
     throw new Error(await readErrorMessage(response, `Failed to load ${url}.`));
@@ -1566,12 +1566,14 @@ function Panel({ title, subtitle, children, right }) {
   );
 }
 
-export default function AdminPage({ onMenuChanged }) {
+export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenuChanged }) {
   const [activeTab, setActiveTab] = React.useState("home");
   const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
   const [menuItems, setMenuItems] = React.useState([]);
   const [blacklist, setBlacklist] = React.useState([]);
+  const [adminUsers, setAdminUsers] = React.useState([]);
+  const [auditLogs, setAuditLogs] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
@@ -1605,13 +1607,35 @@ export default function AdminPage({ onMenuChanged }) {
     reason: "No-show",
     notes: "",
   });
+  const [adminUserForm, setAdminUserForm] = React.useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "Manager",
+  });
+
+  const withAdminToken = React.useCallback(
+    (options = {}) => ({
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        "X-Admin-Token": adminToken,
+      },
+    }),
+    [adminToken]
+  );
+
+  const adminFetch = React.useCallback(
+    (url, options = {}) => fetch(url, withAdminToken(options)),
+    [withAdminToken]
+  );
 
   async function loadReservations() {
     setLoading(true);
     setAdminError("");
 
     try {
-      const reservationsData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, []);
+      const reservationsData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, [], withAdminToken());
       setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
     } catch (error) {
       console.error("Failed to load reservations", error);
@@ -1623,7 +1647,7 @@ export default function AdminPage({ onMenuChanged }) {
 
   async function loadMenuItems() {
     try {
-      const menuData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, []);
+      const menuData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, [], withAdminToken());
       setMenuItems(Array.isArray(menuData) ? menuData : []);
     } catch (error) {
       console.error("Failed to load menu", error);
@@ -1633,7 +1657,7 @@ export default function AdminPage({ onMenuChanged }) {
 
   async function loadBlacklist() {
     try {
-      const blacklistData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, []);
+      const blacklistData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, [], withAdminToken());
       setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
     } catch (error) {
       console.error("Failed to load blacklist", error);
@@ -1643,11 +1667,29 @@ export default function AdminPage({ onMenuChanged }) {
 
   async function loadTableLayout() {
     try {
-      const layoutData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/table-layouts`, []);
+      const layoutData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/table-layouts`, [], withAdminToken());
       setTableLayout(Array.isArray(layoutData) ? layoutData.map(normalizeLayoutItem) : []);
     } catch (error) {
       console.error("Failed to load table layout", error);
       setAdminError(error?.message || "Failed to load table layout.");
+    }
+  }
+
+  async function loadAdminUsers() {
+    try {
+      const data = await fetchJsonOrEmpty(`${API_BASE_URL}/api/admin/users`, [], withAdminToken());
+      setAdminUsers(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setAdminError(error?.message || "Failed to load admin users.");
+    }
+  }
+
+  async function loadAuditLogs() {
+    try {
+      const data = await fetchJsonOrEmpty(`${API_BASE_URL}/api/admin/audit`, [], withAdminToken());
+      setAuditLogs(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setAdminError(error?.message || "Failed to load audit logs.");
     }
   }
 
@@ -1671,10 +1713,15 @@ export default function AdminPage({ onMenuChanged }) {
     if (activeTab === "layout" || activeTab === "liveMap") {
       loadTableLayout();
     }
+
+    if (activeTab === "admins") {
+      loadAdminUsers();
+      loadAuditLogs();
+    }
   }, [activeTab]);
 
   React.useEffect(() => {
-    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "customers"];
+    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "customers", "admins"];
 
     const handleTouchStart = (event) => {
       if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) {
@@ -1756,7 +1803,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/table-layouts`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/table-layouts`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(tableLayout),
@@ -1775,7 +1822,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/table-layouts/reset`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/table-layouts/reset`, {
       method: "POST",
     });
 
@@ -1792,7 +1839,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${id}/${action}`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${id}/${action}`, {
       method: "PATCH",
     });
 
@@ -1808,7 +1855,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/arrive`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/arrive`, {
       method: "PATCH",
     });
 
@@ -1840,7 +1887,7 @@ export default function AdminPage({ onMenuChanged }) {
       if (!saved) return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/no-show`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/no-show`, {
       method: "PATCH",
     });
 
@@ -1857,7 +1904,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/release`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/release`, {
       method: "PATCH",
     });
 
@@ -1904,7 +1951,7 @@ export default function AdminPage({ onMenuChanged }) {
       return false;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2040,7 +2087,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/note`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/note`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2097,7 +2144,7 @@ export default function AdminPage({ onMenuChanged }) {
       return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2125,7 +2172,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/blacklist`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/blacklist`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2169,7 +2216,7 @@ export default function AdminPage({ onMenuChanged }) {
       ? `${API_BASE_URL}/api/menu/${editingMenuId}`
       : `${API_BASE_URL}/api/menu`;
 
-    const response = await fetch(url, {
+    const response = await adminFetch(url, {
       method: editingMenuId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2192,7 +2239,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/menu/${id}`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/menu/${id}`, {
       method: "DELETE",
     });
 
@@ -2210,7 +2257,7 @@ export default function AdminPage({ onMenuChanged }) {
     setAdminNotice("");
     setAdminError("");
 
-    const response = await fetch(`${API_BASE_URL}/api/menu/seed`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/menu/seed`, {
       method: "POST",
     });
 
@@ -2271,7 +2318,7 @@ export default function AdminPage({ onMenuChanged }) {
       return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -2302,7 +2349,7 @@ export default function AdminPage({ onMenuChanged }) {
       return;
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/reservations/block`, {
+    const response = await adminFetch(`${API_BASE_URL}/api/reservations/block`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -2342,11 +2389,80 @@ export default function AdminPage({ onMenuChanged }) {
   }
 
   async function deleteBlacklistEntry(id) {
-    await fetch(`${API_BASE_URL}/api/blacklist/${id}`, {
+    await adminFetch(`${API_BASE_URL}/api/blacklist/${id}`, {
       method: "DELETE",
     });
 
     await loadBlacklist();
+  }
+
+  async function createAdminUser(event) {
+    event.preventDefault();
+    setAdminError("");
+    setAdminNotice("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/admin/users`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(adminUserForm),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to create admin."));
+      return;
+    }
+
+    setAdminUserForm({ name: "", email: "", password: "", role: "Manager" });
+    setAdminNotice(adminLanguage === "bg" ? "Админът е създаден." : "Admin created.");
+    await Promise.all([loadAdminUsers(), loadAuditLogs()]);
+  }
+
+  async function enableQuickLogin() {
+    setAdminError("");
+    setAdminNotice("");
+
+    try {
+      if (window.PublicKeyCredential && navigator.credentials?.create) {
+        await navigator.credentials.create({
+          publicKey: {
+            challenge: crypto.getRandomValues(new Uint8Array(32)),
+            rp: { name: "Casa di Fratelli" },
+            user: {
+              id: crypto.getRandomValues(new Uint8Array(16)),
+              name: adminUser?.email || "admin",
+              displayName: adminUser?.name || "Admin",
+            },
+            pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+            authenticatorSelection: { userVerification: "required" },
+            timeout: 60000,
+          },
+        });
+      }
+
+      const credentialToken = crypto.randomUUID
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random()}`;
+
+      const response = await adminFetch(`${API_BASE_URL}/api/admin/devices`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label: navigator.userAgent.slice(0, 80),
+          credentialToken,
+        }),
+      });
+
+      if (!response.ok) {
+        setAdminError(await readErrorMessage(response, "Failed to enable quick login."));
+        return;
+      }
+
+      window.localStorage.setItem("admin-device-token", credentialToken);
+      setAdminNotice(adminLanguage === "bg" ? "Бързият вход е активиран на това устройство." : "Quick login is enabled on this device.");
+      await loadAuditLogs();
+    } catch {
+      setAdminError(adminLanguage === "bg" ? "Биометричният вход беше отказан." : "Biometric login was cancelled.");
+    }
   }
 
   function isInStatsPeriod(dateValue) {
@@ -2602,6 +2718,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["menu", a.tabs.menu],
     ["layout", a.tabs.layout],
     ["customers", a.tabs.customers],
+    ["admins", adminLanguage === "bg" ? "Админи" : "Admins"],
   ];
 
   async function refreshActiveTab() {
@@ -2622,6 +2739,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
     if (activeTab === "layout") {
       await loadTableLayout();
+      return;
+    }
+
+    if (activeTab === "admins") {
+      await Promise.all([loadAdminUsers(), loadAuditLogs()]);
       return;
     }
 
@@ -2699,6 +2821,13 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
               className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
             >
               {a.refresh}
+            </button>
+            <button
+              type="button"
+              onClick={onAdminLogout}
+              className="ghost-button rounded-full px-5 py-3 text-sm font-semibold text-white/70"
+            >
+              {adminLanguage === "bg" ? "Изход" : "Logout"}
             </button>
           </div>
         </div>
@@ -4439,6 +4568,102 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     })}
                   </div>
                 )}
+              </Panel>
+            )}
+
+            {activeTab === "admins" && (
+              <Panel
+                title={adminLanguage === "bg" ? "Админи и audit" : "Admins and audit"}
+                subtitle={adminLanguage === "bg" ? "Управление на достъпа, бърз вход и история на важните промени." : "Access management, quick login, and history of important changes."}
+                right={
+                  <button
+                    type="button"
+                    onClick={enableQuickLogin}
+                    className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
+                  >
+                    Face ID / Touch ID
+                  </button>
+                }
+              >
+                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                  <div className="space-y-4">
+                    <form onSubmit={createAdminUser} className="rounded-3xl border border-white/10 bg-black/20 p-5">
+                      <div className="section-kicker">{adminLanguage === "bg" ? "Нов админ" : "New admin"}</div>
+                      <div className="mt-4 grid gap-3">
+                        {[
+                          ["name", adminLanguage === "bg" ? "Име" : "Name", "text"],
+                          ["email", "Email", "email"],
+                          ["password", adminLanguage === "bg" ? "Парола" : "Password", "password"],
+                        ].map(([key, label, type]) => (
+                          <label key={key} className="block text-sm text-white/60">
+                            {label}
+                            <input
+                              type={type}
+                              value={adminUserForm[key]}
+                              onChange={(event) => setAdminUserForm((prev) => ({ ...prev, [key]: event.target.value }))}
+                              className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-[#f2d39a]/50"
+                            />
+                          </label>
+                        ))}
+                        <label className="block text-sm text-white/60">
+                          Role
+                          <select
+                            value={adminUserForm.role}
+                            onChange={(event) => setAdminUserForm((prev) => ({ ...prev, role: event.target.value }))}
+                            className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-3 text-white outline-none focus:border-[#f2d39a]/50"
+                          >
+                            <option>Manager</option>
+                            <option>Owner</option>
+                            <option>Staff</option>
+                          </select>
+                        </label>
+                        <button type="submit" className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold">
+                          {adminLanguage === "bg" ? "Създай админ" : "Create admin"}
+                        </button>
+                      </div>
+                    </form>
+
+                    <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+                      <div className="section-kicker">{adminLanguage === "bg" ? "Админ профили" : "Admin users"}</div>
+                      <div className="mt-4 space-y-2">
+                        {adminUsers.map((user) => (
+                          <div key={user.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div className="font-semibold text-[#fff4df]">{user.name}</div>
+                            <div className="mt-1 text-sm text-white/50">{user.email} · {user.role}</div>
+                            <div className="mt-1 text-xs text-white/35">
+                              {adminLanguage === "bg" ? "Последен вход" : "Last login"}: {user.lastLoginAtUtc || "—"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-3xl border border-white/10 bg-black/20 p-5">
+                    <div className="section-kicker">Audit log</div>
+                    <div className="mt-4 max-h-[680px] space-y-2 overflow-auto pr-1">
+                      {auditLogs.map((log) => (
+                        <div key={log.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="font-semibold text-[#fff4df]">{log.action} · {log.entity}</span>
+                            <span className="text-xs text-white/40">{log.createdAtUtc}</span>
+                          </div>
+                          <div className="mt-1 text-sm text-white/50">
+                            {log.adminName || "System"} · #{log.entityId}
+                          </div>
+                          {(log.beforeJson || log.afterJson) && (
+                            <details className="mt-3 text-xs text-white/45">
+                              <summary className="cursor-pointer text-[#f2d39a]">JSON</summary>
+                              <pre className="mt-2 max-h-48 overflow-auto rounded-xl bg-black/35 p-3">
+                                {log.afterJson || log.beforeJson}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </Panel>
             )}
           </>
