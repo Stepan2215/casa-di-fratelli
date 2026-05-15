@@ -527,6 +527,10 @@ function formatLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+function isInteractiveSwipeTarget(target) {
+  return Boolean(target?.closest?.("input, textarea, select, button, a, [role='button']"));
+}
+
 function getLiveReservationCandidates(reservations, now = new Date()) {
   return reservations
     .filter((reservation) => {
@@ -1593,6 +1597,7 @@ export default function AdminPage({ onMenuChanged }) {
   const [adminNotice, setAdminNotice] = React.useState("");
   const [adminError, setAdminError] = React.useState("");
   const [statsPeriod, setStatsPeriod] = React.useState("today");
+  const adminSwipeStartRef = React.useRef(null);
   const [blacklistForm, setBlacklistForm] = React.useState({
     guestName: "",
     phone: "",
@@ -1666,6 +1671,50 @@ export default function AdminPage({ onMenuChanged }) {
     if (activeTab === "layout" || activeTab === "liveMap") {
       loadTableLayout();
     }
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "customers"];
+
+    const handleTouchStart = (event) => {
+      if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) {
+        adminSwipeStartRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      adminSwipeStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+    };
+
+    const handleTouchEnd = (event) => {
+      const start = adminSwipeStartRef.current;
+      adminSwipeStartRef.current = null;
+      if (!start || event.changedTouches.length !== 1) return;
+
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+
+      const index = pages.indexOf(activeTab);
+      if (index === -1) return;
+
+      const nextIndex = deltaX < 0 ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= pages.length) return;
+
+      setActiveTab(pages[nextIndex]);
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
   }, [activeTab]);
 
   function updateTableLayoutItem(tableId, nextItem) {
@@ -2586,26 +2635,46 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
   const isDashboard = activeTab === "home";
   const activeTabLabel = tabs.find(([key]) => key === activeTab)?.[1] || a.appTitle;
+  const upcomingDashboardReservations = reservations
+    .filter((reservation) => {
+      if (!["Pending", "Approved"].includes(reservation.status)) return false;
+      if (reservation.isNoShow || reservation.isArrived) return false;
+
+      const minutes = getReservationMinutesFromNow(reservation);
+      return minutes !== null && minutes >= 0;
+    })
+    .sort((first, second) => {
+      const firstMinutes = getReservationMinutesFromNow(first) ?? 999999;
+      const secondMinutes = getReservationMinutesFromNow(second) ?? 999999;
+      return firstMinutes - secondMinutes;
+    })
+    .slice(0, 5);
 
   return (
     <div className="luxury-shell min-h-screen text-white">
       <div className="mx-auto max-w-[1500px] px-5 py-8 md:px-8">
-        <div className="luxury-panel mb-8 rounded-[28px] p-6 md:p-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div className={`luxury-panel mb-8 rounded-[28px] flex flex-col gap-5 md:flex-row md:items-center md:justify-between ${
+          isDashboard ? "p-6 md:items-end md:p-8" : "p-4 md:p-5"
+        }`}>
           <div>
             <img
               src="/casa-di-fratelli-logo.svg"
               alt="Casa di Fratelli"
-              className="brand-logo mb-5 h-16 w-[220px] object-left"
+              className={`brand-logo object-left ${isDashboard ? "mb-5 h-16 w-[220px]" : "h-12 w-[168px]"}`}
             />
-            <p className="section-kicker">
-              Casa di Fratelli Admin OS
-            </p>
-            <h1 className="mt-3 text-4xl font-semibold text-[#fff4df] md:text-5xl">
-              {a.appTitle}
-            </h1>
-            <p className="mt-3 text-stone-400">
-              {a.appSubtitle}
-            </p>
+            {isDashboard && (
+              <>
+                <p className="section-kicker">
+                  Casa di Fratelli Admin OS
+                </p>
+                <h1 className="mt-3 text-4xl font-semibold text-[#fff4df] md:text-5xl">
+                  {a.appTitle}
+                </h1>
+                <p className="mt-3 text-stone-400">
+                  {a.appSubtitle}
+                </p>
+              </>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -2666,13 +2735,70 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 <button
                   key={key}
                   onClick={() => setActiveTab(key)}
-                  className={`rounded-2xl px-4 py-3 text-center text-sm transition ${
-                    key === "liveMap" ? "luxury-button" : "ghost-button text-white/80"
-                  }`}
+                  className="ghost-button rounded-2xl px-4 py-3 text-center text-sm text-white/80 transition"
                 >
                   {label}
                 </button>
               ))}
+            </div>
+
+            <div className="mb-8 rounded-[26px] border border-white/10 bg-black/20 p-4 md:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="section-kicker">
+                    {adminLanguage === "bg" ? "Оперативен фокус" : "Operational focus"}
+                  </div>
+                  <h2 className="mt-2 text-2xl font-semibold text-[#fff4df]">
+                    {adminLanguage === "bg" ? "Следващите 5 резервации" : "Next 5 reservations"}
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("reservations")}
+                  className="ghost-button hidden rounded-full px-4 py-2 text-sm font-semibold sm:block"
+                >
+                  {a.tabs.reservations}
+                </button>
+              </div>
+
+              {upcomingDashboardReservations.length === 0 ? (
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/55">
+                  {adminLanguage === "bg"
+                    ? "Няма предстоящи резервации за показване."
+                    : "No upcoming reservations to show."}
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-5">
+                  {upcomingDashboardReservations.map((reservation) => (
+                    <button
+                      key={reservation.id}
+                      type="button"
+                      onClick={() => {
+                        setExpandedId(reservation.id);
+                        setSearch("");
+                        setStatusFilter("All");
+                        setActiveTab("reservations");
+                      }}
+                      className="rounded-2xl border border-white/10 bg-white/[0.035] p-4 text-left transition hover:border-[#c9a56a]/45 hover:bg-[#c9a56a]/10"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="min-w-0 truncate text-base font-semibold text-[#fff4df]">
+                          {reservation.guestName}
+                        </span>
+                        <span className="shrink-0 rounded-full border border-[#f2d39a]/20 bg-[#c9a56a]/12 px-2.5 py-1 text-xs font-semibold text-[#f2d39a]">
+                          {reservation.reservedTime}
+                        </span>
+                      </div>
+                      <div className="mt-3 text-xs leading-5 text-white/50">
+                        {reservation.reservedDate} · {reservation.guestCount} {a.liveMap.guests}
+                      </div>
+                      <div className="mt-1 text-xs text-white/40">
+                        {a.liveMap.table} {reservation.tableIds.join(", ")}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         ) : (

@@ -47,10 +47,15 @@ const runSanityChecks = () => {
 
 runSanityChecks();
 
+function isInteractiveSwipeTarget(target) {
+  return Boolean(target?.closest?.("input, textarea, select, button, a, [role='button']"));
+}
+
 export default function App() {
   const [language, setLanguage] = React.useState(safeReadStoredLanguage);
   const [currentPage, setCurrentPage] = React.useState(getInitialPage);
   const [cmsMenuItems, setCmsMenuItems] = React.useState([]);
+  const swipeStartRef = React.useRef(null);
 
   const t = translations[language];
 
@@ -130,6 +135,52 @@ export default function App() {
   React.useEffect(() => {
     loadMenuItems();
   }, [loadMenuItems]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || currentPage === "admin") return undefined;
+
+    const pages = ["home", "menu", "reservation-map", "privacy"];
+
+    const handleTouchStart = (event) => {
+      if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) {
+        swipeStartRef.current = null;
+        return;
+      }
+
+      const touch = event.touches[0];
+      swipeStartRef.current = {
+        x: touch.clientX,
+        y: touch.clientY,
+      };
+    };
+
+    const handleTouchEnd = (event) => {
+      const start = swipeStartRef.current;
+      swipeStartRef.current = null;
+      if (!start || event.changedTouches.length !== 1) return;
+
+      const touch = event.changedTouches[0];
+      const deltaX = touch.clientX - start.x;
+      const deltaY = touch.clientY - start.y;
+      if (Math.abs(deltaX) < 70 || Math.abs(deltaX) < Math.abs(deltaY) * 1.35) return;
+
+      const index = pages.indexOf(currentPage);
+      if (index === -1) return;
+
+      const nextIndex = deltaX < 0 ? index - 1 : index + 1;
+      if (nextIndex < 0 || nextIndex >= pages.length) return;
+
+      setCurrentPage(pages[nextIndex]);
+    };
+
+    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd, { passive: true });
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [currentPage]);
 
   if (currentPage === "admin") {
     return (
