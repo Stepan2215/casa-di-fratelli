@@ -96,6 +96,8 @@ const adminText = {
       release: "Освободена",
       moveTitle: "Премести резервацията",
       saveMove: "Запази преместване",
+      tableTodayTitle: "Резервации за днес",
+      tableTodayEmpty: "Няма резервации за тази маса днес.",
       openReservation: "Отвори резервацията",
       call: "Обади се",
       late: "закъснява",
@@ -212,6 +214,8 @@ const adminText = {
       release: "Released",
       moveTitle: "Move reservation",
       saveMove: "Save move",
+      tableTodayTitle: "Today's reservations",
+      tableTodayEmpty: "No reservations for this table today.",
       openReservation: "Open reservation",
       call: "Call",
       late: "late",
@@ -512,6 +516,13 @@ function getReservationMinutesFromNow(reservation, now = new Date()) {
   }, candidates[0]);
 
   return Math.round((closestTarget.getTime() - now.getTime()) / 60000);
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getLiveReservationCandidates(reservations, now = new Date()) {
@@ -875,8 +886,11 @@ function ReservationOperationsMap({
   onRelease,
 }) {
   const [selectedReservationId, setSelectedReservationId] = React.useState(null);
+  const [selectedTableId, setSelectedTableId] = React.useState(null);
   const [moveReservationId, setMoveReservationId] = React.useState(null);
-  const [moveDraft, setMoveDraft] = React.useState({ area: "indoor", tableIds: [] });
+  const [moveDraft, setMoveDraft] = React.useState({ area: "indoor", tableIds: [], guestCount: 0 });
+  const [shouldScrollMovePanel, setShouldScrollMovePanel] = React.useState(false);
+  const movePanelRef = React.useRef(null);
   const [now, setNow] = React.useState(() => new Date());
   const areas = [
     ["indoor", text.indoor],
@@ -946,6 +960,21 @@ function ReservationOperationsMap({
   }, [areaTables, liveByTable, now]);
   const selectedReservation = liveReservations.find((reservation) => reservation.id === selectedReservationId);
   const nextReservations = liveReservations.filter((reservation) => !reservation.isArrived);
+  const todayReservationsForSelectedTable = React.useMemo(() => {
+    if (!selectedTableId) return [];
+
+    const today = formatLocalDate(now);
+
+    return reservations
+      .filter((reservation) => {
+        if (reservation.area !== selectedArea) return false;
+        if (reservation.reservedDate !== today) return false;
+        if (!reservation.tableIds.includes(selectedTableId)) return false;
+        if (reservation.isNoShow || ["Cancelled", "Released"].includes(reservation.status)) return false;
+        return true;
+      })
+      .sort((first, second) => String(first.reservedTime).localeCompare(String(second.reservedTime)));
+  }, [now, reservations, selectedArea, selectedTableId]);
   const moveUnavailableTableIds = selectedReservation
     ? getUnavailableTableIdsForSlot(
         reservations,
@@ -961,6 +990,27 @@ function ReservationOperationsMap({
     setMoveDraft({
       area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
       tableIds: reservation.tableIds,
+      guestCount: Number(reservation.guestCount || 1),
+    });
+    setShouldScrollMovePanel(true);
+  }
+
+  function updateMoveGuestCount(value) {
+    const nextGuestCount = Math.max(1, Math.min(40, Number(value || 1)));
+
+    setMoveDraft((prev) => {
+      const nextTableIds = canUseAdminTableSelection(prev.area, prev.tableIds, {
+        requiredSeats: nextGuestCount,
+        allowPartial: true,
+      })
+        ? prev.tableIds
+        : [];
+
+      return {
+        ...prev,
+        guestCount: nextGuestCount,
+        tableIds: nextTableIds,
+      };
     });
   }
 
@@ -973,7 +1023,7 @@ function ReservationOperationsMap({
       : [...moveDraft.tableIds, tableId];
 
     if (!canUseAdminTableSelection(moveDraft.area, nextTableIds, {
-      requiredSeats: Number(selectedReservation.guestCount || 0),
+      requiredSeats: Number(moveDraft.guestCount || selectedReservation.guestCount || 0),
       allowPartial: true,
     })) {
       return;
@@ -985,7 +1035,12 @@ function ReservationOperationsMap({
   async function saveMove() {
     if (!selectedReservation) return;
 
-    const saved = await onMove(selectedReservation, moveDraft.area, moveDraft.tableIds);
+    const saved = await onMove(
+      selectedReservation,
+      moveDraft.area,
+      moveDraft.tableIds,
+      Number(moveDraft.guestCount || selectedReservation.guestCount || 0)
+    );
     if (saved) {
       setMoveReservationId(null);
     }
@@ -998,7 +1053,21 @@ function ReservationOperationsMap({
 
   React.useEffect(() => {
     setSelectedReservationId(null);
+    setSelectedTableId(null);
   }, [selectedArea]);
+
+  React.useEffect(() => {
+    if (!shouldScrollMovePanel || !moveReservationId) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 1279px), (pointer: coarse)").matches) {
+        movePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      setShouldScrollMovePanel(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [moveReservationId, shouldScrollMovePanel, selectedReservationId]);
 
   return (
     <Panel title={text.title} subtitle={text.subtitle}>
@@ -1169,6 +1238,7 @@ function ReservationOperationsMap({
             const minutes = reservation ? getReservationMinutesFromNow(reservation, now) : null;
             const isLate = reservation && !reservation.isArrived && minutes !== null && minutes <= -10;
             const isGroupTable = reservation?.tableIds?.length > 1;
+            const isSelectedTable = selectedTableId === table.id;
 
             return (
               <div
@@ -1176,7 +1246,9 @@ function ReservationOperationsMap({
                 className="absolute z-10 -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${table.x}%`, top: `${table.y}%` }}
               >
-                <div
+                <button
+                  type="button"
+                  onClick={() => setSelectedTableId((current) => (current === table.id ? null : table.id))}
                   className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition ${
                     isGroupTable
                       ? "h-9 min-w-[50px] px-2 text-xs sm:h-10 sm:min-w-[58px] sm:px-3 md:h-12 md:min-w-[68px] lg:h-16 lg:min-w-[88px]"
@@ -1188,17 +1260,52 @@ function ReservationOperationsMap({
                       ? "border-red-300/70 bg-[linear-gradient(145deg,#6b1f1f,#251010)] text-red-50"
                       : reservation
                       ? "border-[#f2d39a]/65 bg-[linear-gradient(145deg,#f2d39a,#9f743d)] text-black"
+                      : isSelectedTable
+                      ? "border-[#f2d39a]/70 bg-[linear-gradient(145deg,#6f5236,#221812)] text-[#fff4df] ring-2 ring-[#f2d39a]/25"
                       : "border-[#c9a56a]/35 bg-[linear-gradient(145deg,#5a4332,#2a1f18)] text-white/85"
                   }`}
                 >
                   {table.id}
-                </div>
+                </button>
               </div>
             );
           })}
         </div>
 
         <div className="space-y-3">
+          {selectedTableId && (
+            <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
+              <div className="section-kicker">
+                {text.tableTodayTitle} · {selectedTableId}
+              </div>
+              {todayReservationsForSelectedTable.length === 0 ? (
+                <p className="mt-3 text-sm text-white/55">{text.tableTodayEmpty}</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {todayReservationsForSelectedTable.map((reservation) => (
+                    <button
+                      key={reservation.id}
+                      type="button"
+                      onClick={() => setSelectedReservationId(reservation.id)}
+                      className={`flex w-full items-center justify-between gap-3 rounded-2xl border p-3 text-left transition ${
+                        selectedReservationId === reservation.id
+                          ? "border-[#f2d39a]/55 bg-[#c9a56a]/16"
+                          : "border-white/10 bg-white/[0.03] hover:border-[#c9a56a]/35"
+                      }`}
+                    >
+                      <span className="min-w-0 truncate font-semibold text-[#fff4df]">
+                        {reservation.guestName}
+                      </span>
+                      <span className="shrink-0 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
+                        {reservation.reservedTime}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-[#c9a56a]/18 bg-black/20 p-4">
             <div className="section-kicker">{text.next}</div>
             {nextReservations.length === 0 ? (
@@ -1279,14 +1386,43 @@ function ReservationOperationsMap({
               </div>
 
               {moveReservationId === selectedReservation.id && (
-                <div className="mt-4 rounded-2xl border border-[#c9a56a]/18 bg-[#c9a56a]/10 p-4">
+                <div ref={movePanelRef} className="mt-4 scroll-mt-28 rounded-2xl border border-[#c9a56a]/18 bg-[#c9a56a]/10 p-4">
                   <div className="section-kicker">{text.moveTitle}</div>
+                  <label className="mt-3 block text-xs font-semibold uppercase tracking-[0.18em] text-white/45">
+                    {text.guests}
+                  </label>
+                  <div className="mt-2 grid grid-cols-[44px_minmax(0,1fr)_44px] overflow-hidden rounded-2xl border border-white/10 bg-black/25">
+                    <button
+                      type="button"
+                      onClick={() => updateMoveGuestCount(Number(moveDraft.guestCount || 1) - 1)}
+                      className="border-r border-white/10 px-3 py-3 text-lg font-semibold text-[#f2d39a] transition hover:bg-white/5"
+                      aria-label="Decrease guests"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="40"
+                      value={moveDraft.guestCount || 1}
+                      onChange={(event) => updateMoveGuestCount(event.target.value)}
+                      className="w-full bg-transparent px-3 py-3 text-center text-base font-semibold text-[#fff4df] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => updateMoveGuestCount(Number(moveDraft.guestCount || 1) + 1)}
+                      className="border-l border-white/10 px-3 py-3 text-lg font-semibold text-[#f2d39a] transition hover:bg-white/5"
+                      aria-label="Increase guests"
+                    >
+                      +
+                    </button>
+                  </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
                     {areas.map(([area, label]) => (
                       <button
                         key={area}
                         type="button"
-                        onClick={() => setMoveDraft({ area, tableIds: [] })}
+                        onClick={() => setMoveDraft((prev) => ({ ...prev, area, tableIds: [] }))}
                         className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
                           moveDraft.area === area
                             ? "border-[#f2d39a]/50 bg-[#c9a56a]/20 text-[#f2d39a]"
@@ -1304,7 +1440,7 @@ function ReservationOperationsMap({
                       onToggle={toggleMoveTable}
                       unavailableTableIds={moveUnavailableTableIds}
                       hideUnavailable
-                      requiredSeats={Number(selectedReservation.guestCount || 0)}
+                      requiredSeats={Number(moveDraft.guestCount || selectedReservation.guestCount || 0)}
                       emptyMessage={
                         text.empty
                       }
@@ -1656,14 +1792,15 @@ export default function AdminPage({ onMenuChanged }) {
     await loadReservations();
   }
 
-  async function moveReservationFromMap(reservation, area, tableIds) {
+  async function moveReservationFromMap(reservation, area, tableIds, guestCount) {
     setAdminNotice("");
     setAdminError("");
 
+    const nextGuestCount = Number(guestCount || reservation.guestCount || 0);
     const selectionError = getTableSelectionError(
       area,
       tableIds,
-      reservation.guestCount,
+      nextGuestCount,
       adminLanguage
     );
 
@@ -1695,7 +1832,7 @@ export default function AdminPage({ onMenuChanged }) {
       body: JSON.stringify({
         area,
         tableIds,
-        guestCount: Number(reservation.guestCount || 0),
+        guestCount: nextGuestCount,
       }),
     });
 
