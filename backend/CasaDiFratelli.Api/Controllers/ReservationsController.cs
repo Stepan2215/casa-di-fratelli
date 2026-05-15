@@ -438,7 +438,11 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             ? "Admin block"
             : request.Note.Trim();
 
-        var blocks = times.Select(time => new Reservation
+        var blockTime = times.Count == 1
+            ? times[0]
+            : $"{times.First()} - {times.Last()}";
+
+        var block = new Reservation
         {
             GuestName = "Admin block",
             Phone = "admin",
@@ -446,7 +450,7 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             GuestCount = 0,
             Area = string.IsNullOrWhiteSpace(request.Area) ? "all" : request.Area.Trim(),
             ReservedDate = request.ReservedDate,
-            ReservedTime = time,
+            ReservedTime = blockTime,
             Notes = note,
             InternalNote = "Hall/table block created from admin panel.",
             Status = "Approved",
@@ -456,17 +460,39 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             {
                 TableCode = tableId
             }).ToList()
-        }).ToList();
+        };
 
-        _db.Reservations.AddRange(blocks);
+        _db.Reservations.Add(block);
         await _db.SaveChangesAsync();
 
         return Ok(new
         {
-            Created = blocks.Count,
+            Created = 1,
             request.ReservedDate,
-            Times = blocks.Select(x => x.ReservedTime).ToList(),
+            Times = times,
             TableIds = tableIds
+        });
+    }
+
+    [HttpPatch("{id}/release")]
+    public async Task<IActionResult> Release(int id)
+    {
+        var reservation = await _db.Reservations.FindAsync(id);
+
+        if (reservation == null)
+            return NotFound();
+
+        reservation.Status = "Released";
+        reservation.IsArrived = false;
+        reservation.IsNoShow = false;
+        await _db.SaveChangesAsync();
+
+        return Ok(new
+        {
+            reservation.Id,
+            reservation.Status,
+            reservation.IsArrived,
+            reservation.IsNoShow
         });
     }
 

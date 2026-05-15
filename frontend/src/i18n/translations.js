@@ -50,6 +50,11 @@ const translations = {
     reservationTitle: "Избери зона, маса и час.",
     reservationText:
       "Натисни бутона и ще се отвори интерактивна карта на ресторанта с три секции, детайли за всяка маса и свободни часове за резервация.",
+    contactTag: "Контакти",
+    contactTitle: "Следете ни и пишете директно.",
+    contactText:
+      "Открийте Casa di Fratelli в социалните мрежи за новини, специални вечери и моменти от ресторанта.",
+    contactOpen: "Отвори профила",
     address: "Адрес",
     phone: "Телефон",
     hours: "Работно време",
@@ -152,6 +157,11 @@ const translations = {
     reservationTitle: "Choose zone, table, and time.",
     reservationText:
       "Tap the button to open an interactive restaurant floor map with three sections, table details, and available booking times.",
+    contactTag: "Contacts",
+    contactTitle: "Follow us and message directly.",
+    contactText:
+      "Find Casa di Fratelli on social media for news, special evenings, and moments from the restaurant.",
+    contactOpen: "Open profile",
     address: "Address",
     phone: "Phone",
     hours: "Opening Hours",

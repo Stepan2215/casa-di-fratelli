@@ -6,6 +6,33 @@ export function timeToMinutes(value) {
   return hours * 60 + minutes;
 }
 
+function expandTimeValues(value) {
+  return String(value || "")
+    .split(",")
+    .flatMap((part) => {
+      const trimmed = part.trim();
+      if (!trimmed) return [];
+
+      if (trimmed.includes(" - ")) {
+        const [startValue, endValue] = trimmed.split(" - ").map((item) => item.trim());
+        const start = timeToMinutes(startValue);
+        let end = timeToMinutes(endValue);
+        if (start === null || end === null) return [];
+        if (end < start) end += 24 * 60;
+
+        const times = [];
+        for (let minute = start; minute <= end; minute += 60) {
+          times.push(minute % (24 * 60));
+        }
+
+        return times;
+      }
+
+      const minutes = timeToMinutes(trimmed);
+      return minutes === null ? [] : [minutes];
+    });
+}
+
 export function getTodayInputValue(now = new Date()) {
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -31,13 +58,17 @@ export function isWithinReservationBuffer(
   secondTime,
   bufferMinutes = RESERVATION_BUFFER_MINUTES
 ) {
-  const first = timeToMinutes(firstTime);
-  const second = timeToMinutes(secondTime);
+  const firstValues = expandTimeValues(firstTime);
+  const secondValues = expandTimeValues(secondTime);
 
-  if (first === null || second === null) return firstTime === secondTime;
+  if (firstValues.length === 0 || secondValues.length === 0) return firstTime === secondTime;
 
-  const distance = Math.abs(first - second);
-  const dayAwareDistance = Math.min(distance, 24 * 60 - distance);
+  return firstValues.some((first) =>
+    secondValues.some((second) => {
+      const distance = Math.abs(first - second);
+      const dayAwareDistance = Math.min(distance, 24 * 60 - distance);
 
-  return dayAwareDistance < bufferMinutes;
+      return dayAwareDistance < bufferMinutes;
+    })
+  );
 }

@@ -43,6 +43,40 @@ public class ReservationConflictService
         };
     }
 
+    private static List<TimeOnly> ExpandReservationTimes(string reservedTime)
+    {
+        var values = new List<TimeOnly>();
+
+        foreach (var part in reservedTime.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (part.Contains(" - ", StringComparison.Ordinal))
+            {
+                var range = part.Split(" - ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (range.Length == 2 &&
+                    TimeOnly.TryParse(range[0], out var start) &&
+                    TimeOnly.TryParse(range[1], out var end))
+                {
+                    var startMinutes = start.Hour * 60 + start.Minute;
+                    var endMinutes = end.Hour * 60 + end.Minute;
+                    if (endMinutes < startMinutes)
+                        endMinutes += 24 * 60;
+
+                    for (var minute = startMinutes; minute <= endMinutes; minute += 60)
+                    {
+                        values.Add(TimeOnly.FromTimeSpan(TimeSpan.FromMinutes(minute % (24 * 60))));
+                    }
+                }
+
+                continue;
+            }
+
+            if (TimeOnly.TryParse(part, out var time))
+                values.Add(time);
+        }
+
+        return values;
+    }
+
     public async Task<TableConflict?> FindTableConflictAsync(
         DateOnly reservedDate,
         string reservedTime,
@@ -58,7 +92,9 @@ public class ReservationConflictService
                 x.Tables.Any(t => tableIds.Contains(t.TableCode)))
             .ToListAsync();
 
-        if (!TimeOnly.TryParse(reservedTime, out var targetTime))
+        var targetTimes = ExpandReservationTimes(reservedTime);
+
+        if (targetTimes.Count == 0)
         {
             var sameTimeConflict = candidates.FirstOrDefault(x => x.ReservedTime == reservedTime);
             return sameTimeConflict == null
@@ -71,17 +107,24 @@ public class ReservationConflictService
 
         foreach (var candidate in candidates)
         {
-            if (!TimeOnly.TryParse(candidate.ReservedTime, out var candidateTime))
+            var candidateTimes = ExpandReservationTimes(candidate.ReservedTime);
+            if (candidateTimes.Count == 0)
                 continue;
 
-            var distance = Math.Abs((candidateTime - targetTime).TotalMinutes);
-            var minutes = Math.Min(distance, 24 * 60 - distance);
-            if (minutes < TableBufferMinutes)
+            foreach (var candidateTime in candidateTimes)
             {
-                return new TableConflict(
-                    candidate.Id,
-                    candidate.ReservedTime,
-                    candidate.Tables.Select(t => t.TableCode).ToList());
+                foreach (var targetTime in targetTimes)
+                {
+                    var distance = Math.Abs((candidateTime - targetTime).TotalMinutes);
+                    var minutes = Math.Min(distance, 24 * 60 - distance);
+                    if (minutes < TableBufferMinutes)
+                    {
+                        return new TableConflict(
+                            candidate.Id,
+                            candidate.ReservedTime,
+                            candidate.Tables.Select(t => t.TableCode).ToList());
+                    }
+                }
             }
         }
 

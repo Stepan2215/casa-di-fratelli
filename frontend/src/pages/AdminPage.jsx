@@ -92,6 +92,10 @@ const adminText = {
       arrived: "Пристигна",
       noShow: "Не дойде",
       approve: "Потвърди",
+      move: "Премести",
+      release: "Освободена",
+      moveTitle: "Премести резервацията",
+      saveMove: "Запази преместване",
       openReservation: "Отвори резервацията",
       call: "Обади се",
       late: "закъснява",
@@ -204,6 +208,10 @@ const adminText = {
       arrived: "Arrived",
       noShow: "No-show",
       approve: "Approve",
+      move: "Move",
+      release: "Released",
+      moveTitle: "Move reservation",
+      saveMove: "Save move",
       openReservation: "Open reservation",
       call: "Call",
       late: "late",
@@ -509,7 +517,7 @@ function getReservationMinutesFromNow(reservation, now = new Date()) {
 function getLiveReservationCandidates(reservations, now = new Date()) {
   return reservations
     .filter((reservation) => {
-      if (reservation.status === "Cancelled" || reservation.isNoShow) return false;
+      if (!["Pending", "Approved"].includes(reservation.status) || reservation.isNoShow) return false;
 
       const minutes = getReservationMinutesFromNow(reservation, now);
       return minutes !== null && minutes <= 30 && minutes >= -90;
@@ -861,10 +869,14 @@ function ReservationOperationsMap({
   onAreaChange,
   onApprove,
   onArrived,
+  onMove,
   onNoShow,
   onOpenReservation,
+  onRelease,
 }) {
   const [selectedReservationId, setSelectedReservationId] = React.useState(null);
+  const [moveReservationId, setMoveReservationId] = React.useState(null);
+  const [moveDraft, setMoveDraft] = React.useState({ area: "indoor", tableIds: [] });
   const [now, setNow] = React.useState(() => new Date());
   const areas = [
     ["indoor", text.indoor],
@@ -934,6 +946,50 @@ function ReservationOperationsMap({
   }, [areaTables, liveByTable, now]);
   const selectedReservation = liveReservations.find((reservation) => reservation.id === selectedReservationId);
   const nextReservations = liveReservations.filter((reservation) => !reservation.isArrived);
+  const moveUnavailableTableIds = selectedReservation
+    ? getUnavailableTableIdsForSlot(
+        reservations,
+        selectedReservation.reservedDate,
+        selectedReservation.reservedTime,
+        selectedReservation.id
+      )
+    : new Set();
+
+  function openMovePanel(reservation) {
+    setSelectedReservationId(reservation.id);
+    setMoveReservationId(reservation.id);
+    setMoveDraft({
+      area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
+      tableIds: reservation.tableIds,
+    });
+  }
+
+  function toggleMoveTable(tableId) {
+    if (!selectedReservation || moveUnavailableTableIds.has(tableId)) return;
+
+    const exists = moveDraft.tableIds.includes(tableId);
+    const nextTableIds = exists
+      ? moveDraft.tableIds.filter((id) => id !== tableId)
+      : [...moveDraft.tableIds, tableId];
+
+    if (!canUseAdminTableSelection(moveDraft.area, nextTableIds, {
+      requiredSeats: Number(selectedReservation.guestCount || 0),
+      allowPartial: true,
+    })) {
+      return;
+    }
+
+    setMoveDraft((prev) => ({ ...prev, tableIds: nextTableIds }));
+  }
+
+  async function saveMove() {
+    if (!selectedReservation) return;
+
+    const saved = await onMove(selectedReservation, moveDraft.area, moveDraft.tableIds);
+    if (saved) {
+      setMoveReservationId(null);
+    }
+  }
 
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60000);
@@ -1074,13 +1130,33 @@ function ReservationOperationsMap({
                             {text.noShow}
                           </button>
                         )}
+                        {reservation.isArrived && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openMovePanel(reservation)}
+                              className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-xs font-semibold text-[#f2d39a]"
+                            >
+                              {text.move}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => onRelease(reservation)}
+                              className="rounded-xl border border-sky-300/25 bg-sky-400/15 px-3 py-2 text-xs font-semibold text-sky-100"
+                            >
+                              {text.release}
+                            </button>
+                          </>
+                        )}
                       </div>
-                      <a
-                        href={`tel:${reservation.phone}`}
-                        className="mt-2 block rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-center text-xs font-semibold text-[#f2d39a]"
-                      >
-                        {text.call}
-                      </a>
+                      {!reservation.isArrived && (
+                        <a
+                          href={`tel:${reservation.phone}`}
+                          className="mt-2 block rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-center text-xs font-semibold text-[#f2d39a]"
+                        >
+                          {text.call}
+                        </a>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1183,13 +1259,66 @@ function ReservationOperationsMap({
                     {text.noShow}
                   </button>
                 )}
-                <a href={`tel:${selectedReservation.phone}`} className="ghost-button rounded-xl px-4 py-3 text-center text-sm font-semibold">
-                  {text.call}
-                </a>
+                {selectedReservation.isArrived ? (
+                  <>
+                    <button type="button" onClick={() => openMovePanel(selectedReservation)} className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-sm font-semibold text-[#f2d39a]">
+                      {text.move}
+                    </button>
+                    <button type="button" onClick={() => onRelease(selectedReservation)} className="rounded-xl border border-sky-300/25 bg-sky-400/15 px-4 py-3 text-sm font-semibold text-sky-100">
+                      {text.release}
+                    </button>
+                  </>
+                ) : (
+                  <a href={`tel:${selectedReservation.phone}`} className="ghost-button rounded-xl px-4 py-3 text-center text-sm font-semibold">
+                    {text.call}
+                  </a>
+                )}
                 <button type="button" onClick={() => onOpenReservation(selectedReservation)} className="ghost-button rounded-xl px-4 py-3 text-sm font-semibold">
                   {text.openReservation}
                 </button>
               </div>
+
+              {moveReservationId === selectedReservation.id && (
+                <div className="mt-4 rounded-2xl border border-[#c9a56a]/18 bg-[#c9a56a]/10 p-4">
+                  <div className="section-kicker">{text.moveTitle}</div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                    {areas.map(([area, label]) => (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => setMoveDraft({ area, tableIds: [] })}
+                        className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                          moveDraft.area === area
+                            ? "border-[#f2d39a]/50 bg-[#c9a56a]/20 text-[#f2d39a]"
+                            : "border-white/10 bg-black/20 text-white/65"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <TableChipSelector
+                      area={moveDraft.area}
+                      selectedTableIds={moveDraft.tableIds}
+                      onToggle={toggleMoveTable}
+                      unavailableTableIds={moveUnavailableTableIds}
+                      hideUnavailable
+                      requiredSeats={Number(selectedReservation.guestCount || 0)}
+                      emptyMessage={
+                        text.empty
+                      }
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={saveMove}
+                    className="luxury-button mt-4 w-full rounded-xl px-4 py-3 text-sm font-semibold"
+                  >
+                    {text.saveMove}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1243,6 +1372,7 @@ function StatusBadge({ status }) {
     Pending: "border-amber-400/25 bg-amber-400/15 text-amber-300",
     Approved: "border-emerald-400/25 bg-emerald-400/15 text-emerald-300",
     Cancelled: "border-red-400/25 bg-red-400/15 text-red-300",
+    Released: "border-sky-300/25 bg-sky-400/15 text-sky-200",
   };
 
   return (
@@ -1507,6 +1637,76 @@ export default function AdminPage({ onMenuChanged }) {
 
     setAdminNotice(adminLanguage === "bg" ? "Резервацията е освободена като no-show." : "Reservation released as no-show.");
     await loadReservations();
+  }
+
+  async function releaseReservationTable(reservation) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/release`, {
+      method: "PATCH",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to release reservation."));
+      return;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Масата е освободена." : "Table released.");
+    await loadReservations();
+  }
+
+  async function moveReservationFromMap(reservation, area, tableIds) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const selectionError = getTableSelectionError(
+      area,
+      tableIds,
+      reservation.guestCount,
+      adminLanguage
+    );
+
+    if (selectionError) {
+      setAdminError(selectionError);
+      return false;
+    }
+
+    const unavailableTableIds = getUnavailableTableIdsForSlot(
+      reservations,
+      reservation.reservedDate,
+      reservation.reservedTime,
+      reservation.id
+    );
+    const unavailableSelectedTableIds = getUnavailableSelectedTableIds(tableIds, unavailableTableIds);
+
+    if (unavailableSelectedTableIds.length > 0) {
+      setAdminError(
+        adminLanguage === "bg"
+          ? `Маса ${unavailableSelectedTableIds.join(", ")} вече е заета около този час.`
+          : `Table ${unavailableSelectedTableIds.join(", ")} is already reserved around this time.`
+      );
+      return false;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/reservations/${reservation.id}/tables`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        area,
+        tableIds,
+        guestCount: Number(reservation.guestCount || 0),
+      }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Selected table is not available."));
+      return false;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Резервацията е преместена." : "Reservation moved.");
+    await loadReservations();
+    return true;
   }
 
   function openReservationFromMap(reservation) {
@@ -1984,6 +2184,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
   const customers = Object.values(
     reservations.reduce((acc, r) => {
+      if (r.createdByAdmin && (r.phone === "admin" || r.guestName === "Admin block")) {
+        return acc;
+      }
+
       const key = r.email || r.phone;
       if (!key || key === "—") return acc;
 
@@ -2323,8 +2527,10 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 onAreaChange={setReservationMapArea}
                 onApprove={(reservation) => updateStatus(reservation.id, "approve")}
                 onArrived={markReservationArrived}
+                onMove={moveReservationFromMap}
                 onNoShow={markReservationNoShow}
                 onOpenReservation={openReservationFromMap}
+                onRelease={releaseReservationTable}
               />
             )}
 

@@ -39,6 +39,7 @@ test("time helpers keep the 60 minute reservation buffer exclusive", () => {
   assert.equal(isWithinReservationBuffer("19:00", "19:59"), true);
   assert.equal(isWithinReservationBuffer("19:00", "20:00"), false);
   assert.equal(isWithinReservationBuffer("23:30", "00:00"), true);
+  assert.equal(isWithinReservationBuffer("10:00 - 22:00", "19:00"), true);
   assert.equal(isWithinReservationBuffer("bad", "bad"), true);
   assert.equal(isWithinReservationBuffer("bad", "19:00"), false);
 });

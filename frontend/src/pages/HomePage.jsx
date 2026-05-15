@@ -8,6 +8,7 @@ import ReservationPreviewSection from "../components/home/ReservationPreviewSect
 import ReviewsSection from "../components/home/ReviewsSection";
 import AwardsSection from "../components/home/AwardsSection";
 import EventsSection from "../components/home/EventsSection";
+import ContactSection from "../components/home/ContactSection";
 
 export default function HomePage({
   t,
@@ -48,6 +49,7 @@ export default function HomePage({
       <ReservationPreviewSection t={t} onOpenReservation={onOpenReservation} />
       <ReviewsSection language={language} />
       <EventsSection language={language} />
+      <ContactSection t={t} />
       <Footer t={t} onOpenPrivacy={onOpenPrivacy} />
     </div>
   );
