@@ -376,12 +376,17 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         if (nextGuestCount <= 0)
             return BadRequest("Invalid guests.");
 
+        var nextReservedDate = request.ReservedDate ?? reservation.ReservedDate;
+        var nextReservedTime = string.IsNullOrWhiteSpace(request.ReservedTime)
+            ? reservation.ReservedTime
+            : request.ReservedTime.Trim();
+
         if (!TableCapacityService.HasEnoughSeats(tableIds, nextGuestCount))
             return BadRequest("Selected tables do not have enough seats.");
 
         var conflict = await _reservationConflictService.FindTableConflictAsync(
-            reservation.ReservedDate,
-            reservation.ReservedTime,
+            nextReservedDate,
+            nextReservedTime,
             tableIds,
             id);
 
@@ -392,6 +397,8 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         {
             reservation.Area,
             reservation.GuestCount,
+            reservation.ReservedDate,
+            reservation.ReservedTime,
             TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
         };
 
@@ -408,11 +415,16 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         if (request.GuestCount.HasValue)
             reservation.GuestCount = request.GuestCount.Value;
 
+        reservation.ReservedDate = nextReservedDate;
+        reservation.ReservedTime = nextReservedTime;
+
         await _db.SaveChangesAsync();
         await _audit.RecordAsync(HttpContext, "move-tables", "Reservation", reservation.Id.ToString(), beforeTables, new
         {
             reservation.Area,
             reservation.GuestCount,
+            reservation.ReservedDate,
+            reservation.ReservedTime,
             TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
         });
 
@@ -421,6 +433,8 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             reservation.Id,
             reservation.Area,
             reservation.GuestCount,
+            reservation.ReservedDate,
+            reservation.ReservedTime,
             TableIds = reservation.Tables.Select(t => t.TableCode).ToList()
         });
     }

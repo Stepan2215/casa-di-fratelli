@@ -74,7 +74,7 @@ const adminText = {
       internal: "Вътрешна",
       flags: "Маркери",
       changeTables: "Смяна на маси",
-      changeTablesHint: "Запазването проверява потвърдени резервации с 3 часа буфер.",
+      changeTablesHint: "Променете дата, час, гости и маси. Запазването проверява потвърдени резервации с 3 часа буфер.",
       saveTables: "Запази масите",
       sourceAdmin: "Admin",
       sourceWebsite: "Сайт",
@@ -193,7 +193,7 @@ const adminText = {
       internal: "Internal",
       flags: "Flags",
       changeTables: "Change tables",
-      changeTablesHint: "Saving checks approved reservations with a 3 hour buffer.",
+      changeTablesHint: "Change date, time, guests, and tables. Saving checks approved reservations with a 3 hour buffer.",
       saveTables: "Save tables",
       sourceAdmin: "Admin",
       sourceWebsite: "Website",
@@ -1984,6 +1984,8 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
         area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
         tableIds: reservation.tableIds,
         guestCount: reservation.guestCount,
+        reservedDate: reservation.reservedDate,
+        reservedTime: reservation.reservedTime,
       }
     );
   }
@@ -1992,9 +1994,21 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     setTableEdits((prev) => ({
       ...prev,
       [reservation.id]: {
+        ...getTableEdit(reservation),
         area,
         tableIds: [],
-        guestCount: getTableEdit(reservation).guestCount,
+      },
+    }));
+  }
+
+  function setTableEditDateTime(reservation, key, value) {
+    const current = getTableEdit(reservation);
+
+    setTableEdits((prev) => ({
+      ...prev,
+      [reservation.id]: {
+        ...current,
+        [key]: value,
       },
     }));
   }
@@ -2151,6 +2165,8 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
         area: edit.area,
         tableIds: edit.tableIds,
         guestCount: Number(edit.guestCount || reservation.guestCount || 0),
+        reservedDate: edit.reservedDate || reservation.reservedDate,
+        reservedTime: edit.reservedTime || reservation.reservedTime,
       }),
     });
 
@@ -3329,7 +3345,34 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 {a.reservations.changeTables}
                               </div>
                               <p className="mt-2 text-sm text-stone-400">{a.reservations.changeTablesHint}</p>
-                              <div className="mt-4 flex flex-col gap-2 md:flex-row">
+                              <div className="mt-4 grid gap-2 md:grid-cols-[1fr_1fr_0.9fr_1fr_auto]">
+                                <label className="min-w-[140px]">
+                                  <span className="mb-1 block text-xs text-stone-500">
+                                    {a.reservations.date}
+                                  </span>
+                                  <input
+                                    type="date"
+                                    value={tableEdit.reservedDate}
+                                    onChange={(e) => setTableEditDateTime(r, "reservedDate", e.target.value)}
+                                    disabled={r.status === "Cancelled"}
+                                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                  />
+                                </label>
+                                <label className="min-w-[140px]">
+                                  <span className="mb-1 block text-xs text-stone-500">
+                                    {a.reservations.time}
+                                  </span>
+                                  <select
+                                    value={tableEdit.reservedTime}
+                                    onChange={(e) => setTableEditDateTime(r, "reservedTime", e.target.value)}
+                                    disabled={r.status === "Cancelled"}
+                                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                  >
+                                    {reservationTimes.map((time) => (
+                                      <option key={time} value={time}>{time}</option>
+                                    ))}
+                                  </select>
+                                </label>
                                 <label className="min-w-[140px]">
                                   <span className="mb-1 block text-xs text-stone-500">
                                     {a.reservations.guests}
@@ -3371,8 +3414,8 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   requiredSeats={Number(tableEdit.guestCount || r.guestCount || 0)}
                                   unavailableTableIds={getUnavailableTableIdsForSlot(
                                     reservations,
-                                    r.reservedDate,
-                                    r.reservedTime,
+                                    tableEdit.reservedDate,
+                                    tableEdit.reservedTime,
                                     r.id
                                   )}
                                 />
@@ -3536,8 +3579,35 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         </p>
                                       </div>
 
-                                      <div className="flex flex-col gap-2 sm:flex-row">
-                                        <label className="min-w-[140px]">
+                              <div className="flex flex-col gap-2 sm:flex-row">
+                                <label className="min-w-[140px]">
+                                  <span className="mb-1 block text-xs text-stone-500">
+                                    {a.reservations.date}
+                                  </span>
+                                  <input
+                                    type="date"
+                                    value={tableEdit.reservedDate}
+                                    onChange={(e) => setTableEditDateTime(r, "reservedDate", e.target.value)}
+                                    disabled={r.status === "Cancelled"}
+                                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                  />
+                                </label>
+                                <label className="min-w-[140px]">
+                                  <span className="mb-1 block text-xs text-stone-500">
+                                    {a.reservations.time}
+                                  </span>
+                                  <select
+                                    value={tableEdit.reservedTime}
+                                    onChange={(e) => setTableEditDateTime(r, "reservedTime", e.target.value)}
+                                    disabled={r.status === "Cancelled"}
+                                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
+                                  >
+                                    {reservationTimes.map((time) => (
+                                      <option key={time} value={time}>{time}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <label className="min-w-[140px]">
                                           <span className="mb-1 block text-xs text-stone-500">
                                             {a.reservations.guests}
                                           </span>
@@ -3581,8 +3651,8 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         requiredSeats={Number(tableEdit.guestCount || r.guestCount || 0)}
                                         unavailableTableIds={getUnavailableTableIdsForSlot(
                                           reservations,
-                                          r.reservedDate,
-                                          r.reservedTime,
+                                          tableEdit.reservedDate,
+                                          tableEdit.reservedTime,
                                           r.id
                                         )}
                                       />
