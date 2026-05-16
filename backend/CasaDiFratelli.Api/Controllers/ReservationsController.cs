@@ -411,7 +411,8 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
             ? reservation.ReservedTime
             : request.ReservedTime.Trim();
 
-        if (IsPastReservationTime(nextReservedDate, nextReservedTime))
+        var changesReservationTime = request.ReservedDate.HasValue || !string.IsNullOrWhiteSpace(request.ReservedTime);
+        if (changesReservationTime && IsPastReservationTime(nextReservedDate, nextReservedTime))
             return BadRequest("Reservation date or time has already passed.");
 
         if (!TableCapacityService.HasEnoughSeats(tableIds, nextGuestCount))

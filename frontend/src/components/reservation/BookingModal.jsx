@@ -1,3 +1,5 @@
+import React from "react";
+
 export default function BookingModal({
   t,
   language = "bg",
@@ -9,6 +11,8 @@ export default function BookingModal({
   onSubmit,
   onOpenPrivacy,
 }) {
+  const [birthDay, setBirthDay] = React.useState("");
+  const [birthMonth, setBirthMonth] = React.useState("");
   const birthdayDays = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
   const birthdayMonths =
     language === "bg"
@@ -40,6 +44,26 @@ export default function BookingModal({
           ["11", "November"],
           ["12", "December"],
         ];
+  const availableBirthdayMonths = birthdayMonths.filter(([month]) => {
+    const selectedDay = Number(birthDay || 0);
+    if (!selectedDay) return true;
+    const daysInMonth = new Date(2000, Number(month), 0).getDate();
+    return selectedDay <= daysInMonth;
+  });
+  const handleBirthDayChange = (event) => {
+    const nextDay = event.target.value;
+    setBirthDay(nextDay);
+
+    const monthStillAvailable = birthdayMonths.some(([month]) => {
+      if (month !== birthMonth) return false;
+      const selectedDay = Number(nextDay || 0);
+      if (!selectedDay) return true;
+      return selectedDay <= new Date(2000, Number(month), 0).getDate();
+    });
+    if (!monthStillAvailable) {
+      setBirthMonth("");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
@@ -141,7 +165,8 @@ export default function BookingModal({
               <select
                 name="birthDay"
                 className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
-                defaultValue=""
+                value={birthDay}
+                onChange={handleBirthDayChange}
               >
                 <option value="">{language === "bg" ? "Ден" : "Day"}</option>
                 {birthdayDays.map((day) => (
@@ -151,10 +176,11 @@ export default function BookingModal({
               <select
                 name="birthMonth"
                 className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
-                defaultValue=""
+                value={birthMonth}
+                onChange={(event) => setBirthMonth(event.target.value)}
               >
                 <option value="">{language === "bg" ? "Месец" : "Month"}</option>
-                {birthdayMonths.map(([value, label]) => (
+                {availableBirthdayMonths.map(([value, label]) => (
                   <option key={value} value={value}>{label}</option>
                 ))}
               </select>

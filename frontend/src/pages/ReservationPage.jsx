@@ -60,6 +60,16 @@ function buildBirthdayDate(day, month) {
   return `2000-${month}-${safeDay}`;
 }
 
+function getBirthdayMonthOptions(day, language) {
+  const selectedDay = Number(day || 0);
+  if (!selectedDay) return birthdayMonths[language];
+
+  return birthdayMonths[language].filter(([month]) => {
+    const daysInMonth = new Date(2000, Number(month), 0).getDate();
+    return selectedDay <= daysInMonth;
+  });
+}
+
 function ZoneCard({ title, subtitle, accent, children }) {
   return (
     <div className="luxury-panel rounded-[28px] p-5 md:p-6">
@@ -493,6 +503,12 @@ function BookingModal({
 }) {
   const formRef = React.useRef(null);
   const [isFormReady, setIsFormReady] = React.useState(false);
+  const [birthDay, setBirthDay] = React.useState("");
+  const [birthMonth, setBirthMonth] = React.useState("");
+  const availableBirthdayMonths = React.useMemo(
+    () => getBirthdayMonthOptions(birthDay, language),
+    [birthDay, language]
+  );
   const areaLabel =
     selectedArea === "garden"
       ? t.smokingSection
@@ -534,6 +550,16 @@ function BookingModal({
         formData.get("privacyConsent") === "on"
     );
   }, []);
+  const handleBirthDayChange = (event) => {
+    const nextDay = event.target.value;
+    setBirthDay(nextDay);
+
+    const monthStillAvailable = getBirthdayMonthOptions(nextDay, language)
+      .some(([month]) => month === birthMonth);
+    if (!monthStillAvailable) {
+      setBirthMonth("");
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/78 backdrop-blur-md">
@@ -628,7 +654,8 @@ function BookingModal({
                   enterKeyHint="next"
                   onKeyDown={focusNextField}
                   className="quiet-input w-full rounded-2xl px-4 py-3"
-                  defaultValue=""
+                  value={birthDay}
+                  onChange={handleBirthDayChange}
                 >
                   <option value="">{language === "bg" ? "Ден" : "Day"}</option>
                   {birthdayDays.map((day) => (
@@ -641,10 +668,11 @@ function BookingModal({
                   enterKeyHint="next"
                   onKeyDown={focusNextField}
                   className="quiet-input w-full rounded-2xl px-4 py-3"
-                  defaultValue=""
+                  value={birthMonth}
+                  onChange={(event) => setBirthMonth(event.target.value)}
                 >
                   <option value="">{language === "bg" ? "Месец" : "Month"}</option>
-                  {birthdayMonths[language].map(([value, label]) => (
+                  {availableBirthdayMonths.map(([value, label]) => (
                     <option key={value} value={value}>{label}</option>
                   ))}
                 </select>
