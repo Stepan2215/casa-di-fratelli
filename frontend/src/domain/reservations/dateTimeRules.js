@@ -44,13 +44,19 @@ export function isPastTimeForDate(dateValue, timeValue, now = new Date()) {
   if (!dateValue || !timeValue) return false;
 
   const today = getTodayInputValue(now);
-  if (dateValue !== today) return false;
+  if (dateValue < today) return true;
+  if (dateValue > today) return false;
 
   const [hours, minutes] = timeValue.split(":").map(Number);
   const selected = new Date(now);
   selected.setHours(hours, minutes, 0, 0);
 
   return selected <= now;
+}
+
+export function getAvailableReservationTimesForDate(times, dateValue, now = new Date()) {
+  if (!dateValue) return times;
+  return times.filter((time) => !isPastTimeForDate(dateValue, time, now));
 }
 
 export function isWithinReservationBuffer(

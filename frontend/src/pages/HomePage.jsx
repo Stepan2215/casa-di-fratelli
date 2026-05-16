@@ -16,6 +16,7 @@ export default function HomePage({
   setLanguage,
   onOpenReservation,
   onOpenMenu,
+  onOpenSection,
   onOpenPrivacy,
   cmsMenuItems,
 }) {
@@ -27,6 +28,7 @@ export default function HomePage({
         setLanguage={setLanguage}
         onOpenReservation={onOpenReservation}
         onOpenMenu={onOpenMenu}
+        onOpenSection={onOpenSection}
         onGoHome={() => {}}
       />
 

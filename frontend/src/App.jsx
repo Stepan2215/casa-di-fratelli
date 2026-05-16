@@ -212,6 +212,7 @@ export default function App() {
     }
   });
   const swipeStartRef = React.useRef(null);
+  const pendingHomeSectionRef = React.useRef("");
 
   const t = translations[language];
 
@@ -291,6 +292,25 @@ export default function App() {
   React.useEffect(() => {
     loadMenuItems();
   }, [loadMenuItems]);
+
+  const openHomeSection = React.useCallback((sectionId) => {
+    pendingHomeSectionRef.current = sectionId;
+    setCurrentPage("home");
+  }, []);
+
+  React.useEffect(() => {
+    if (currentPage !== "home" || !pendingHomeSectionRef.current) return;
+
+    const sectionId = pendingHomeSectionRef.current;
+    pendingHomeSectionRef.current = "";
+
+    window.requestAnimationFrame(() => {
+      document.getElementById(sectionId)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }, [currentPage]);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || currentPage === "admin") return undefined;
@@ -392,6 +412,7 @@ export default function App() {
           setLanguage={setLanguage}
           onOpenReservation={() => setCurrentPage("reservation-map")}
           onBackHome={() => setCurrentPage("home")}
+          onOpenSection={openHomeSection}
           onOpenPrivacy={() => setCurrentPage("privacy")}
           cmsMenuItems={cmsMenuItems}
         />
@@ -409,6 +430,7 @@ export default function App() {
           setLanguage={setLanguage}
           onOpenReservation={() => setCurrentPage("reservation-map")}
           onOpenMenu={() => setCurrentPage("menu")}
+          onOpenSection={openHomeSection}
           onBackHome={() => setCurrentPage("home")}
         />
         <BackToTopButton />
@@ -424,6 +446,7 @@ export default function App() {
         setLanguage={setLanguage}
         onOpenReservation={() => setCurrentPage("reservation-map")}
         onOpenMenu={() => setCurrentPage("menu")}
+        onOpenSection={openHomeSection}
         onOpenPrivacy={() => setCurrentPage("privacy")}
         cmsMenuItems={cmsMenuItems}
       />

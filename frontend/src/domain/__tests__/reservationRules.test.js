@@ -16,6 +16,7 @@ import {
   isLogicalTerraceSelection,
 } from "../reservations/tableRules.js";
 import {
+  getAvailableReservationTimesForDate,
   getTodayInputValue,
   isPastTimeForDate,
   isWithinReservationBuffer,
@@ -45,13 +46,22 @@ test("time helpers keep the 3 hour reservation buffer exclusive", () => {
   assert.equal(isWithinReservationBuffer("bad", "19:00"), false);
 });
 
-test("date helpers identify past times only for the selected current day", () => {
+test("date helpers identify past date-times and hide old slots for today", () => {
   const now = new Date("2026-05-14T15:30:00");
 
   assert.equal(getTodayInputValue(now), "2026-05-14");
+  assert.equal(isPastTimeForDate("2026-05-13", "22:00", now), true);
   assert.equal(isPastTimeForDate("2026-05-14", "15:00", now), true);
   assert.equal(isPastTimeForDate("2026-05-14", "16:00", now), false);
   assert.equal(isPastTimeForDate("2026-05-15", "10:00", now), false);
+  assert.deepEqual(
+    getAvailableReservationTimesForDate(["14:00", "15:00", "16:00"], "2026-05-14", now),
+    ["16:00"]
+  );
+  assert.deepEqual(
+    getAvailableReservationTimesForDate(["14:00", "15:00"], "2026-05-15", now),
+    ["14:00", "15:00"]
+  );
 });
 
 test("capacity calculation and group eligibility support large indoor parties", () => {

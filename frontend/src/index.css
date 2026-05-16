@@ -97,6 +97,26 @@ button:disabled {
   transform: translateY(1px) scale(0.99);
 }
 
+.reservation-submit-ready {
+  position: relative;
+  overflow: hidden;
+  animation: reservation-ready-glow 2.35s ease-in-out infinite;
+}
+
+.reservation-submit-ready::after {
+  content: "";
+  position: absolute;
+  inset: -60% auto -60% -30%;
+  width: 26%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: rotate(18deg);
+  animation: reservation-ready-sweep 2.35s ease-in-out infinite;
+}
+
+.move-table-suggestion {
+  animation: move-table-suggestion 1.7s ease-in-out infinite;
+}
+
 .ghost-button {
   border: 1px solid rgba(255, 255, 255, 0.13);
   background: rgba(255, 255, 255, 0.055);
@@ -322,6 +342,40 @@ button:disabled {
   }
 }
 
+@keyframes reservation-ready-glow {
+  0%, 100% {
+    box-shadow: 0 14px 34px rgba(201, 165, 106, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 20px 52px rgba(242, 211, 154, 0.42), 0 0 0 4px rgba(242, 211, 154, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.46);
+  }
+}
+
+@keyframes reservation-ready-sweep {
+  0%, 42% {
+    translate: 0 0;
+    opacity: 0;
+  }
+  56% {
+    opacity: 0.85;
+  }
+  100% {
+    translate: 520% 0;
+    opacity: 0;
+  }
+}
+
+@keyframes move-table-suggestion {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(242, 211, 154, 0.08), 0 16px 34px rgba(0, 0, 0, 0.24);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(242, 211, 154, 0.11), 0 0 28px rgba(201, 165, 106, 0.28), 0 16px 34px rgba(0, 0, 0, 0.24);
+    filter: brightness(1.12);
+  }
+}
+
 @keyframes header-aurora {
   0%, 100% {
     background-position: center, 0% 50%, center, center;
@@ -426,8 +480,12 @@ button:disabled {
 
   .luxury-button,
   .ghost-button,
-  .menu-spark::before {
+  .menu-spark::before,
+  .reservation-submit-ready,
+  .reservation-submit-ready::after,
+  .move-table-suggestion {
     transition: none;
+    animation: none;
   }
 }
 

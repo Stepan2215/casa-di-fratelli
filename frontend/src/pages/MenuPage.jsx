@@ -13,6 +13,7 @@ export default function MenuPage({
   setLanguage,
   onOpenReservation,
   onBackHome,
+  onOpenSection,
   onOpenPrivacy,
   cmsMenuItems,
 }) {
@@ -71,6 +72,7 @@ export default function MenuPage({
         setLanguage={setLanguage}
         onOpenReservation={onOpenReservation}
         onOpenMenu={() => {}}
+        onOpenSection={onOpenSection}
         onGoHome={onBackHome}
         isMenuPage
       />

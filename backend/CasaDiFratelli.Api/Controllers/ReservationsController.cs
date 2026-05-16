@@ -35,6 +35,33 @@ public ReservationsController(
     _audit = audit;
 }
 
+private static DateTime GetRestaurantNow()
+{
+    try
+    {
+        var timezone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Sofia");
+        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone);
+    }
+    catch
+    {
+        return DateTime.Now;
+    }
+}
+
+private static bool IsPastReservationTime(DateOnly reservedDate, string reservedTime)
+{
+    if (!TimeOnly.TryParse(reservedTime, out var time))
+        return false;
+
+    var now = GetRestaurantNow();
+    var today = DateOnly.FromDateTime(now);
+
+    if (reservedDate < today) return true;
+    if (reservedDate > today) return false;
+
+    return time <= TimeOnly.FromDateTime(now);
+}
+
     [HttpGet]
     [AdminAuthorize]
     public async Task<IActionResult> GetAll()
@@ -111,6 +138,9 @@ public ReservationsController(
 
         if (!request.CreatedByAdmin && !request.PrivacyConsent)
             return BadRequest("Privacy policy consent is required.");
+
+        if (IsPastReservationTime(request.ReservedDate, request.ReservedTime))
+            return BadRequest("Reservation date or time has already passed.");
 
         var tableIds = ReservationConflictService.NormalizeTableIds(request.TableIds);
 
@@ -380,6 +410,9 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         var nextReservedTime = string.IsNullOrWhiteSpace(request.ReservedTime)
             ? reservation.ReservedTime
             : request.ReservedTime.Trim();
+
+        if (IsPastReservationTime(nextReservedDate, nextReservedTime))
+            return BadRequest("Reservation date or time has already passed.");
 
         if (!TableCapacityService.HasEnoughSeats(tableIds, nextGuestCount))
             return BadRequest("Selected tables do not have enough seats.");

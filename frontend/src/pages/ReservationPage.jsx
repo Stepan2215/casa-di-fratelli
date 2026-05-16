@@ -15,10 +15,50 @@ import {
   getEligibleOpenTerraceGroups,
 } from "../domain/reservations/tableRules";
 import {
+  getAvailableReservationTimesForDate,
   getTodayInputValue,
   isPastTimeForDate,
   isWithinReservationBuffer,
 } from "../domain/reservations/dateTimeRules";
+
+const birthdayDays = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+const birthdayMonths = {
+  bg: [
+    ["01", "Януари"],
+    ["02", "Февруари"],
+    ["03", "Март"],
+    ["04", "Април"],
+    ["05", "Май"],
+    ["06", "Юни"],
+    ["07", "Юли"],
+    ["08", "Август"],
+    ["09", "Септември"],
+    ["10", "Октомври"],
+    ["11", "Ноември"],
+    ["12", "Декември"],
+  ],
+  en: [
+    ["01", "January"],
+    ["02", "February"],
+    ["03", "March"],
+    ["04", "April"],
+    ["05", "May"],
+    ["06", "June"],
+    ["07", "July"],
+    ["08", "August"],
+    ["09", "September"],
+    ["10", "October"],
+    ["11", "November"],
+    ["12", "December"],
+  ],
+};
+
+function buildBirthdayDate(day, month) {
+  if (!day || !month) return null;
+  const daysInMonth = new Date(2000, Number(month), 0).getDate();
+  const safeDay = String(Math.min(Number(day), daysInMonth)).padStart(2, "0");
+  return `2000-${month}-${safeDay}`;
+}
 
 function ZoneCard({ title, subtitle, accent, children }) {
   return (
@@ -452,6 +492,7 @@ function BookingModal({
   onOpenPrivacy,
 }) {
   const formRef = React.useRef(null);
+  const [isFormReady, setIsFormReady] = React.useState(false);
   const areaLabel =
     selectedArea === "garden"
       ? t.smokingSection
@@ -481,6 +522,18 @@ function BookingModal({
     event.preventDefault();
     nextField.focus();
   };
+  const updateFormReady = React.useCallback(() => {
+    const form = formRef.current;
+    if (!form) return;
+
+    const formData = new FormData(form);
+    setIsFormReady(
+      Boolean(String(formData.get("guestName") || "").trim()) &&
+        Boolean(String(formData.get("phone") || "").trim()) &&
+        Boolean(String(formData.get("email") || "").trim()) &&
+        formData.get("privacyConsent") === "on"
+    );
+  }, []);
 
   return (
     <div className="fixed inset-0 z-[70] bg-black/78 backdrop-blur-md">
@@ -514,7 +567,13 @@ function BookingModal({
             </button>
           </div>
 
-          <form ref={formRef} onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+          <form
+            ref={formRef}
+            onSubmit={onSubmit}
+            onChange={updateFormReady}
+            onInput={updateFormReady}
+            className="grid gap-4 sm:grid-cols-2"
+          >
             <div>
               <label className="mb-2 block text-sm text-stone-300">{t.formName}</label>
               <input
@@ -560,25 +619,40 @@ function BookingModal({
 
             <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
               <label className="mb-2 block text-sm text-amber-100">
-                {language === "bg" ? "Дата на раждане (опционално)" : "Date of birth (optional)"}
+                {language === "bg" ? "Рожден ден (опционално)" : "Birthday (optional)"}
               </label>
-              <div className="relative">
-                <input
-                  name="birthDate"
-                  type="date"
-                  autoComplete="bday"
+              <div className="grid gap-3 sm:grid-cols-[0.75fr_1.25fr]">
+                <select
+                  name="birthDay"
+                  autoComplete="bday-day"
                   enterKeyHint="next"
                   onKeyDown={focusNextField}
-                  className="quiet-input w-full max-w-full rounded-2xl px-4 py-3 pr-12 [color-scheme:dark]"
-                />
-                <div className="pointer-events-none absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 text-xs text-[#f2d39a]">
-                  {language === "bg" ? "Д" : "D"}
-                </div>
+                  className="quiet-input w-full rounded-2xl px-4 py-3"
+                  defaultValue=""
+                >
+                  <option value="">{language === "bg" ? "Ден" : "Day"}</option>
+                  {birthdayDays.map((day) => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+                <select
+                  name="birthMonth"
+                  autoComplete="bday-month"
+                  enterKeyHint="next"
+                  onKeyDown={focusNextField}
+                  className="quiet-input w-full rounded-2xl px-4 py-3"
+                  defaultValue=""
+                >
+                  <option value="">{language === "bg" ? "Месец" : "Month"}</option>
+                  {birthdayMonths[language].map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
               </div>
               <p className="mt-3 text-sm text-amber-100/80">
                 {language === "bg"
-                  ? "Очаква ви приятен бонус за вашия рожден ден."
-                  : "A special birthday bonus is waiting for you."}
+                  ? "Само ден и месец, без година. Очаква ви приятен бонус за вашия празник."
+                  : "Day and month only, no year. A special birthday bonus is waiting for you."}
               </p>
             </div>
 
@@ -643,7 +717,7 @@ function BookingModal({
               className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
                 isSubmitting
                   ? "cursor-not-allowed bg-white/10 text-white/40"
-                  : "luxury-button"
+                  : `luxury-button ${isFormReady ? "reservation-submit-ready" : ""}`
               }`}
             >
               {isSubmitting
@@ -749,6 +823,10 @@ export default function ReservationPage({ t, language, setLanguage, onBack, onOp
       setSelectedTables([]);
     }
   }, [reservationDate, selectedTime]);
+
+  const availableReservationTimes = reservationDate
+    ? getAvailableReservationTimesForDate(reservationTimes, reservationDate)
+    : reservationTimes;
 
   const labels = {
     perimeter: language === "bg" ? "Периметър" : "Garden perimeter",
@@ -934,12 +1012,14 @@ if (bookingMode === "single") {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const birthDay = String(formData.get("birthDay") || "");
+    const birthMonth = String(formData.get("birthMonth") || "");
 
     const payload = {
       guestName: String(formData.get("guestName") || ""),
       phone: String(formData.get("phone") || ""),
       email: String(formData.get("email") || ""),
-      birthDate: String(formData.get("birthDate") || "") || null,
+      birthDate: buildBirthdayDate(birthDay, birthMonth),
       marketingConsent: formData.get("marketingConsent") === "on",
       privacyConsent: formData.get("privacyConsent") === "on",
       guestCount: Number(guestCount || 0),
@@ -1202,16 +1282,22 @@ if (bookingMode === "single") {
                     className="quiet-input w-full cursor-pointer rounded-2xl px-4 py-3 [color-scheme:dark]"
                   >
                     <option value="">{language === "bg" ? "Избери час" : "Select time"}</option>
-                    {reservationTimes.map((time) => (
+                    {availableReservationTimes.map((time) => (
                       <option
                         key={time}
                         value={time}
-                        disabled={isPastTimeForDate(reservationDate, time)}
                       >
                         {time}
                       </option>
                     ))}
                   </select>
+                  {reservationDate === today && availableReservationTimes.length === 0 && (
+                    <p className="mt-2 text-xs text-red-200/80">
+                      {language === "bg"
+                        ? "За днес няма останали часове за резервация."
+                        : "There are no reservation times left for today."}
+                    </p>
+                  )}
                 </div>
 
                 <div>

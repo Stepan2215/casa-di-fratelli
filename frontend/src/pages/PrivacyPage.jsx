@@ -33,6 +33,7 @@ export default function PrivacyPage({
   setLanguage,
   onOpenReservation,
   onOpenMenu,
+  onOpenSection,
   onBackHome,
 }) {
   const policy = privacyPolicy[language] || privacyPolicy.bg;
@@ -45,6 +46,7 @@ export default function PrivacyPage({
         setLanguage={setLanguage}
         onOpenReservation={onOpenReservation}
         onOpenMenu={onOpenMenu}
+        onOpenSection={onOpenSection}
         onGoHome={onBackHome}
       />
 

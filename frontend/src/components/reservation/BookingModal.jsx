@@ -9,6 +9,38 @@ export default function BookingModal({
   onSubmit,
   onOpenPrivacy,
 }) {
+  const birthdayDays = Array.from({ length: 31 }, (_, index) => String(index + 1).padStart(2, "0"));
+  const birthdayMonths =
+    language === "bg"
+      ? [
+          ["01", "Януари"],
+          ["02", "Февруари"],
+          ["03", "Март"],
+          ["04", "Април"],
+          ["05", "Май"],
+          ["06", "Юни"],
+          ["07", "Юли"],
+          ["08", "Август"],
+          ["09", "Септември"],
+          ["10", "Октомври"],
+          ["11", "Ноември"],
+          ["12", "Декември"],
+        ]
+      : [
+          ["01", "January"],
+          ["02", "February"],
+          ["03", "March"],
+          ["04", "April"],
+          ["05", "May"],
+          ["06", "June"],
+          ["07", "July"],
+          ["08", "August"],
+          ["09", "September"],
+          ["10", "October"],
+          ["11", "November"],
+          ["12", "December"],
+        ];
+
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="w-full max-w-2xl rounded-[2rem] border border-white/10 bg-stone-950 p-8 text-stone-100 shadow-2xl">
@@ -103,17 +135,34 @@ export default function BookingModal({
 
           <div className="sm:col-span-2 rounded-[1.5rem] border border-amber-400/25 bg-amber-500/10 p-5">
             <label className="mb-2 block text-sm text-amber-100">
-              {language === "bg" ? "Дата на раждане (опционално)" : "Date of birth (optional)"}
+              {language === "bg" ? "Рожден ден (опционално)" : "Birthday (optional)"}
             </label>
-            <input
-              name="birthDate"
-              type="date"
-              className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
-            />
+            <div className="grid gap-3 sm:grid-cols-[0.75fr_1.25fr]">
+              <select
+                name="birthDay"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
+                defaultValue=""
+              >
+                <option value="">{language === "bg" ? "Ден" : "Day"}</option>
+                {birthdayDays.map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+              <select
+                name="birthMonth"
+                className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none transition focus:border-amber-300"
+                defaultValue=""
+              >
+                <option value="">{language === "bg" ? "Месец" : "Month"}</option>
+                {birthdayMonths.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </div>
             <p className="mt-3 text-sm leading-6 text-amber-100/80">
               {language === "bg"
-                ? "Ако споделите датата си на раждане, ви очаква приятен бонус за вашия празник."
-                : "Share your birthday and a special bonus will be waiting for your celebration."}
+                ? "Само ден и месец, без година. Очаква ви приятен бонус за вашия празник."
+                : "Day and month only, no year. A special birthday bonus is waiting for your celebration."}
             </p>
           </div>
 

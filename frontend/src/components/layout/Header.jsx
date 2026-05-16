@@ -25,6 +25,7 @@ export default function Header({
   onOpenReservation,
   onOpenMenu,
   onGoHome,
+  onOpenSection,
   isMenuPage = false,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -55,6 +56,17 @@ export default function Header({
   const changeLanguage = (nextLanguage) => {
     setLanguage(nextLanguage);
     closeMobileMenu();
+  };
+  const openSection = (event, href) => {
+    event.preventDefault();
+    closeMobileMenu();
+    const sectionId = href.replace("#", "");
+    if (onOpenSection) {
+      onOpenSection(sectionId);
+      return;
+    }
+
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const mobileLinkClass =
@@ -193,7 +205,12 @@ export default function Header({
         <div className="mt-4 hidden items-center justify-between gap-3 md:flex">
           <nav className="nav-reveal nav-reveal-delay-2 flex gap-7 text-sm text-stone-300">
             {sectionLinks.map(([href, label]) => (
-              <a key={href} href={href} className="transition hover:text-[#f2d39a]">
+              <a
+                key={href}
+                href={href}
+                onClick={(event) => openSection(event, href)}
+                className="transition hover:text-[#f2d39a]"
+              >
                 {label}
               </a>
             ))}
@@ -230,7 +247,7 @@ export default function Header({
               <a
                 key={href}
                 href={href}
-                onClick={closeMobileMenu}
+                onClick={(event) => openSection(event, href)}
                 className={`${mobileLinkClass} ${index > 0 ? "mt-2" : ""}`}
               >
                 {label}

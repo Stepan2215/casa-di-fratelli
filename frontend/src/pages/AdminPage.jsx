@@ -1,6 +1,14 @@
 import React from "react";
 import { API_BASE_URL } from "../config/api";
-import { defaultGardenTables, reservationTimes, tableIdsByArea, tablesByArea } from "../domain/reservations/tableConfig";
+import {
+  defaultGardenTables,
+  gardenGroups,
+  indoorGroups,
+  openTerraceGroups,
+  reservationTimes,
+  tableIdsByArea,
+  tablesByArea,
+} from "../domain/reservations/tableConfig";
 import {
   canUseAdminTableSelection as canUseAdminTableSelectionRule,
   getAreaTablesCapacity,
@@ -9,6 +17,7 @@ import {
   getUnavailableSelectedTableIds,
   getUnavailableTableIdsForSlot,
 } from "../domain/reservations/availability";
+import { getAvailableReservationTimesForDate, isPastTimeForDate } from "../domain/reservations/dateTimeRules";
 
 const emptyMenuItem = {
   nameBg: "",
@@ -95,6 +104,8 @@ const adminText = {
       move: "Премести",
       release: "Освободена",
       moveTitle: "Премести резервацията",
+      bestOptions: "Най-добри свободни варианти",
+      noMoveOptions: "Няма свободна подходяща маса за тези гости.",
       saveMove: "Запази преместване",
       tableTodayTitle: "Резервации за днес",
       tableTodayEmpty: "Няма резервации за тази маса днес.",
@@ -214,6 +225,8 @@ const adminText = {
       move: "Move",
       release: "Released",
       moveTitle: "Move reservation",
+      bestOptions: "Best free options",
+      noMoveOptions: "No suitable free table for this party.",
       saveMove: "Save move",
       tableTodayTitle: "Today's reservations",
       tableTodayEmpty: "No reservations for this table today.",
@@ -362,6 +375,69 @@ function getTableSelectionError(area, tableIds, guestCount, language) {
     : "Selected table combination is not valid for this area.";
 }
 
+function getContiguousSlices(group) {
+  const slices = [];
+
+  for (let start = 0; start < group.length; start += 1) {
+    for (let end = start + 1; end <= group.length; end += 1) {
+      slices.push(group.slice(start, end));
+    }
+  }
+
+  return slices;
+}
+
+function getAreaCandidateGroups(area) {
+  if (area === "garden") return gardenGroups.flatMap(getContiguousSlices);
+  if (area === "openTerrace") return openTerraceGroups.flatMap(getContiguousSlices);
+  if (area === "indoor") return indoorGroups.flatMap(getContiguousSlices);
+  return [];
+}
+
+function getMoveCandidateOptions(area, guestCount, unavailableTableIds, areaTables = tablesByArea[area] || []) {
+  const requiredSeats = Number(guestCount || 0);
+  const activeTables = areaTables.filter((table) => table.isActive !== false);
+  const activeIds = new Set(activeTables.map((table) => table.id));
+  const tableById = new Map(activeTables.map((table) => [table.id, table]));
+  const seen = new Set();
+  const candidates = [];
+  const addCandidate = (ids) => {
+    const tableIds = [...new Set(ids)].filter((id) => activeIds.has(id) && !unavailableTableIds.has(id));
+    if (tableIds.length === 0) return;
+
+    const key = tableIds.join("|");
+    if (seen.has(key)) return;
+    seen.add(key);
+
+    const capacity = getAreaTablesCapacity(area, tableIds, activeTables);
+    if (capacity < requiredSeats) return;
+    if (!canUseAdminTableSelectionRule(area, tableIds, {
+      areaTables: activeTables,
+      gardenSpecialIds,
+      requiredSeats,
+      allowPartial: false,
+    })) {
+      return;
+    }
+
+    candidates.push({
+      tableIds,
+      capacity,
+      overage: capacity - requiredSeats,
+      seatsLabel: tableIds.map((id) => tableById.get(id)?.seats || 0).join(" + "),
+    });
+  };
+
+  activeTables.forEach((table) => addCandidate([table.id]));
+  getAreaCandidateGroups(area).forEach(addCandidate);
+
+  return candidates.sort((first, second) =>
+    first.overage - second.overage ||
+    first.tableIds.length - second.tableIds.length ||
+    first.tableIds.join(",").localeCompare(second.tableIds.join(","), undefined, { numeric: true })
+  );
+}
+
 function buildTimeRange(startTime, endTime) {
   const toMinutes = (value) => {
     const [hours, minutes] = String(value || "").split(":").map(Number);
@@ -427,8 +503,12 @@ function TableChipSelector({
   hideUnavailable = false,
   emptyMessage = "No free tables for this time.",
   requiredSeats = 0,
+  tableIdsOverride,
+  areaTables,
+  suggestedTableIds = new Set(),
+  bestTableIds = new Set(),
 }) {
-  const tableIds = areaTableIds[area] || indoorTableIds;
+  const tableIds = tableIdsOverride || areaTableIds[area] || indoorTableIds;
   const visibleTableIds = hideUnavailable
     ? tableIds.filter((tableId) => selectedTableIds.includes(tableId) || !unavailableTableIds.has(tableId))
     : tableIds;
@@ -438,12 +518,15 @@ function TableChipSelector({
       {visibleTableIds.map((tableId) => {
         const selected = selectedTableIds.includes(tableId);
         const unavailable = !selected && unavailableTableIds.has(tableId);
+        const suggested = suggestedTableIds.has(tableId);
+        const best = bestTableIds.has(tableId);
         const allowed =
           !unavailable &&
           (selected ||
             canUseAdminTableSelection(area, [...selectedTableIds, tableId], {
               requiredSeats,
               allowPartial: true,
+              ...(areaTables ? { areaTables } : {}),
             }));
 
         return (
@@ -460,6 +543,10 @@ function TableChipSelector({
                 ? "cursor-not-allowed border-red-400/10 bg-red-500/5 text-red-200/35"
                 : !allowed
                 ? "cursor-not-allowed border-white/5 bg-black/10 text-white/25"
+                : best
+                ? "move-table-suggestion border-[#f2d39a]/70 bg-[#c9a56a]/22 text-[#fff4df]"
+                : suggested
+                ? "border-[#f2d39a]/45 bg-[#c9a56a]/14 text-[#f2d39a]"
                 : "border-white/10 bg-black/20 text-white/65 hover:border-amber-300/50 hover:text-white"
             }`}
           >
@@ -907,6 +994,18 @@ function ReservationOperationsMap({
     const savedCount = layout.filter((item) => item.area === area && item.isActive).length;
     return savedCount || (tablesByArea[area] || []).length;
   };
+  const getActiveTablesForArea = React.useCallback(
+    (area) => {
+      const savedTables = layout
+        .filter((item) => item.area === area && item.isActive)
+        .map(normalizeLayoutItem);
+
+      return savedTables.length
+        ? savedTables
+        : (tablesByArea[area] || []).map((table) => normalizeLayoutItem({ ...table, area, isActive: true }));
+    },
+    [layout]
+  );
   const fallbackLayout = (tablesByArea[selectedArea] || []).map((table) =>
     normalizeLayoutItem({ ...table, area: selectedArea, isActive: true })
   );
@@ -964,7 +1063,9 @@ function ReservationOperationsMap({
       return firstMinutes - secondMinutes;
     });
   }, [areaTables, liveByTable, now]);
-  const selectedReservation = liveReservations.find((reservation) => reservation.id === selectedReservationId);
+  const selectedReservation =
+    liveReservations.find((reservation) => reservation.id === selectedReservationId) ||
+    reservations.find((reservation) => reservation.id === selectedReservationId);
   const nextReservations = liveReservations.filter((reservation) => !reservation.isArrived);
   const todayReservationsForSelectedTable = React.useMemo(() => {
     if (!selectedTableId) return [];
@@ -984,17 +1085,42 @@ function ReservationOperationsMap({
       })
       .sort((first, second) => String(first.reservedTime).localeCompare(String(second.reservedTime)));
   }, [now, reservations, selectedArea, selectedTableId]);
-  const moveUnavailableTableIds = selectedReservation
-    ? getUnavailableTableIdsForSlot(
-        reservations,
-        selectedReservation.reservedDate,
-        selectedReservation.reservedTime,
-        selectedReservation.id
-      )
-    : new Set();
+  const moveUnavailableTableIds = React.useMemo(
+    () => selectedReservation
+      ? getUnavailableTableIdsForSlot(
+          reservations,
+          selectedReservation.reservedDate,
+          selectedReservation.reservedTime,
+          selectedReservation.id
+        )
+      : new Set(),
+    [reservations, selectedReservation]
+  );
+  const moveAreaTables = React.useMemo(
+    () => getActiveTablesForArea(moveDraft.area),
+    [getActiveTablesForArea, moveDraft.area]
+  );
+  const moveCandidateOptions = React.useMemo(
+    () => getMoveCandidateOptions(
+      moveDraft.area,
+      Number(moveDraft.guestCount || selectedReservation?.guestCount || 0),
+      moveUnavailableTableIds,
+      moveAreaTables
+    ),
+    [moveDraft.area, moveDraft.guestCount, moveUnavailableTableIds, moveAreaTables, selectedReservation?.guestCount]
+  );
+  const moveSuggestedTableIds = React.useMemo(
+    () => new Set(moveCandidateOptions.flatMap((option) => option.tableIds)),
+    [moveCandidateOptions]
+  );
+  const moveBestTableIds = React.useMemo(
+    () => new Set(moveCandidateOptions[0]?.tableIds || []),
+    [moveCandidateOptions]
+  );
 
   function openMovePanel(reservation) {
     setSelectedReservationId(reservation.id);
+    onAreaChange(["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor");
     setMoveReservationId(reservation.id);
     setMoveDraft({
       area: ["garden", "openTerrace"].includes(reservation.area) ? reservation.area : "indoor",
@@ -1011,6 +1137,7 @@ function ReservationOperationsMap({
       const nextTableIds = canUseAdminTableSelection(prev.area, prev.tableIds, {
         requiredSeats: nextGuestCount,
         allowPartial: true,
+        areaTables: getActiveTablesForArea(prev.area),
       })
         ? prev.tableIds
         : [];
@@ -1034,6 +1161,7 @@ function ReservationOperationsMap({
     if (!canUseAdminTableSelection(moveDraft.area, nextTableIds, {
       requiredSeats: Number(moveDraft.guestCount || selectedReservation.guestCount || 0),
       allowPartial: true,
+      areaTables: moveAreaTables,
     })) {
       return;
     }
@@ -1061,9 +1189,10 @@ function ReservationOperationsMap({
   }, []);
 
   React.useEffect(() => {
+    if (moveReservationId) return;
     setSelectedReservationId(null);
     setSelectedTableId(null);
-  }, [selectedArea]);
+  }, [moveReservationId, selectedArea]);
 
   React.useEffect(() => {
     if (!shouldScrollMovePanel || !moveReservationId) return;
@@ -1248,6 +1377,20 @@ function ReservationOperationsMap({
             const isLate = reservation && !reservation.isArrived && minutes !== null && minutes <= -10;
             const isGroupTable = reservation?.tableIds?.length > 1;
             const isSelectedTable = selectedTableId === table.id;
+            const isMoveMode = moveReservationId === selectedReservation?.id && moveDraft.area === selectedArea;
+            const isMoveSelected = isMoveMode && moveDraft.tableIds.includes(table.id);
+            const isMoveUnavailable = isMoveMode && !isMoveSelected && moveUnavailableTableIds.has(table.id);
+            const isMoveSuggested = isMoveMode && moveSuggestedTableIds.has(table.id);
+            const isMoveBest = isMoveMode && moveBestTableIds.has(table.id);
+            const isMoveAllowed =
+              isMoveMode &&
+              !isMoveUnavailable &&
+              (isMoveSelected ||
+                canUseAdminTableSelection(moveDraft.area, [...moveDraft.tableIds, table.id], {
+                  requiredSeats: Number(moveDraft.guestCount || selectedReservation?.guestCount || 0),
+                  allowPartial: true,
+                  areaTables: moveAreaTables,
+                }));
 
             return (
               <div
@@ -1257,13 +1400,29 @@ function ReservationOperationsMap({
               >
                 <button
                   type="button"
-                  onClick={() => setSelectedTableId((current) => (current === table.id ? null : table.id))}
+                  onClick={() => {
+                    if (isMoveMode && isMoveAllowed) {
+                      toggleMoveTable(table.id);
+                      setSelectedTableId(null);
+                      return;
+                    }
+
+                    setSelectedTableId((current) => (current === table.id ? null : table.id));
+                  }}
                   className={`flex items-center justify-center rounded-2xl border font-semibold shadow-2xl transition hover:scale-[1.04] ${
                     isGroupTable
                       ? "h-9 min-w-[50px] px-2 text-xs sm:h-10 sm:min-w-[58px] sm:px-3 md:h-12 md:min-w-[68px] lg:h-16 lg:min-w-[88px]"
                       : "h-8 w-8 text-xs sm:h-9 sm:w-9 md:h-11 md:w-11 lg:h-14 lg:w-14 lg:text-sm"
                   } ${
-                    reservation?.isArrived
+                    isMoveSelected
+                      ? "border-[#f2d39a]/80 bg-[linear-gradient(145deg,#f2d39a,#b8843f)] text-black ring-4 ring-[#f2d39a]/25"
+                      : isMoveBest
+                      ? "move-table-suggestion border-[#f2d39a]/75 bg-[linear-gradient(145deg,#6f5236,#221812)] text-[#fff4df]"
+                      : isMoveSuggested
+                      ? "border-[#f2d39a]/55 bg-[linear-gradient(145deg,#4a3728,#201711)] text-[#f2d39a] ring-2 ring-[#c9a56a]/20"
+                      : isMoveMode && !isMoveAllowed
+                      ? "cursor-not-allowed border-white/5 bg-black/20 text-white/25"
+                      : reservation?.isArrived
                       ? "border-emerald-300/55 bg-[linear-gradient(145deg,#214f3b,#10261d)] text-emerald-50"
                       : isLate
                       ? "border-red-300/70 bg-[linear-gradient(145deg,#6b1f1f,#251010)] text-red-50"
@@ -1455,7 +1614,10 @@ function ReservationOperationsMap({
                       <button
                         key={area}
                         type="button"
-                        onClick={() => setMoveDraft((prev) => ({ ...prev, area, tableIds: [] }))}
+                        onClick={() => {
+                          setMoveDraft((prev) => ({ ...prev, area, tableIds: [] }));
+                          onAreaChange(area);
+                        }}
                         className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
                           moveDraft.area === area
                             ? "border-[#f2d39a]/50 bg-[#c9a56a]/20 text-[#f2d39a]"
@@ -1466,6 +1628,34 @@ function ReservationOperationsMap({
                       </button>
                     ))}
                   </div>
+                  <div className="mt-3 rounded-2xl border border-white/10 bg-black/18 p-3">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#f2d39a]">
+                      {text.bestOptions}
+                    </div>
+                    {moveCandidateOptions.length === 0 ? (
+                      <p className="mt-2 text-xs leading-5 text-white/55">{text.noMoveOptions}</p>
+                    ) : (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {moveCandidateOptions.slice(0, 6).map((option, index) => (
+                          <button
+                            key={option.tableIds.join("-")}
+                            type="button"
+                            onClick={() => setMoveDraft((prev) => ({ ...prev, tableIds: option.tableIds }))}
+                            className={`rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                              index === 0
+                                ? "move-table-suggestion border-[#f2d39a]/60 bg-[#c9a56a]/20 text-[#fff4df]"
+                                : "border-white/10 bg-white/[0.035] text-white/70 hover:border-[#c9a56a]/40 hover:text-white"
+                            }`}
+                          >
+                            <span className="block">{option.tableIds.join(", ")}</span>
+                            <span className="mt-0.5 block text-[10px] font-medium opacity-65">
+                              {option.capacity} {text.guests}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="mt-3">
                     <TableChipSelector
                       area={moveDraft.area}
@@ -1474,6 +1664,10 @@ function ReservationOperationsMap({
                       unavailableTableIds={moveUnavailableTableIds}
                       hideUnavailable
                       requiredSeats={Number(moveDraft.guestCount || selectedReservation.guestCount || 0)}
+                      tableIdsOverride={moveAreaTables.map((table) => table.id)}
+                      areaTables={moveAreaTables}
+                      suggestedTableIds={moveSuggestedTableIds}
+                      bestTableIds={moveBestTableIds}
                       emptyMessage={
                         text.empty
                       }
@@ -1524,6 +1718,33 @@ function normalizeReservation(r) {
       ? tables.map((x) => (typeof x === "string" ? x : x.tableCode || x.TableCode)).filter(Boolean)
       : [],
   };
+}
+
+function formatBirthday(value, language) {
+  if (!value) return "—";
+
+  const [, month, day] = String(value).split("-");
+  if (!month || !day) return value;
+
+  if (language === "bg") {
+    return `${day}.${month}`;
+  }
+
+  const monthLabel = {
+    "01": "January",
+    "02": "February",
+    "03": "March",
+    "04": "April",
+    "05": "May",
+    "06": "June",
+    "07": "July",
+    "08": "August",
+    "09": "September",
+    "10": "October",
+    "11": "November",
+    "12": "December",
+  }[month] || month;
+  return `${Number(day)} ${monthLabel}`;
 }
 
 function StatCard({ label, value, hint }) {
@@ -2141,10 +2362,19 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       return;
     }
 
+    if (isPastTimeForDate(edit.reservedDate, edit.reservedTime)) {
+      setAdminError(
+        adminLanguage === "bg"
+          ? "Не може да запазите резервация за дата или час, които вече са минали."
+          : "You cannot save a reservation for a date or time that has already passed."
+      );
+      return;
+    }
+
     const unavailableTableIds = getUnavailableTableIdsForSlot(
       reservations,
-      reservation.reservedDate,
-      reservation.reservedTime,
+      edit.reservedDate,
+      edit.reservedTime,
       reservation.id
     );
     const unavailableSelectedTableIds = getUnavailableSelectedTableIds(edit.tableIds, unavailableTableIds);
@@ -2682,6 +2912,46 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   const selectedCategoryData =
     menuCategories.find((category) => category.id === selectedMenuCategory) || menuCategories[0];
   const selectedCategoryItems = selectedCategoryData?.items || [];
+  const todayInput = React.useMemo(() => formatLocalDate(new Date()), []);
+  const availableAdminReservationTimes = React.useMemo(
+    () => getAvailableReservationTimesForDate(adminReservationTimes, adminReservation.reservedDate),
+    [adminReservation.reservedDate]
+  );
+  const availableHallBlockTimes = React.useMemo(
+    () => getAvailableReservationTimesForDate(adminReservationTimes, hallBlock.reservedDate),
+    [hallBlock.reservedDate]
+  );
+
+  React.useEffect(() => {
+    if (!adminReservation.reservedTime) return;
+    if (!isPastTimeForDate(adminReservation.reservedDate, adminReservation.reservedTime)) return;
+
+    setAdminReservation((prev) => ({
+      ...prev,
+      reservedTime: "",
+      tableIds: "",
+    }));
+  }, [adminReservation.reservedDate, adminReservation.reservedTime]);
+
+  React.useEffect(() => {
+    if (!hallBlock.reservedDate) return;
+    const nextPatch = {};
+
+    if (hallBlock.startTime && isPastTimeForDate(hallBlock.reservedDate, hallBlock.startTime)) {
+      nextPatch.startTime = "";
+    }
+
+    if (hallBlock.endTime && isPastTimeForDate(hallBlock.reservedDate, hallBlock.endTime)) {
+      nextPatch.endTime = "";
+    }
+
+    if (Object.keys(nextPatch).length === 0) return;
+    setHallBlock((prev) => ({
+      ...prev,
+      ...nextPatch,
+    }));
+  }, [hallBlock.reservedDate, hallBlock.startTime, hallBlock.endTime]);
+
   const adminReservationTableIds = getAdminReservationTableIds();
   const adminReservationUnavailableTableIds = getUnavailableTableIdsForSlot(
     reservations,
@@ -3078,7 +3348,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                               className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                             >
                               <option value="">{adminLanguage === "bg" ? "Избери час" : "Select time"}</option>
-                              {adminReservationTimes.map((time) => (
+                              {availableAdminReservationTimes.map((time) => (
                                 <option key={time} value={time}>
                                   {time}
                                 </option>
@@ -3096,6 +3366,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 }))
                               }
                               required={["phone", "reservedDate", "guestCount", "tableIds"].includes(key)}
+                              {...(key === "reservedDate" ? { min: todayInput } : {})}
                               className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                             />
                           )}
@@ -3281,7 +3552,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 </div>
                                 <div className="mt-3 text-sm text-stone-300">{a.reservations.phone}: {r.phone}</div>
                                 <div className="mt-2 text-sm text-stone-300">{a.reservations.email}: {r.email || "—"}</div>
-                                <div className="mt-2 text-sm text-stone-300">{a.reservations.birthday}: {r.birthDate || "—"}</div>
+                                <div className="mt-2 text-sm text-stone-300">{a.reservations.birthday}: {formatBirthday(r.birthDate, adminLanguage)}</div>
                               </div>
 
                               <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
@@ -3352,6 +3623,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   </span>
                                   <input
                                     type="date"
+                                    min={todayInput}
                                     value={tableEdit.reservedDate}
                                     onChange={(e) => setTableEditDateTime(r, "reservedDate", e.target.value)}
                                     disabled={r.status === "Cancelled"}
@@ -3368,7 +3640,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                     disabled={r.status === "Cancelled"}
                                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
                                   >
-                                    {reservationTimes.map((time) => (
+                                    {getAvailableReservationTimesForDate(reservationTimes, tableEdit.reservedDate).map((time) => (
                                       <option key={time} value={time}>{time}</option>
                                     ))}
                                   </select>
@@ -3521,7 +3793,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                         {a.reservations.email}: {r.email || "—"}
                                       </div>
                                       <div className="mt-2 text-sm text-stone-300">
-                                        {a.reservations.birthday}: {r.birthDate || "—"}
+                                        {a.reservations.birthday}: {formatBirthday(r.birthDate, adminLanguage)}
                                       </div>
                                     </div>
 
@@ -3586,6 +3858,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   </span>
                                   <input
                                     type="date"
+                                    min={todayInput}
                                     value={tableEdit.reservedDate}
                                     onChange={(e) => setTableEditDateTime(r, "reservedDate", e.target.value)}
                                     disabled={r.status === "Cancelled"}
@@ -3602,7 +3875,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                     disabled={r.status === "Cancelled"}
                                     className="w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none focus:border-amber-300 disabled:opacity-40"
                                   >
-                                    {reservationTimes.map((time) => (
+                                    {getAvailableReservationTimesForDate(reservationTimes, tableEdit.reservedDate).map((time) => (
                                       <option key={time} value={time}>{time}</option>
                                     ))}
                                   </select>
@@ -3735,6 +4008,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     <input
                       type="date"
                       value={hallBlock.reservedDate}
+                      min={todayInput}
                       onChange={(e) =>
                         setHallBlock((prev) => ({
                           ...prev,
@@ -3761,7 +4035,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       required
                       className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                     >
-                      {adminReservationTimes.map((time) => (
+                      {availableHallBlockTimes.map((time) => (
                         <option key={time} value={time}>
                           {time}
                         </option>
@@ -3784,7 +4058,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                       required
                       className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-300"
                     >
-                      {adminReservationTimes.map((time) => (
+                      {availableHallBlockTimes.map((time) => (
                         <option key={time} value={time}>
                           {time}
                         </option>
