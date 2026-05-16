@@ -31,6 +31,13 @@ const emptyMenuItem = {
   notifySubscribers: false,
 };
 
+const emptyWaiterForm = {
+  id: null,
+  name: "",
+  slug: "",
+  isActive: true,
+};
+
 const priceHelperText =
   "Stored and shown in EUR. Use the final guest-facing price.";
 
@@ -57,8 +64,38 @@ const adminText = {
       block: "Блокирай зала",
       menu: "Меню",
       layout: "Карта",
+      reviews: "QR отзиви",
       blacklist: "Blacklist",
       customers: "Клиенти",
+    },
+    reviewQr: {
+      title: "QR отзиви",
+      subtitle: "Индивидуални QR линкове за сервитьори. Отчитаме сканиране и преход към Google, не гарантираме публикуван отзив.",
+      settings: "Настройки",
+      googleUrl: "Google Review URL",
+      placeId: "Google Place ID",
+      apiKey: "Google Places API key",
+      saveSettings: "Запази настройките",
+      sync: "Синхронизирай attribution",
+      addWaiter: "Добави сервитьор",
+      editWaiter: "Редактирай",
+      name: "Име",
+      slug: "Slug",
+      active: "Активен",
+      saveWaiter: "Запази сервитьор",
+      cancel: "Отказ",
+      qr: "QR код",
+      download: "Свали PNG",
+      total: "Общо сканове",
+      today: "Днес",
+      month: "Месец",
+      unique24: "Уникални 24ч",
+      conversion: "Конверсия",
+      efficiency: "Ефективност",
+      likely: "Вероятно към",
+      confidence: "confidence",
+      noWaiters: "Още няма сервитьори.",
+      attributionHint: "Attribution е вероятностен: използва най-близко време на QR scan, уникални сесии и активност на сервитьора.",
     },
     reservations: {
       title: "Резервации",
@@ -178,8 +215,38 @@ const adminText = {
       block: "Block hall",
       menu: "Menu",
       layout: "Map",
+      reviews: "QR reviews",
       blacklist: "Blacklist",
       customers: "Customers",
+    },
+    reviewQr: {
+      title: "QR reviews",
+      subtitle: "Individual waiter QR links. We track scan and transition to Google, not a guaranteed published review.",
+      settings: "Settings",
+      googleUrl: "Google Review URL",
+      placeId: "Google Place ID",
+      apiKey: "Google Places API key",
+      saveSettings: "Save settings",
+      sync: "Sync attribution",
+      addWaiter: "Add waiter",
+      editWaiter: "Edit",
+      name: "Name",
+      slug: "Slug",
+      active: "Active",
+      saveWaiter: "Save waiter",
+      cancel: "Cancel",
+      qr: "QR code",
+      download: "Download PNG",
+      total: "Total scans",
+      today: "Today",
+      month: "Month",
+      unique24: "Unique 24h",
+      conversion: "Conversion",
+      efficiency: "Efficiency",
+      likely: "Likely attributed to",
+      confidence: "confidence",
+      noWaiters: "No waiters yet.",
+      attributionHint: "Attribution is probabilistic: it uses closest QR scan time, unique sessions, and waiter activity.",
     },
     reservations: {
       title: "Reservations",
@@ -340,6 +407,32 @@ function normalizeCategory(value) {
 function getCategoryLabel(category, language) {
   const normalized = normalizeCategory(category);
   return categoryDisplayNames[language]?.[normalized] || normalized;
+}
+
+function getPublicOrigin() {
+  if (typeof window === "undefined") return "https://casa-di-fratelli.vercel.app";
+  return window.location.origin;
+}
+
+function buildReviewUrl(slug) {
+  return `${getPublicOrigin()}/review/${slug}`;
+}
+
+function buildQrPngUrl(value) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=720x720&format=png&data=${encodeURIComponent(value)}`;
+}
+
+async function downloadQrPng(url, filename) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
 }
 
 function canUseAdminTableSelection(area, tableIds, options = {}) {
@@ -1795,6 +1888,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   const [blacklist, setBlacklist] = React.useState([]);
   const [adminUsers, setAdminUsers] = React.useState([]);
   const [auditLogs, setAuditLogs] = React.useState([]);
+  const [reviewDashboard, setReviewDashboard] = React.useState({ waiters: [], attributions: [], settings: {} });
   const [loading, setLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
@@ -1809,6 +1903,12 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   const [customerSort, setCustomerSort] = React.useState("visits");
   const [showCreateReservation, setShowCreateReservation] = React.useState(false);
   const [menuForm, setMenuForm] = React.useState(emptyMenuItem);
+  const [waiterForm, setWaiterForm] = React.useState(emptyWaiterForm);
+  const [reviewSettingsForm, setReviewSettingsForm] = React.useState({
+    googleReviewUrl: "",
+    googlePlaceId: "",
+    googlePlacesApiKey: "",
+  });
   const [editingMenuId, setEditingMenuId] = React.useState(null);
   const [adminReservation, setAdminReservation] = React.useState(emptyAdminReservation);
   const [tableEdits, setTableEdits] = React.useState({});
@@ -1914,6 +2014,27 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
   }
 
+  async function loadReviewDashboard() {
+    try {
+      const data = await fetchJsonOrEmpty(`${API_BASE_URL}/api/review/admin`, { waiters: [], attributions: [], settings: {} }, withAdminToken());
+      const normalized = {
+        waiters: data.waiters || data.Waiters || [],
+        attributions: data.attributions || data.Attributions || [],
+        settings: data.settings || data.Settings || {},
+        disclaimer: data.disclaimer || data.Disclaimer || "",
+      };
+      setReviewDashboard(normalized);
+      setReviewSettingsForm((prev) => ({
+        googleReviewUrl: normalized.settings.googleReviewUrl || normalized.settings.GoogleReviewUrl || prev.googleReviewUrl,
+        googlePlaceId: normalized.settings.googlePlaceId || normalized.settings.GooglePlaceId || prev.googlePlaceId,
+        googlePlacesApiKey: "",
+      }));
+    } catch (error) {
+      console.error("Failed to load review QR dashboard", error);
+      setAdminError(error?.message || "Failed to load review QR dashboard.");
+    }
+  }
+
   React.useEffect(() => {
     loadReservations();
     loadBlacklist();
@@ -1939,10 +2060,14 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       loadAdminUsers();
       loadAuditLogs();
     }
+
+    if (activeTab === "reviews") {
+      loadReviewDashboard();
+    }
   }, [activeTab]);
 
   React.useEffect(() => {
-    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "customers", "admins"];
+    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "reviews", "customers", "admins"];
 
     const handleTouchStart = (event) => {
       if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) {
@@ -2519,6 +2644,73 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     setAdminNotice(`Menu ready. Added ${result.created ?? result.Created ?? 0}, total ${result.total ?? result.Total ?? "—"}.`);
   }
 
+  async function saveReviewSettings(event) {
+    event.preventDefault();
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/review/admin/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(reviewSettingsForm),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to save review settings."));
+      return;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Настройките за отзиви са запазени." : "Review settings saved.");
+    await loadReviewDashboard();
+  }
+
+  async function saveWaiter(event) {
+    event.preventDefault();
+    setAdminNotice("");
+    setAdminError("");
+
+    const url = waiterForm.id
+      ? `${API_BASE_URL}/api/review/admin/waiters/${waiterForm.id}`
+      : `${API_BASE_URL}/api/review/admin/waiters`;
+
+    const response = await adminFetch(url, {
+      method: waiterForm.id ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(waiterForm),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to save waiter."));
+      return;
+    }
+
+    setWaiterForm(emptyWaiterForm);
+    setAdminNotice(adminLanguage === "bg" ? "Сервитьорът е запазен." : "Waiter saved.");
+    await loadReviewDashboard();
+  }
+
+  async function syncReviewAttribution() {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/review/admin/sync-attribution`, {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to sync attribution."));
+      return;
+    }
+
+    const result = await response.json();
+    setAdminNotice(
+      adminLanguage === "bg"
+        ? `Attribution синхронизиран. Нови отзиви: ${result.created ?? 0}.`
+        : `Attribution synced. New reviews: ${result.created ?? 0}.`
+    );
+    await loadReviewDashboard();
+  }
+
   async function createAdminReservation(event) {
     event.preventDefault();
 
@@ -3003,6 +3195,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
     ["layout", a.tabs.layout],
+    ["reviews", a.tabs.reviews],
     ["customers", a.tabs.customers],
     ["admins", adminLanguage === "bg" ? "Админи" : "Admins"],
   ];
@@ -3025,6 +3218,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
     if (activeTab === "layout") {
       await loadTableLayout();
+      return;
+    }
+
+    if (activeTab === "reviews") {
+      await loadReviewDashboard();
       return;
     }
 
@@ -4495,6 +4693,201 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 onSave={saveTableLayout}
                 onReset={resetTableLayout}
               />
+            )}
+
+            {activeTab === "reviews" && (
+              <Panel
+                title={a.reviewQr.title}
+                subtitle={a.reviewQr.subtitle}
+                right={
+                  <button
+                    type="button"
+                    onClick={syncReviewAttribution}
+                    className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
+                  >
+                    {a.reviewQr.sync}
+                  </button>
+                }
+              >
+                <div className="grid gap-5 xl:grid-cols-[0.95fr_1.35fr]">
+                  <div className="space-y-5">
+                    <form onSubmit={saveReviewSettings} className="rounded-[26px] border border-white/10 bg-white/[0.035] p-5">
+                      <div className="section-kicker">{a.reviewQr.settings}</div>
+                      <label className="mt-4 block text-sm text-stone-400">{a.reviewQr.googleUrl}</label>
+                      <input
+                        value={reviewSettingsForm.googleReviewUrl}
+                        onChange={(event) => setReviewSettingsForm((prev) => ({ ...prev, googleReviewUrl: event.target.value }))}
+                        placeholder="https://g.page/r/..."
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300"
+                      />
+                      <label className="mt-4 block text-sm text-stone-400">{a.reviewQr.placeId}</label>
+                      <input
+                        value={reviewSettingsForm.googlePlaceId}
+                        onChange={(event) => setReviewSettingsForm((prev) => ({ ...prev, googlePlaceId: event.target.value }))}
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300"
+                      />
+                      <label className="mt-4 block text-sm text-stone-400">{a.reviewQr.apiKey}</label>
+                      <input
+                        value={reviewSettingsForm.googlePlacesApiKey}
+                        onChange={(event) => setReviewSettingsForm((prev) => ({ ...prev, googlePlacesApiKey: event.target.value }))}
+                        type="password"
+                        placeholder={reviewDashboard.settings?.hasGooglePlacesApiKey || reviewDashboard.settings?.HasGooglePlacesApiKey ? "••••••••" : ""}
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300"
+                      />
+                      <button className="luxury-button mt-5 w-full rounded-2xl px-5 py-3 text-sm font-semibold">
+                        {a.reviewQr.saveSettings}
+                      </button>
+                    </form>
+
+                    <form onSubmit={saveWaiter} className="rounded-[26px] border border-[#c9a56a]/20 bg-[#c9a56a]/8 p-5">
+                      <div className="section-kicker">
+                        {waiterForm.id ? a.reviewQr.editWaiter : a.reviewQr.addWaiter}
+                      </div>
+                      <label className="mt-4 block text-sm text-stone-400">{a.reviewQr.name}</label>
+                      <input
+                        value={waiterForm.name}
+                        onChange={(event) => setWaiterForm((prev) => ({ ...prev, name: event.target.value }))}
+                        required
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300"
+                      />
+                      <label className="mt-4 block text-sm text-stone-400">{a.reviewQr.slug}</label>
+                      <input
+                        value={waiterForm.slug}
+                        onChange={(event) => setWaiterForm((prev) => ({ ...prev, slug: event.target.value }))}
+                        placeholder="alex"
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm outline-none focus:border-amber-300"
+                      />
+                      <label className="mt-4 flex items-center gap-3 text-sm text-stone-300">
+                        <input
+                          type="checkbox"
+                          checked={waiterForm.isActive}
+                          onChange={(event) => setWaiterForm((prev) => ({ ...prev, isActive: event.target.checked }))}
+                        />
+                        {a.reviewQr.active}
+                      </label>
+                      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                        <button className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold">
+                          {a.reviewQr.saveWaiter}
+                        </button>
+                        {waiterForm.id && (
+                          <button
+                            type="button"
+                            onClick={() => setWaiterForm(emptyWaiterForm)}
+                            className="ghost-button rounded-2xl px-5 py-3 text-sm font-semibold"
+                          >
+                            {a.reviewQr.cancel}
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  </div>
+
+                  <div className="space-y-4">
+                    {(reviewDashboard.waiters || []).length === 0 && (
+                      <div className="rounded-[26px] border border-white/10 bg-white/[0.035] p-6 text-stone-400">
+                        {a.reviewQr.noWaiters}
+                      </div>
+                    )}
+
+                    {(reviewDashboard.waiters || []).map((waiter) => {
+                      const id = waiter.id ?? waiter.Id;
+                      const slug = waiter.slug ?? waiter.Slug;
+                      const name = waiter.name ?? waiter.Name;
+                      const reviewUrl = buildReviewUrl(slug);
+                      const qrUrl = buildQrPngUrl(reviewUrl);
+
+                      return (
+                        <div key={id} className="grid gap-4 rounded-[28px] border border-white/10 bg-black/18 p-4 md:grid-cols-[160px_minmax(0,1fr)]">
+                          <div className="rounded-2xl border border-white/10 bg-white p-3">
+                            <img src={qrUrl} alt={`${name} QR`} className="aspect-square w-full rounded-xl" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <div className="text-xl font-semibold text-[#fff4df]">{name}</div>
+                                <div className="mt-1 break-all text-xs text-[#f2d39a]">{reviewUrl}</div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setWaiterForm({
+                                  id,
+                                  name,
+                                  slug,
+                                  isActive: waiter.isActive ?? waiter.IsActive ?? true,
+                                })}
+                                className="ghost-button rounded-xl px-4 py-2 text-sm font-semibold"
+                              >
+                                {a.reviewQr.editWaiter}
+                              </button>
+                            </div>
+
+                            <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-6">
+                              {[
+                                [a.reviewQr.total, waiter.totalScans ?? waiter.TotalScans ?? 0],
+                                [a.reviewQr.today, waiter.todayScans ?? waiter.TodayScans ?? 0],
+                                [a.reviewQr.month, waiter.monthScans ?? waiter.MonthScans ?? 0],
+                                [a.reviewQr.unique24, waiter.uniqueScans24h ?? waiter.UniqueScans24h ?? 0],
+                                [a.reviewQr.conversion, `${waiter.conversionRate ?? waiter.ConversionRate ?? 0}%`],
+                                [a.reviewQr.efficiency, waiter.efficiencyScore ?? waiter.EfficiencyScore ?? 0],
+                              ].map(([label, value]) => (
+                                <div key={label} className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
+                                  <div className="text-[10px] uppercase tracking-[0.18em] text-white/45">{label}</div>
+                                  <div className="mt-2 text-xl font-semibold text-[#fff4df]">{value}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                              <button
+                                type="button"
+                                onClick={() => downloadQrPng(qrUrl, `${slug}-review-qr.png`)}
+                                className="luxury-button rounded-xl px-4 py-3 text-center text-sm font-semibold"
+                              >
+                                {a.reviewQr.download}
+                              </button>
+                              <a href={reviewUrl} target="_blank" rel="noreferrer" className="ghost-button rounded-xl px-4 py-3 text-center text-sm font-semibold">
+                                /review/{slug}
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="rounded-[26px] border border-[#c9a56a]/20 bg-[#c9a56a]/8 p-5">
+                      <div className="section-kicker">Attribution</div>
+                      <p className="mt-2 text-sm leading-6 text-white/55">{a.reviewQr.attributionHint}</p>
+                      <div className="mt-4 space-y-2">
+                        {(reviewDashboard.attributions || []).slice(0, 8).map((item) => {
+                          const waiterName = item.attributedWaiterName || item.AttributedWaiterName || "—";
+                          const confidence = item.confidenceScore ?? item.ConfidenceScore;
+
+                          return (
+                            <div key={item.id ?? item.Id} className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="font-semibold text-[#fff4df]">
+                                  {a.reviewQr.likely} {waiterName}
+                                </div>
+                                {confidence && (
+                                  <div className="rounded-full border border-[#f2d39a]/25 bg-[#c9a56a]/10 px-3 py-1 text-xs text-[#f2d39a]">
+                                    {confidence}% {a.reviewQr.confidence}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="mt-2 text-xs text-white/45">
+                                {item.reviewTimeUtc || item.ReviewTimeUtc}
+                              </div>
+                              {(item.text || item.Text) && (
+                                <p className="mt-2 line-clamp-2 text-sm text-white/60">{item.text || item.Text}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Panel>
             )}
 
             {activeTab === "blacklist" && (

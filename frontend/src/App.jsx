@@ -7,6 +7,7 @@ import ReservationPage from "./pages/ReservationPage";
 import MenuPage from "./pages/MenuPage";
 import AdminPage from "./pages/AdminPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import ReviewLandingPage from "./pages/ReviewLandingPage";
 import { API_BASE_URL } from "./config/api";
 import BackToTopButton from "./components/layout/BackToTopButton";
 
@@ -23,6 +24,10 @@ const safeReadAdminToken = () => {
 
 const getInitialPage = () => {
   if (typeof window === "undefined") return "home";
+
+  if (window.location.pathname.startsWith("/review/")) {
+    return "review";
+  }
 
   if (window.location.pathname === "/admin") {
     return "admin";
@@ -245,6 +250,7 @@ export default function App() {
       "reservation-map": "/reservation",
       menu: "/menu",
       privacy: "/privacy",
+      review: window.location.pathname.startsWith("/review/") ? window.location.pathname : "/review",
       home: "/",
     };
     const nextPath = pagePaths[currentPage] || "/";
@@ -276,6 +282,11 @@ export default function App() {
 
       if (path === "/privacy") {
         setCurrentPage("privacy");
+        return;
+      }
+
+      if (path.startsWith("/review/")) {
+        setCurrentPage("review");
         return;
       }
 
@@ -313,7 +324,7 @@ export default function App() {
   }, [currentPage]);
 
   React.useEffect(() => {
-    if (typeof window === "undefined" || currentPage === "admin") return undefined;
+    if (typeof window === "undefined" || currentPage === "admin" || currentPage === "review") return undefined;
 
     const pages = ["home", "menu", "reservation-map", "privacy"];
 
@@ -436,6 +447,14 @@ export default function App() {
         <BackToTopButton />
       </>
     );
+  }
+
+  if (currentPage === "review") {
+    const waiterSlug = typeof window === "undefined"
+      ? ""
+      : window.location.pathname.split("/review/")[1]?.split("/")[0] || "";
+
+    return <ReviewLandingPage language={language} waiterSlug={waiterSlug} />;
   }
 
   return (

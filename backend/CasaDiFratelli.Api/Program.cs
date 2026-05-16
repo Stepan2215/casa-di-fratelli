@@ -10,6 +10,8 @@ builder.Services.AddHttpClient<EmailService>();
 builder.Services.AddScoped<ReservationConflictService>();
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddScoped<AuditService>();
+builder.Services.AddScoped<ReviewAttributionService>();
+builder.Services.AddHostedService<ReviewAttributionHostedService>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
