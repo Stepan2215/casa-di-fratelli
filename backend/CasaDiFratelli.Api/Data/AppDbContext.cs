@@ -18,10 +18,6 @@ public class AppDbContext : DbContext
     public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
     public DbSet<AdminDeviceCredential> AdminDeviceCredentials => Set<AdminDeviceCredential>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
-    public DbSet<Waiter> Waiters => Set<Waiter>();
-    public DbSet<ReviewClick> ReviewClicks => Set<ReviewClick>();
-    public DbSet<RestaurantSetting> RestaurantSettings => Set<RestaurantSetting>();
-    public DbSet<GoogleReviewSnapshot> GoogleReviewSnapshots => Set<GoogleReviewSnapshot>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -57,34 +53,6 @@ public class AppDbContext : DbContext
         {
             entity.Property(x => x.CredentialHash).IsRequired().HasMaxLength(128);
             entity.HasIndex(x => x.CredentialHash).IsUnique();
-        });
-
-        modelBuilder.Entity<Waiter>(entity =>
-        {
-            entity.Property(x => x.Name).IsRequired().HasMaxLength(120);
-            entity.Property(x => x.Slug).IsRequired().HasMaxLength(120);
-            entity.HasIndex(x => x.Slug).IsUnique();
-        });
-
-        modelBuilder.Entity<ReviewClick>(entity =>
-        {
-            entity.Property(x => x.IpHash).IsRequired().HasMaxLength(128);
-            entity.Property(x => x.UserAgent).HasMaxLength(600);
-            entity.Property(x => x.Referrer).HasMaxLength(600);
-            entity.HasIndex(x => new { x.WaiterId, x.IpHash, x.ClickedAtUtc });
-        });
-
-        modelBuilder.Entity<RestaurantSetting>(entity =>
-        {
-            entity.Property(x => x.Key).IsRequired().HasMaxLength(120);
-            entity.HasIndex(x => x.Key).IsUnique();
-        });
-
-        modelBuilder.Entity<GoogleReviewSnapshot>(entity =>
-        {
-            entity.Property(x => x.GoogleReviewId).IsRequired().HasMaxLength(240);
-            entity.HasIndex(x => x.GoogleReviewId).IsUnique();
-            entity.Property(x => x.ConfidenceScore).HasPrecision(5, 2);
         });
     }
 }
