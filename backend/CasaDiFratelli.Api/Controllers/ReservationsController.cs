@@ -60,7 +60,11 @@ private static bool IsPastReservationTime(DateOnly reservedDate, string reserved
     if (reservedDate < today) return true;
     if (reservedDate > today) return false;
 
-    return time <= TimeOnly.FromDateTime(now);
+    var selectedDateTime = reservedDate.ToDateTime(time);
+    if (time.Hour <= 3 && now.Hour >= 10)
+        selectedDateTime = selectedDateTime.AddDays(1);
+
+    return selectedDateTime <= now;
 }
 
 private static string CreateOrderAccessToken()

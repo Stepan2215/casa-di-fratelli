@@ -59,6 +59,10 @@ test("date helpers identify past date-times and hide old slots for today", () =>
     ["16:00"]
   );
   assert.deepEqual(
+    getAvailableReservationTimesForDate(["22:00", "23:00", "00:00", "01:00", "03:00"], "2026-05-14", now),
+    ["22:00", "23:00", "00:00", "01:00", "03:00"]
+  );
+  assert.deepEqual(
     getAvailableReservationTimesForDate(["14:00", "15:00"], "2026-05-15", now),
     ["14:00", "15:00"]
   );

@@ -50,6 +50,9 @@ export function isPastTimeForDate(dateValue, timeValue, now = new Date()) {
   const [hours, minutes] = timeValue.split(":").map(Number);
   const selected = new Date(now);
   selected.setHours(hours, minutes, 0, 0);
+  if (hours <= 3 && now.getHours() >= 10) {
+    selected.setDate(selected.getDate() + 1);
+  }
 
   return selected <= now;
 }
