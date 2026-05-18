@@ -27,6 +27,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseCors("AllowFrontend");
+
 app.Use(async (context, next) =>
 {
     var stopwatch = Stopwatch.StartNew();
@@ -37,7 +39,12 @@ app.Use(async (context, next) =>
     catch (Exception error)
     {
         app.Logger.LogError(error, "Unhandled error {Method} {Path}", context.Request.Method, context.Request.Path);
-        throw;
+        if (!context.Response.HasStarted)
+        {
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(new { message = "Internal server error." });
+        }
     }
     finally
     {
@@ -62,8 +69,6 @@ using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.GetRequiredService<AdminAuthService>().EnsureDefaultAdminAsync();
     _ = await MenuSeedData.SeedAsync(db);
 }
-
-app.UseCors("AllowFrontend");
 
 app.MapControllers();
 

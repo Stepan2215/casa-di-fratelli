@@ -167,13 +167,17 @@ private static string CreateOrderAccessToken()
             return Conflict(ReservationConflictService.ToConflictResponse(conflict));
         }
 
+        var guestName = request.GuestName.Trim();
+        var phone = request.Phone.Trim();
+        var email = string.IsNullOrWhiteSpace(request.Email) ? string.Empty : request.Email.Trim();
+
         var reservation = new Reservation
         {
-            GuestName = request.GuestName.Trim(),
-            Phone = request.Phone.Trim(),
-            Email = request.Email.Trim(),
+            GuestName = guestName,
+            Phone = phone,
+            Email = email,
             GuestCount = request.GuestCount,
-            Area = request.Area,
+            Area = string.IsNullOrWhiteSpace(request.Area) ? "indoor" : request.Area.Trim(),
             ReservedDate = request.ReservedDate,
             ReservedTime = request.ReservedTime,
             BirthDate = request.BirthDate,
@@ -194,18 +198,18 @@ private static string CreateOrderAccessToken()
         await _db.SaveChangesAsync();
 
         var customer = await _db.CustomerProfiles.FirstOrDefaultAsync(x =>
-    (!string.IsNullOrWhiteSpace(request.Email) && x.Email == request.Email)
+    (!string.IsNullOrWhiteSpace(email) && x.Email == email)
     ||
-    (!string.IsNullOrWhiteSpace(request.Phone) && x.Phone == request.Phone)
+    (!string.IsNullOrWhiteSpace(phone) && x.Phone == phone)
 );
 
 if (customer == null)
 {
     customer = new CustomerProfile
     {
-        GuestName = request.GuestName,
-        Email = request.Email,
-        Phone = request.Phone,
+        GuestName = guestName,
+        Email = email,
+        Phone = phone,
         BirthDate = request.BirthDate,
         MarketingConsent = request.MarketingConsent,
         ReservationCount = 1,
@@ -228,9 +232,9 @@ else
 }
 
 var isBlacklisted = await _db.BlacklistEntries.AnyAsync(x =>
-    (!string.IsNullOrWhiteSpace(x.Email) && x.Email == request.Email)
+    (!string.IsNullOrWhiteSpace(x.Email) && x.Email == email)
     ||
-    (!string.IsNullOrWhiteSpace(x.Phone) && x.Phone == request.Phone)
+    (!string.IsNullOrWhiteSpace(x.Phone) && x.Phone == phone)
 );
 
 reservation.IsBlacklisted = isBlacklisted;

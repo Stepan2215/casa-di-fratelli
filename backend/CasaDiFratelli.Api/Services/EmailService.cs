@@ -22,43 +22,50 @@ public class EmailService
 
     public async Task SendAsync(string to, string subject, string html)
     {
-        var apiKey = _configuration["RESEND_API_KEY"];
-        var fromEmail = _configuration["FROM_EMAIL"];
-
-        if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(fromEmail))
+        try
         {
-            _logger.LogWarning("Email was not sent because RESEND_API_KEY or FROM_EMAIL is missing.");
-            return;
+            var apiKey = _configuration["RESEND_API_KEY"];
+            var fromEmail = _configuration["FROM_EMAIL"];
+
+            if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(fromEmail))
+            {
+                _logger.LogWarning("Email was not sent because RESEND_API_KEY or FROM_EMAIL is missing.");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(to))
+            {
+                _logger.LogWarning("Email was not sent because recipient is empty.");
+                return;
+            }
+
+            var payload = new
+            {
+                from = fromEmail,
+                to = new[] { to },
+                subject,
+                html
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+            request.Content = new StringContent(
+                JsonSerializer.Serialize(payload),
+                Encoding.UTF8,
+                "application/json"
+            );
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogError("Failed to send email via Resend. Status: {Status}. Body: {Body}", response.StatusCode, error);
+            }
         }
-
-        if (string.IsNullOrWhiteSpace(to))
+        catch (Exception error)
         {
-            _logger.LogWarning("Email was not sent because recipient is empty.");
-            return;
-        }
-
-        var payload = new
-        {
-            from = fromEmail,
-            to = new[] { to },
-            subject,
-            html
-        };
-
-        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Content = new StringContent(
-            JsonSerializer.Serialize(payload),
-            Encoding.UTF8,
-            "application/json"
-        );
-
-        var response = await _httpClient.SendAsync(request);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            var error = await response.Content.ReadAsStringAsync();
-            _logger.LogError("Failed to send email via Resend. Status: {Status}. Body: {Body}", response.StatusCode, error);
+            _logger.LogError(error, "Email sending failed before the request could complete.");
         }
     }
 }
