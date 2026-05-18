@@ -1,4 +1,4 @@
-export default function MenuCategorySection({ category, language }) {
+export default function MenuCategorySection({ category, language, orderEnabled = false, onAddToOrder }) {
   const featuredCount = category.items.filter((item) => item.featured).length;
 
   return (
@@ -30,7 +30,7 @@ export default function MenuCategorySection({ category, language }) {
       <div className="grid gap-4 md:grid-cols-2">
         {category.items.map((item, index) => (
           <div
-            key={item.name}
+            key={item.id || item.name}
             className={`luxury-panel menu-spark rounded-[22px] p-5 transition hover:-translate-y-1 hover:border-[#c9a56a]/30 ${
               item.featured ? "md:col-span-2" : ""
             }`}
@@ -58,8 +58,19 @@ export default function MenuCategorySection({ category, language }) {
                 </div>
               </div>
 
-              <div className="shrink-0 rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 px-4 py-2 text-base font-semibold text-[#f2d3a0]">
-                {item.price}
+              <div className="flex shrink-0 flex-col items-start gap-2 md:items-end">
+                <div className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/10 px-4 py-2 text-base font-semibold text-[#f2d3a0]">
+                  {item.price}
+                </div>
+                {orderEnabled && (
+                  <button
+                    type="button"
+                    onClick={() => onAddToOrder?.(item)}
+                    className="luxury-button rounded-full px-4 py-2 text-xs font-semibold"
+                  >
+                    {language === "bg" ? "Добави" : "Add"}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -5,6 +5,7 @@ using CasaDiFratelli.Api.Filters;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using CasaDiFratelli.Api.Services;
+using System.Security.Cryptography;
 
 namespace CasaDiFratelli.Api.Controllers;
 
@@ -60,6 +61,11 @@ private static bool IsPastReservationTime(DateOnly reservedDate, string reserved
     if (reservedDate > today) return false;
 
     return time <= TimeOnly.FromDateTime(now);
+}
+
+private static string CreateOrderAccessToken()
+{
+    return Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
 }
 
     [HttpGet]
@@ -336,7 +342,9 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
     [AdminAuthorize]
     public async Task<IActionResult> MarkArrived(int id)
     {
-        var reservation = await _db.Reservations.FindAsync(id);
+        var reservation = await _db.Reservations
+            .Include(x => x.Tables)
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         if (reservation == null)
             return NotFound();
@@ -347,8 +355,39 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.Status = "Approved";
         reservation.IsArrived = true;
         reservation.IsNoShow = false;
+        reservation.OrderAccessToken ??= CreateOrderAccessToken();
         await _db.SaveChangesAsync();
         await _audit.RecordAsync(HttpContext, "arrive", "Reservation", reservation.Id.ToString(), after: new { reservation.Id, reservation.Status, reservation.IsArrived });
+
+        if (!string.IsNullOrWhiteSpace(reservation.Email))
+        {
+            var configuredFrontendUrl = _configuration["FRONTEND_URL"];
+            var configuredAdminUrl = _configuration["ADMIN_URL"];
+            var frontendUrl = (string.IsNullOrWhiteSpace(configuredFrontendUrl)
+                    ? configuredAdminUrl?.Replace("/admin", "", StringComparison.OrdinalIgnoreCase)
+                    : configuredFrontendUrl)
+                ?.TrimEnd('/') ?? "https://casa-di-fratelli.vercel.app";
+            var menuUrl = $"{frontendUrl}/menu?reservation={reservation.Id}&token={Uri.EscapeDataString(reservation.OrderAccessToken)}";
+
+            await _emailService.SendAsync(
+                reservation.Email,
+                "Можете да поръчате от дигиталното меню · Casa di Fratelli",
+                $"""
+                <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+                  <h2>Добре дошли в Casa di Fratelli</h2>
+                  <p>Здравейте, {reservation.GuestName},</p>
+                  <p>Можете да разгледате дигиталното ни меню и да изпратите поръчка директно от телефона си, без да чакате сервитьор.</p>
+                  <p><strong>Маса:</strong> {string.Join(", ", reservation.Tables.Select(t => t.TableCode))}</p>
+                  <p>
+                    <a href="{menuUrl}" style="display:inline-block;background:#c9a56a;color:#111827;padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700">
+                      Отвори дигиталното меню
+                    </a>
+                  </p>
+                  <p style="color:#6b7280">Ако имате въпроси или специални желания, нашият екип е на разположение.</p>
+                </div>
+                """
+            );
+        }
 
         return Ok(new
         {

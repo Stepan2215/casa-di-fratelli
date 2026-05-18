@@ -18,6 +18,8 @@ public class AppDbContext : DbContext
     public DbSet<AdminSession> AdminSessions => Set<AdminSession>();
     public DbSet<AdminDeviceCredential> AdminDeviceCredentials => Set<AdminDeviceCredential>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<DiningOrder> DiningOrders => Set<DiningOrder>();
+    public DbSet<DiningOrderItem> DiningOrderItems => Set<DiningOrderItem>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -29,6 +31,8 @@ public class AppDbContext : DbContext
             entity.Property(x => x.Area).IsRequired().HasMaxLength(50);
             entity.Property(x => x.ReservedTime).IsRequired().HasMaxLength(20);
             entity.Property(x => x.Status).IsRequired().HasMaxLength(30);
+            entity.Property(x => x.OrderAccessToken).HasMaxLength(80);
+            entity.HasIndex(x => x.OrderAccessToken);
         });
 
         modelBuilder.Entity<ReservationTable>(entity =>
@@ -53,6 +57,19 @@ public class AppDbContext : DbContext
         {
             entity.Property(x => x.CredentialHash).IsRequired().HasMaxLength(128);
             entity.HasIndex(x => x.CredentialHash).IsUnique();
+        });
+
+        modelBuilder.Entity<DiningOrder>(entity =>
+        {
+            entity.Property(x => x.GuestName).IsRequired().HasMaxLength(120);
+            entity.Property(x => x.TableLabel).IsRequired().HasMaxLength(120);
+            entity.Property(x => x.Status).IsRequired().HasMaxLength(30);
+            entity.HasMany(x => x.Items).WithOne(x => x.DiningOrder).HasForeignKey(x => x.DiningOrderId);
+        });
+
+        modelBuilder.Entity<DiningOrderItem>(entity =>
+        {
+            entity.Property(x => x.Name).IsRequired().HasMaxLength(180);
         });
     }
 }

@@ -29,10 +29,10 @@ import {
 
 const byId = (tables, id) => tables.find((table) => table.id === id);
 
-test("reservation times cover the restaurant day from 10:00 to 22:00", () => {
-  assert.equal(reservationTimes.length, 13);
+test("reservation times cover the restaurant day from 10:00 to 03:00", () => {
+  assert.equal(reservationTimes.length, 18);
   assert.equal(reservationTimes[0], "10:00");
-  assert.equal(reservationTimes.at(-1), "22:00");
+  assert.equal(reservationTimes.at(-1), "03:00");
 });
 
 test("time helpers keep the 3 hour reservation buffer exclusive", () => {

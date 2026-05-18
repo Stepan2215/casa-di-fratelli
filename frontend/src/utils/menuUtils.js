@@ -80,9 +80,12 @@ export function buildMenuDataFromCms(items, language, fallbackData) {
     }
 
     grouped.get(categoryId).items.push({
+      id: getValue(item, "id"),
+      category: categoryId,
       name: getValue(item, language === "bg" ? "nameBg" : "nameEn") || getValue(item, "nameBg") || "",
       weight: getValue(item, "weight") || "",
       price: formatEuro(getValue(item, "price")),
+      priceValue: Number(getValue(item, "price") || 0),
       description:
         getValue(item, language === "bg" ? "descriptionBg" : "descriptionEn") ||
         getValue(item, "descriptionBg") ||

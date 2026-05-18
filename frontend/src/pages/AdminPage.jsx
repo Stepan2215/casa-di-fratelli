@@ -53,6 +53,7 @@ const adminText = {
     tabs: {
       liveMap: "Карта на резервациите",
       reservations: "Резервации",
+      orders: "Поръчки",
       create: "Нова резервация",
       block: "Блокирай зала",
       menu: "Меню",
@@ -89,6 +90,20 @@ const adminText = {
       sourceWebsite: "Сайт",
       open: "Детайли",
       close: "Скрий",
+    },
+    orders: {
+      title: "Поръчки от маси",
+      subtitle: "Поръчки, изпратени от дигиталното меню след маркиране на гост като пристигнал.",
+      empty: "Още няма изпратени поръчки.",
+      table: "Маса",
+      guest: "Гост",
+      total: "Общо",
+      status: "Статус",
+      items: "Позиции",
+      notes: "Бележка",
+      markSeen: "Видяна",
+      preparing: "Приготвя се",
+      done: "Готова",
     },
     liveMap: {
       title: "Карта на резервациите",
@@ -174,6 +189,7 @@ const adminText = {
     tabs: {
       liveMap: "Reservation map",
       reservations: "Reservations",
+      orders: "Orders",
       create: "Create",
       block: "Block hall",
       menu: "Menu",
@@ -210,6 +226,20 @@ const adminText = {
       sourceWebsite: "Website",
       open: "Details",
       close: "Hide",
+    },
+    orders: {
+      title: "Table orders",
+      subtitle: "Orders sent from the digital menu after a guest is marked as arrived.",
+      empty: "No orders have been sent yet.",
+      table: "Table",
+      guest: "Guest",
+      total: "Total",
+      status: "Status",
+      items: "Items",
+      notes: "Note",
+      markSeen: "Seen",
+      preparing: "Preparing",
+      done: "Done",
     },
     liveMap: {
       title: "Reservation map",
@@ -1720,6 +1750,47 @@ function normalizeReservation(r) {
   };
 }
 
+function normalizeDiningOrder(order) {
+  const reservation = getValue(order, "reservation") || {};
+  const items = getValue(order, "items") || [];
+
+  return {
+    id: getValue(order, "id"),
+    reservationId: getValue(order, "reservationId"),
+    guestName: getValue(order, "guestName") || "—",
+    tableLabel: getValue(order, "tableLabel") || "—",
+    status: getValue(order, "status") || "New",
+    totalPrice: Number(getValue(order, "totalPrice") || 0),
+    notes: getValue(order, "notes") || "",
+    createdAtUtc: getValue(order, "createdAtUtc"),
+    reservation: {
+      phone: getValue(reservation, "phone") || "",
+      email: getValue(reservation, "email") || "",
+      reservedDate: getValue(reservation, "reservedDate") || "",
+      reservedTime: getValue(reservation, "reservedTime") || "",
+      tableIds: getValue(reservation, "tableIds") || [],
+    },
+    items: Array.isArray(items)
+      ? items.map((item) => ({
+          id: getValue(item, "id"),
+          name: getValue(item, "name") || "—",
+          unitPrice: Number(getValue(item, "unitPrice") || 0),
+          quantity: Number(getValue(item, "quantity") || 0),
+          notes: getValue(item, "notes") || "",
+        }))
+      : [],
+  };
+}
+
+function formatEuroAmount(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
+}
+
 function formatBirthday(value, language) {
   if (!value) return "—";
 
@@ -1791,6 +1862,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   const [activeTab, setActiveTab] = React.useState("home");
   const [adminLanguage, setAdminLanguage] = React.useState("bg");
   const [reservations, setReservations] = React.useState([]);
+  const [diningOrders, setDiningOrders] = React.useState([]);
   const [menuItems, setMenuItems] = React.useState([]);
   const [blacklist, setBlacklist] = React.useState([]);
   const [adminUsers, setAdminUsers] = React.useState([]);
@@ -1876,6 +1948,16 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
   }
 
+  async function loadDiningOrders() {
+    try {
+      const ordersData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/dining-orders`, [], withAdminToken());
+      setDiningOrders(Array.isArray(ordersData) ? ordersData.map(normalizeDiningOrder) : []);
+    } catch (error) {
+      console.error("Failed to load dining orders", error);
+      setAdminError(error?.message || "Failed to load dining orders.");
+    }
+  }
+
   async function loadBlacklist() {
     try {
       const blacklistData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, [], withAdminToken());
@@ -1916,6 +1998,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
 
   React.useEffect(() => {
     loadReservations();
+    loadDiningOrders();
     loadBlacklist();
     loadTableLayout();
   }, []);
@@ -1925,6 +2008,10 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
 
     if (activeTab === "menu") {
       loadMenuItems();
+    }
+
+    if (activeTab === "orders") {
+      loadDiningOrders();
     }
 
     if (activeTab === "blacklist") {
@@ -1942,7 +2029,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   }, [activeTab]);
 
   React.useEffect(() => {
-    const pages = ["home", "liveMap", "reservations", "block", "menu", "layout", "customers", "admins"];
+    const pages = ["home", "liveMap", "reservations", "orders", "block", "menu", "layout", "customers", "admins"];
 
     const handleTouchStart = (event) => {
       if (event.touches.length !== 1 || isInteractiveSwipeTarget(event.target)) {
@@ -2070,6 +2157,25 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
 
     await loadReservations();
+  }
+
+  async function updateDiningOrderStatus(orderId, status) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/dining-orders/${orderId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to update order status."));
+      return;
+    }
+
+    setAdminNotice(adminLanguage === "bg" ? "Статусът на поръчката е обновен." : "Order status updated.");
+    await loadDiningOrders();
   }
 
   async function markReservationArrived(reservation) {
@@ -3000,6 +3106,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
   const tabs = [
     ["liveMap", a.tabs.liveMap],
     ["reservations", a.tabs.reservations],
+    ["orders", a.tabs.orders],
     ["block", a.tabs.block],
     ["menu", a.tabs.menu],
     ["layout", a.tabs.layout],
@@ -3009,7 +3116,12 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
   async function refreshActiveTab() {
     if (activeTab === "home") {
-      await Promise.all([loadReservations(), loadBlacklist(), loadTableLayout()]);
+      await Promise.all([loadReservations(), loadDiningOrders(), loadBlacklist(), loadTableLayout()]);
+      return;
+    }
+
+    if (activeTab === "orders") {
+      await loadDiningOrders();
       return;
     }
 
@@ -3940,6 +4052,87 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                     </tbody>
                   </table>
                 </div>
+              </Panel>
+            )}
+
+            {activeTab === "orders" && (
+              <Panel title={a.orders.title} subtitle={a.orders.subtitle}>
+                {diningOrders.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-white/55">
+                    {a.orders.empty}
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {diningOrders.map((order) => (
+                      <article key={order.id} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/12 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
+                                #{order.id}
+                              </span>
+                              <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
+                                {a.orders.status}: {order.status}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-semibold text-[#fff4df]">
+                              {a.orders.table} {order.tableLabel}
+                            </h3>
+                            <div className="mt-1 text-sm text-white/55">
+                              {a.orders.guest}: {order.guestName} · {formatEuroAmount(order.totalPrice)}
+                            </div>
+                            {order.notes && (
+                              <div className="mt-2 text-sm text-amber-100/80">
+                                {a.orders.notes}: {order.notes}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateDiningOrderStatus(order.id, "Seen")}
+                              className="ghost-button rounded-xl px-3 py-2 text-xs font-semibold"
+                            >
+                              {a.orders.markSeen}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateDiningOrderStatus(order.id, "Preparing")}
+                              className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-xs font-semibold text-[#f2d39a]"
+                            >
+                              {a.orders.preparing}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => updateDiningOrderStatus(order.id, "Done")}
+                              className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                            >
+                              {a.orders.done}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-2 md:grid-cols-2">
+                          {order.items.map((item) => (
+                            <div key={item.id || item.name} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="font-semibold text-white">{item.name}</div>
+                                  {item.notes && <div className="mt-1 text-xs text-white/45">{item.notes}</div>}
+                                </div>
+                                <div className="shrink-0 text-right text-sm text-[#f2d39a]">
+                                  x{item.quantity}
+                                  <div className="text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </Panel>
             )}
 

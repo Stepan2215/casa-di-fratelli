@@ -1,0 +1,20 @@
+namespace CasaDiFratelli.Api.Models;
+
+public class DiningOrderItem
+{
+    public int Id { get; set; }
+
+    public int DiningOrderId { get; set; }
+
+    public DiningOrder? DiningOrder { get; set; }
+
+    public int? MenuItemId { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public decimal UnitPrice { get; set; }
+
+    public int Quantity { get; set; }
+
+    public string? Notes { get; set; }
+}
