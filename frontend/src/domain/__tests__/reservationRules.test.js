@@ -129,11 +129,15 @@ test("availability excludes approved reservations within the 3 hour buffer and i
     { id: 5, status: "Approved", reservedDate: "2026-05-14", reservedTime: "22:29", tableIds: ["25"] },
     { id: 6, status: "Approved", reservedDate: "2026-05-14", reservedTime: "22:30", tableIds: ["26"] },
     { id: 7, status: "Released", reservedDate: "2026-05-14", reservedTime: "20:00", tableIds: ["27"] },
+    { id: 8, status: "Approved", reservedDate: "2026-05-14", reservedTime: "20:00" },
+    { id: 9, status: "Approved", reservedDate: "2026-05-14", reservedTime: "20:00", tableIds: [] },
   ];
 
   const unavailable = getUnavailableTableIdsForSlot(reservations, "2026-05-14", "19:30");
 
   assert.deepEqual([...unavailable].sort(), ["20", "21", "25"]);
-  assert.deepEqual(getUnavailableSelectedTableIds(["20", "22", "25"], unavailable), ["20", "25"]);
+  assert.deepEqual(getUnavailableSelectedTableIds(["20", "20", "22", "25"], unavailable), ["20", "25"]);
   assert.equal(getUnavailableTableIdsForSlot(reservations, "2026-05-14", "19:30", 1).has("20"), false);
+  assert.equal(getUnavailableTableIdsForSlot(reservations, "", "19:30").size, 0);
+  assert.equal(getUnavailableTableIdsForSlot(reservations, "2026-05-14", "").size, 0);
 });

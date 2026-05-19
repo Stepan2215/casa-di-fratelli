@@ -6,7 +6,10 @@ using System.Diagnostics;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddHttpClient<EmailService>();
+builder.Services.AddHttpClient<EmailService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 builder.Services.AddScoped<ReservationConflictService>();
 builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddScoped<AuditService>();

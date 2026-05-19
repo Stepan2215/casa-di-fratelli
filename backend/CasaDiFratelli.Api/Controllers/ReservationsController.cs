@@ -242,13 +242,13 @@ reservation.IsBlacklisted = isBlacklisted;
 await _db.SaveChangesAsync();
 
         var adminEmail = _configuration["ADMIN_EMAIL"];
-var adminUrl = _configuration["ADMIN_URL"] ?? "https://casa-di-fratelli.vercel.app/admin";
+        var adminUrl = _configuration["ADMIN_URL"] ?? "https://casa-di-fratelli.vercel.app/admin";
 
-if (!string.IsNullOrWhiteSpace(adminEmail))
-{
-    await _emailService.SendAsync(
-        adminEmail,
-        $"Нова резервация: {reservation.GuestName} · {reservation.ReservedDate} {reservation.ReservedTime}",
+        if (!string.IsNullOrWhiteSpace(adminEmail))
+        {
+            _ = _emailService.SendAsync(
+                adminEmail,
+                $"Нова резервация: {reservation.GuestName} · {reservation.ReservedDate} {reservation.ReservedTime}",
         $"""
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
           <h2>Нова резервация в Casa di Fratelli</h2>
@@ -267,8 +267,8 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
           </p>
         </div>
         """
-    );
-}
+            );
+        }
 
         return Ok(new
         {

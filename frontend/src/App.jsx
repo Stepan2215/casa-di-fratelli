@@ -406,6 +406,7 @@ export default function App() {
           setLanguage={setLanguage}
           onBack={() => setCurrentPage("home")}
           onOpenPrivacy={() => setCurrentPage("privacy")}
+          onReservationComplete={() => setCurrentPage("home")}
         />
         <BackToTopButton />
       </>

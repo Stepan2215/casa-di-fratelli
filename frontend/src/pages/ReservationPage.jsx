@@ -742,18 +742,31 @@ function BookingModal({
             <button
               type="submit"
               disabled={isSubmitting}
+              aria-busy={isSubmitting}
               className={`mt-2 w-full rounded-2xl px-6 py-4 font-medium sm:col-span-2 ${
                 isSubmitting
                   ? "cursor-not-allowed bg-white/10 text-white/40"
                   : `luxury-button ${isFormReady ? "reservation-submit-ready" : ""}`
               }`}
             >
-              {isSubmitting
-                ? language === "bg"
-                  ? "Изпращане..."
-                  : "Submitting..."
-                : t.submit}
+              <span className="flex items-center justify-center gap-3">
+                {isSubmitting && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-[#f2d39a]" />
+                )}
+                {isSubmitting
+                  ? language === "bg"
+                    ? "Изпращаме резервацията..."
+                    : "Sending reservation..."
+                  : t.submit}
+              </span>
             </button>
+            {isSubmitting && (
+              <div className="sm:col-span-2 text-center text-sm text-stone-400" role="status" aria-live="polite">
+                {language === "bg"
+                  ? "Моля, изчакайте. Проверяваме масата и изпращаме заявката."
+                  : "Please wait. We are checking the table and sending the request."}
+              </div>
+            )}
           </form>
 
           <div className="h-10" />
@@ -782,7 +795,7 @@ function normalizeLayoutTables(items, area, fallback) {
   return normalized.length ? normalized : fallback;
 }
 
-export default function ReservationPage({ t, language, setLanguage, onBack, onOpenPrivacy }) {
+export default function ReservationPage({ t, language, setLanguage, onBack, onOpenPrivacy, onReservationComplete }) {
   const today = React.useMemo(() => getTodayInputValue(), []);
 
   const [reservationDate, setReservationDate] = React.useState("");
@@ -1094,8 +1107,8 @@ if (bookingMode === "single") {
       setSubmitError("");
       setSubmitSuccess(
         language === "bg"
-          ? "Резервацията беше изпратена успешно."
-          : "Reservation submitted successfully."
+          ? "Резервацията беше изпратена успешно. Връщаме Ви към началото..."
+          : "Reservation submitted successfully. Taking you back to the home page..."
       );
 
       form?.reset?.();
@@ -1103,9 +1116,11 @@ if (bookingMode === "single") {
       setTimeout(() => {
         setShowBookingForm(false);
         setSelectedTables([]);
+        setSelectedTime("");
         setSubmitSuccess("");
         setSubmitError("");
-      }, 1200);
+        onReservationComplete?.();
+      }, 900);
     } catch (error) {
       console.error(error);
       setSubmitSuccess("");

@@ -13,6 +13,7 @@ export function getUnavailableTableIdsForSlot(
       .filter((reservation) => {
         if (reservation.status !== "Approved") return false;
         if (excludeReservationId && reservation.id === excludeReservationId) return false;
+        if (!Array.isArray(reservation.tableIds) || reservation.tableIds.length === 0) return false;
 
         return (
           String(reservation.reservedDate) === String(reservedDate) &&
@@ -24,5 +25,5 @@ export function getUnavailableTableIdsForSlot(
 }
 
 export function getUnavailableSelectedTableIds(selectedTableIds, unavailableTableIds) {
-  return selectedTableIds.filter((tableId) => unavailableTableIds.has(tableId));
+  return [...new Set(selectedTableIds)].filter((tableId) => unavailableTableIds.has(tableId));
 }
