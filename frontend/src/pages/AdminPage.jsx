@@ -3317,7 +3317,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["admins", adminLanguage === "bg" ? "Админи" : "Admins"],
   ];
 
-  async function refreshActiveTab() {
+  const refreshActiveTab = React.useCallback(async () => {
     if (activeTab === "home") {
       await Promise.all([loadReservations(), loadDiningOrders(), loadBlacklist(), loadTableLayout()]);
       return;
@@ -3354,7 +3354,27 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     }
 
     await loadReservations();
-  }
+  }, [
+    activeTab,
+    loadAdminUsers,
+    loadAuditLogs,
+    loadBlacklist,
+    loadDiningOrders,
+    loadMenuItems,
+    loadReservations,
+    loadTableLayout,
+  ]);
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return undefined;
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void refreshActiveTab();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshActiveTab]);
 
   const isDashboard = activeTab === "home";
   const activeTabLabel = tabs.find(([key]) => key === activeTab)?.[1] || a.appTitle;

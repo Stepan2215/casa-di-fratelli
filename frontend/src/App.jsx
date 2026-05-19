@@ -57,13 +57,26 @@ function isInteractiveSwipeTarget(target) {
 }
 
 function AdminLogin({ onLogin }) {
+  const resetParams = React.useMemo(() => {
+    if (typeof window === "undefined") return { email: "", token: "" };
+
+    const params = new URLSearchParams(window.location.search);
+    return {
+      email: params.get("email") || "",
+      token: params.get("resetToken") || "",
+    };
+  }, []);
   const [email, setEmail] = React.useState(() =>
-    typeof window === "undefined"
+    resetParams.email || (typeof window === "undefined"
       ? "admin@casadifratelli.local"
-      : window.localStorage.getItem("admin-email") || "admin@casadifratelli.local"
+      : window.localStorage.getItem("admin-email") || "admin@casadifratelli.local")
   );
   const [password, setPassword] = React.useState("");
+  const [resetToken, setResetToken] = React.useState(resetParams.token);
+  const [authMode, setAuthMode] = React.useState(resetParams.token ? "reset" : "login");
+  const [showPassword, setShowPassword] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [notice, setNotice] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   function storeLogin(data) {
@@ -76,6 +89,7 @@ function AdminLogin({ onLogin }) {
   async function handleSubmit(event) {
     event.preventDefault();
     setError("");
+    setNotice("");
     setIsSubmitting(true);
 
     try {
@@ -98,6 +112,66 @@ function AdminLogin({ onLogin }) {
     }
   }
 
+  async function handleRequestPasswordReset(event) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/password-reset/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        setError("Не успяхме да изпратим имейл за възстановяване.");
+        return;
+      }
+
+      setNotice("Ако този админ съществува, изпратихме линк за възстановяване на имейла.");
+    } catch {
+      setError("Неуспешна заявка. Опитайте отново.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleResetPassword(event) {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/admin/password-reset/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token: resetToken, password }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(payload?.message || "Линкът е невалиден или изтекъл.");
+        return;
+      }
+
+      setPassword("");
+      setResetToken("");
+      setAuthMode("login");
+      setNotice("Паролата е сменена. Влезте с новата парола.");
+
+      if (window.location.search) {
+        window.history.replaceState({}, "", "/admin");
+      }
+    } catch {
+      setError("Не успяхме да сменим паролата. Опитайте отново.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleQuickLogin() {
     const credentialToken = window.localStorage.getItem("admin-device-token");
     if (!credentialToken) {
@@ -106,6 +180,7 @@ function AdminLogin({ onLogin }) {
     }
 
     setError("");
+    setNotice("");
     setIsSubmitting(true);
 
     try {
@@ -141,7 +216,13 @@ function AdminLogin({ onLogin }) {
   return (
     <div className="luxury-shell flex min-h-screen items-center justify-center px-5 py-10 text-white">
       <form
-        onSubmit={handleSubmit}
+        onSubmit={
+          authMode === "forgot"
+            ? handleRequestPasswordReset
+            : authMode === "reset"
+            ? handleResetPassword
+            : handleSubmit
+        }
         className="luxury-panel w-full max-w-md rounded-[28px] p-6 md:p-8"
       >
         <img
@@ -150,9 +231,15 @@ function AdminLogin({ onLogin }) {
           className="brand-logo mb-7 h-16 w-[220px] object-left"
         />
         <p className="section-kicker">Casa di Fratelli Admin OS</p>
-        <h1 className="mt-3 text-3xl font-semibold text-[#fff4df]">Admin Login</h1>
+        <h1 className="mt-3 text-3xl font-semibold text-[#fff4df]">
+          {authMode === "login" ? "Admin Login" : authMode === "forgot" ? "Възстановяване" : "Нова парола"}
+        </h1>
         <p className="mt-3 text-sm leading-6 text-stone-400">
-          Въведете email и парола за достъп до CRM панела.
+          {authMode === "login"
+            ? "Въведете email и парола за достъп до CRM панела."
+            : authMode === "forgot"
+            ? "Въведете email и ще изпратим линк за нова парола."
+            : "Задайте нова парола за админ профила."}
         </p>
 
         <label className="mt-7 block text-sm font-semibold text-white/65">Email</label>
@@ -164,17 +251,47 @@ function AdminLogin({ onLogin }) {
           className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-white outline-none transition focus:border-[#f2d39a]/55"
         />
 
-        <label className="mt-4 block text-sm font-semibold text-white/65">Парола</label>
-        <input
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-black/25 px-4 py-4 text-white outline-none transition focus:border-[#f2d39a]/55"
-        />
+        {authMode !== "forgot" && (
+          <>
+            <label className="mt-4 block text-sm font-semibold text-white/65">
+              {authMode === "reset" ? "Нова парола" : "Парола"}
+            </label>
+            <div className="mt-2 flex overflow-hidden rounded-2xl border border-white/10 bg-black/25 focus-within:border-[#f2d39a]/55">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                minLength={authMode === "reset" ? 8 : undefined}
+                className="min-w-0 flex-1 bg-transparent px-4 py-4 text-white outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((value) => !value)}
+                className="shrink-0 border-l border-white/10 px-4 text-sm font-semibold text-[#f2d39a]"
+              >
+                {showPassword ? "Скрий" : "Покажи"}
+              </button>
+            </div>
+          </>
+        )}
+
+        {authMode === "reset" && (
+          <input
+            type="hidden"
+            value={resetToken}
+            onChange={(event) => setResetToken(event.target.value)}
+          />
+        )}
 
         {error && (
           <div className="mt-4 rounded-2xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-100">
             {error}
+          </div>
+        )}
+
+        {notice && (
+          <div className="mt-4 rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            {notice}
           </div>
         )}
 
@@ -183,15 +300,37 @@ function AdminLogin({ onLogin }) {
           disabled={isSubmitting}
           className="luxury-button mt-6 w-full rounded-2xl px-5 py-4 text-sm font-semibold disabled:opacity-60"
         >
-          {isSubmitting ? "Влизане..." : "Влез"}
+          {isSubmitting
+            ? "Моля, изчакайте..."
+            : authMode === "forgot"
+            ? "Изпрати линк"
+            : authMode === "reset"
+            ? "Запази нова парола"
+            : "Влез"}
         </button>
+
+        {authMode === "login" && (
+          <button
+            type="button"
+            onClick={handleQuickLogin}
+            disabled={isSubmitting}
+            className="ghost-button mt-3 w-full rounded-2xl px-5 py-4 text-sm font-semibold disabled:opacity-60"
+          >
+            Face ID / Touch ID
+          </button>
+        )}
+
         <button
           type="button"
-          onClick={handleQuickLogin}
-          disabled={isSubmitting}
-          className="ghost-button mt-3 w-full rounded-2xl px-5 py-4 text-sm font-semibold disabled:opacity-60"
+          onClick={() => {
+            setError("");
+            setNotice("");
+            setPassword("");
+            setAuthMode(authMode === "login" ? "forgot" : "login");
+          }}
+          className="mt-4 w-full text-sm font-semibold text-[#f2d39a] transition hover:text-white"
         >
-          Face ID / Touch ID
+          {authMode === "login" ? "Забравена парола?" : "Назад към вход"}
         </button>
       </form>
     </div>

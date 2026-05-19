@@ -44,7 +44,9 @@ public class AppDbContext : DbContext
         {
             entity.Property(x => x.Name).IsRequired().HasMaxLength(120);
             entity.Property(x => x.Email).IsRequired().HasMaxLength(180);
+            entity.Property(x => x.PasswordResetTokenHash).HasMaxLength(128);
             entity.HasIndex(x => x.Email).IsUnique();
+            entity.HasIndex(x => x.PasswordResetTokenHash);
         });
 
         modelBuilder.Entity<AdminSession>(entity =>

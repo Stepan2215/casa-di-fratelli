@@ -14,15 +14,26 @@ public class AdminAuthController : ControllerBase
     private readonly AppDbContext _db;
     private readonly AdminAuthService _auth;
     private readonly AuditService _audit;
+    private readonly EmailService _emailService;
+    private readonly IConfiguration _configuration;
 
-    public AdminAuthController(AppDbContext db, AdminAuthService auth, AuditService audit)
+    public AdminAuthController(
+        AppDbContext db,
+        AdminAuthService auth,
+        AuditService audit,
+        EmailService emailService,
+        IConfiguration configuration)
     {
         _db = db;
         _auth = auth;
         _audit = audit;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     public sealed record AdminLoginRequest(string Email, string Password);
+    public sealed record RequestPasswordResetRequest(string Email);
+    public sealed record ResetPasswordRequest(string Email, string Token, string Password);
     public sealed record CreateAdminRequest(string Name, string Email, string Password, string Role);
     public sealed record DeviceLoginRequest(string CredentialToken);
     public sealed record DeviceRegisterRequest(string Label, string CredentialToken);
@@ -51,6 +62,91 @@ public class AdminAuthController : ControllerBase
 
         await _audit.RecordAsync(HttpContext, "device-login", "AdminUser", login.User.Id.ToString(), after: login.User);
         return Ok(login);
+    }
+
+    [HttpPost("password-reset/request")]
+    public async Task<IActionResult> RequestPasswordReset([FromBody] RequestPasswordResetRequest request)
+    {
+        await _auth.EnsureDefaultAdminAsync();
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var normalizedEmail = AdminAuthService.NormalizeEmail(request.Email);
+            var user = await _db.AdminUsers.FirstOrDefaultAsync(x => x.Email == normalizedEmail && x.IsActive);
+
+            if (user != null)
+            {
+                var token = AdminAuthService.GenerateDeviceToken();
+                user.PasswordResetTokenHash = AdminAuthService.HashToken(token);
+                user.PasswordResetTokenExpiresAtUtc = DateTime.UtcNow.AddMinutes(30);
+                await _db.SaveChangesAsync();
+
+                var adminUrl = (_configuration["ADMIN_URL"] ?? "https://casa-di-fratelli.vercel.app/admin").TrimEnd('/');
+                var resetUrl = $"{adminUrl}?resetToken={Uri.EscapeDataString(token)}&email={Uri.EscapeDataString(user.Email)}";
+
+                await _emailService.SendAsync(
+                    user.Email,
+                    "Възстановяване на админ парола · Casa di Fratelli",
+                    $"""
+                    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+                      <h2>Възстановяване на парола</h2>
+                      <p>Получихме заявка за нова админ парола в <strong>Casa di Fratelli</strong>.</p>
+                      <p>Линкът е валиден 30 минути.</p>
+                      <p>
+                        <a href="{resetUrl}" style="display:inline-block;background:#c9a56a;color:#111827;padding:12px 18px;border-radius:12px;text-decoration:none;font-weight:700">
+                          Задай нова парола
+                        </a>
+                      </p>
+                      <p style="color:#6b7280">Ако не сте поискали това, просто игнорирайте имейла.</p>
+                    </div>
+                    """);
+            }
+        }
+
+        return Ok(new { message = "If this admin exists, a reset email has been sent." });
+    }
+
+    [HttpPost("password-reset/confirm")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email) ||
+            string.IsNullOrWhiteSpace(request.Token) ||
+            string.IsNullOrWhiteSpace(request.Password))
+        {
+            return BadRequest(new { message = "Email, token, and password are required." });
+        }
+
+        if (request.Password.Length < 8)
+        {
+            return BadRequest(new { message = "Password must be at least 8 characters." });
+        }
+
+        var normalizedEmail = AdminAuthService.NormalizeEmail(request.Email);
+        var tokenHash = AdminAuthService.HashToken(request.Token);
+        var user = await _db.AdminUsers.FirstOrDefaultAsync(x =>
+            x.Email == normalizedEmail &&
+            x.IsActive &&
+            x.PasswordResetTokenHash == tokenHash &&
+            x.PasswordResetTokenExpiresAtUtc > DateTime.UtcNow);
+
+        if (user == null)
+        {
+            return BadRequest(new { message = "Reset link is invalid or expired." });
+        }
+
+        var (hash, salt) = AdminAuthService.HashPassword(request.Password);
+        user.PasswordHash = hash;
+        user.PasswordSalt = salt;
+        user.PasswordResetTokenHash = null;
+        user.PasswordResetTokenExpiresAtUtc = null;
+
+        await _db.AdminSessions
+            .Where(x => x.AdminUserId == user.Id && x.RevokedAtUtc == null)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(x => x.RevokedAtUtc, DateTime.UtcNow));
+        await _db.SaveChangesAsync();
+
+        await _audit.RecordAsync(HttpContext, "password-reset", "AdminUser", user.Id.ToString(), after: new { user.Id, user.Email });
+        return Ok(new { message = "Password was reset." });
     }
 
     [HttpGet("me")]
