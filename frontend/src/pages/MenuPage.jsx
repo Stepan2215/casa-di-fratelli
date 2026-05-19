@@ -54,6 +54,10 @@ export default function MenuPage({
   const [orderNotice, setOrderNotice] = React.useState("");
   const [showOrderReview, setShowOrderReview] = React.useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = React.useState(false);
+  const categoryNavRef = React.useRef(null);
+  const activeCategoryButtonRef = React.useRef(null);
+  const manualCategoryRef = React.useRef("");
+  const manualCategoryTimerRef = React.useRef(null);
   const activeCategoryData =
     data.categories.find((category) => category.id === activeCategory) ||
     data.categories[0];
@@ -64,6 +68,8 @@ export default function MenuPage({
     const sectionIds = data.categories.map((category) => category.id);
 
     const handleScroll = () => {
+      if (manualCategoryRef.current) return;
+
       let current = sectionIds[0];
 
       for (const id of sectionIds) {
@@ -86,9 +92,43 @@ export default function MenuPage({
     return () => window.removeEventListener("scroll", handleScroll);
   }, [data.categories]);
 
+  React.useEffect(() => {
+    const container = categoryNavRef.current;
+    const activeButton = activeCategoryButtonRef.current;
+    if (!container || !activeButton) return;
+
+    const containerBox = container.getBoundingClientRect();
+    const buttonBox = activeButton.getBoundingClientRect();
+    const nextScrollLeft =
+      container.scrollLeft +
+      (buttonBox.left - containerBox.left) -
+      containerBox.width / 2 +
+      buttonBox.width / 2;
+
+    container.scrollTo({
+      left: Math.max(0, nextScrollLeft),
+      behavior: "smooth",
+    });
+  }, [activeCategory]);
+
+  React.useEffect(() => () => {
+    if (manualCategoryTimerRef.current) {
+      window.clearTimeout(manualCategoryTimerRef.current);
+    }
+  }, []);
+
   const handleCategoryClick = (id) => {
     const element = document.getElementById(id);
     if (!element) return;
+
+    setActiveCategory(id);
+    manualCategoryRef.current = id;
+    if (manualCategoryTimerRef.current) {
+      window.clearTimeout(manualCategoryTimerRef.current);
+    }
+    manualCategoryTimerRef.current = window.setTimeout(() => {
+      manualCategoryRef.current = "";
+    }, 850);
 
     element.scrollIntoView({
       behavior: "smooth",
@@ -268,13 +308,14 @@ export default function MenuPage({
             </button>
           </div>
 
-          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none md:gap-3">
+          <div ref={categoryNavRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-none md:gap-3">
             {data.categories.map((category) => {
               const isActive = activeCategory === category.id;
 
               return (
                 <button
                   key={category.id}
+                  ref={isActive ? activeCategoryButtonRef : null}
                   type="button"
                   onClick={() => handleCategoryClick(category.id)}
                   className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition active:scale-95 md:px-4 md:text-sm ${
