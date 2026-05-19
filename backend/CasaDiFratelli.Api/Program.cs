@@ -19,7 +19,11 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy
-            .WithOrigins("https://casa-di-fratelli.vercel.app")
+            .WithOrigins(
+                "https://casa-di-fratelli.vercel.app",
+                "https://casadifratelli.bg",
+                "https://www.casadifratelli.bg"
+            )
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
