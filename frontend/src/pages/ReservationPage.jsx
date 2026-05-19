@@ -804,6 +804,7 @@ export default function ReservationPage({ t, language, setLanguage, onBack, onOp
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState("");
   const [submitSuccess, setSubmitSuccess] = React.useState("");
+  const [dailyLimitNotice, setDailyLimitNotice] = React.useState(false);
   const [selectedArea, setSelectedArea] = React.useState("indoor");
   const [selectedTables, setSelectedTables] = React.useState([]);
   const [showBookingForm, setShowBookingForm] = React.useState(false);
@@ -1092,6 +1093,13 @@ if (bookingMode === "single") {
       }
 
       if (!response.ok) {
+        if (response.status === 429) {
+          setSubmitSuccess("");
+          setSubmitError("");
+          setDailyLimitNotice(true);
+          return;
+        }
+
         const backendMessage =
           result?.message ||
           rawText ||
@@ -1565,6 +1573,36 @@ if (bookingMode === "single") {
           submitSuccess={submitSuccess}
           onOpenPrivacy={onOpenPrivacy}
         />
+      )}
+
+      {dailyLimitNotice && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/75 px-4 backdrop-blur-md" role="dialog" aria-modal="true">
+          <div className="luxury-panel w-full max-w-md rounded-[28px] p-6 text-center text-white shadow-2xl md:p-8">
+            <p className="section-kicker">Casa di Fratelli</p>
+            <h2 className="mt-3 text-2xl font-semibold text-[#fff4df]">
+              Лимит за резервации
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-stone-300">
+              Опитвате се да направите трета резервация за днес със същия телефон или имейл.
+              За повече резервации, моля, свържете се с администратор.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <a
+                href="tel:+359888218318"
+                className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold"
+              >
+                Позвъни
+              </a>
+              <button
+                type="button"
+                onClick={() => setDailyLimitNotice(false)}
+                className="ghost-button rounded-2xl px-5 py-3 text-sm font-semibold"
+              >
+                Разбрах
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
