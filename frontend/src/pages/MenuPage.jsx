@@ -317,6 +317,7 @@ export default function MenuPage({
                   key={category.id}
                   ref={isActive ? activeCategoryButtonRef : null}
                   type="button"
+                  aria-current={isActive ? "true" : undefined}
                   onClick={() => handleCategoryClick(category.id)}
                   className={`whitespace-nowrap rounded-full border px-3.5 py-2 text-xs font-semibold transition active:scale-95 md:px-4 md:text-sm ${
                     isActive
@@ -389,7 +390,7 @@ export default function MenuPage({
       )}
 
       {showOrderReview && (
-        <div className="fixed inset-0 z-[70] flex items-end bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6">
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6" role="dialog" aria-modal="true">
           <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#120e0b] p-4 shadow-2xl md:mx-auto md:max-w-2xl md:rounded-[28px] md:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -401,7 +402,7 @@ export default function MenuPage({
                   {language === "bg" ? "Маса" : "Table"} {orderSession?.tableIds?.join(", ")}
                 </p>
               </div>
-              <button type="button" onClick={() => setShowOrderReview(false)} className="ghost-button rounded-full px-4 py-2 text-sm">
+              <button type="button" onClick={() => setShowOrderReview(false)} className="ghost-button rounded-full px-4 py-2 text-sm" aria-label={language === "bg" ? "Затвори прегледа на поръчката" : "Close order review"}>
                 {language === "bg" ? "Затвори" : "Close"}
               </button>
             </div>
@@ -415,9 +416,9 @@ export default function MenuPage({
                       <div className="mt-1 text-sm text-white/45">{formatOrderPrice(item.priceValue)} · {formatOrderPrice(item.priceValue * item.quantity)}</div>
                     </div>
                     <div className="flex items-center overflow-hidden rounded-full border border-white/10">
-                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity - 1)} className="px-4 py-2 text-lg text-[#f2d39a]">-</button>
+                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity - 1)} className="px-4 py-2 text-lg text-[#f2d39a]" aria-label={language === "bg" ? `Намали ${item.name}` : `Decrease ${item.name}`}>-</button>
                       <span className="min-w-10 text-center text-base font-semibold">{item.quantity}</span>
-                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity + 1)} className="px-4 py-2 text-lg text-[#f2d39a]">+</button>
+                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity + 1)} className="px-4 py-2 text-lg text-[#f2d39a]" aria-label={language === "bg" ? `Увеличи ${item.name}` : `Increase ${item.name}`}>+</button>
                     </div>
                   </div>
                 </div>

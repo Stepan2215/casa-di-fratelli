@@ -64,6 +64,19 @@ test("date helpers identify past date-times and hide old slots for today", () =>
   );
 });
 
+test("today availability keeps only remaining working-hour slots", () => {
+  const now = new Date("2026-05-14T21:30:00");
+
+  assert.deepEqual(
+    getAvailableReservationTimesForDate(reservationTimes, "2026-05-14", now),
+    ["22:00"]
+  );
+  assert.deepEqual(
+    getAvailableReservationTimesForDate(reservationTimes, "2026-05-15", now),
+    reservationTimes
+  );
+});
+
 test("capacity calculation and group eligibility support large indoor parties", () => {
   assert.equal(getTablesCapacity(defaultIndoorTables, ["20", "21", "22", "23"]), 16);
   assert.deepEqual(getEligibleIndoorGroups(16, defaultIndoorTables), [["20", "21", "22", "23"]]);

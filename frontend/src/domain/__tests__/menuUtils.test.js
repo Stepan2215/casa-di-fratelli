@@ -35,6 +35,7 @@ test("CMS menu builder hides inactive items and localizes category labels", () =
   const result = buildMenuDataFromCms(
     [
       {
+        id: 42,
         category: "salads",
         nameBg: "Салата",
         nameEn: "Salad",
@@ -59,8 +60,12 @@ test("CMS menu builder hides inactive items and localizes category labels", () =
   assert.equal(result.categories[0].id, "salads");
   assert.equal(result.categories[0].title, "Salads");
   assert.equal(result.categories[0].items.length, 1);
+  assert.equal(result.categories[0].items[0].id, 42);
+  assert.equal(result.categories[0].items[0].category, "salads");
   assert.equal(result.categories[0].items[0].name, "Salad");
   assert.equal(result.categories[0].items[0].price, "€10.40");
+  assert.equal(result.categories[0].items[0].priceValue, 10.4);
+  assert.equal(result.categories[0].items[0].featured, false);
 });
 
 test("CMS menu builder falls back when no active CMS items exist", () => {

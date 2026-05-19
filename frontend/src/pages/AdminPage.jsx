@@ -2065,7 +2065,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     [withAdminToken]
   );
 
-  async function loadReservations() {
+  const loadReservations = React.useCallback(async () => {
     setLoading(true);
     setAdminError("");
 
@@ -2078,9 +2078,9 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     } finally {
       setLoading(false);
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadMenuItems() {
+  const loadMenuItems = React.useCallback(async () => {
     try {
       const menuData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/menu`, [], withAdminToken());
       setMenuItems(Array.isArray(menuData) ? menuData : []);
@@ -2088,9 +2088,9 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       console.error("Failed to load menu", error);
       setAdminError(error?.message || "Failed to load menu.");
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadDiningOrders() {
+  const loadDiningOrders = React.useCallback(async () => {
     try {
       const ordersData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/dining-orders`, [], withAdminToken());
       setDiningOrders(Array.isArray(ordersData) ? ordersData.map(normalizeDiningOrder) : []);
@@ -2098,9 +2098,9 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       console.error("Failed to load dining orders", error);
       setAdminError(error?.message || "Failed to load dining orders.");
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadBlacklist() {
+  const loadBlacklist = React.useCallback(async () => {
     try {
       const blacklistData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/blacklist`, [], withAdminToken());
       setBlacklist(Array.isArray(blacklistData) ? blacklistData : []);
@@ -2108,9 +2108,9 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       console.error("Failed to load blacklist", error);
       setAdminError(error?.message || "Failed to load blacklist.");
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadTableLayout() {
+  const loadTableLayout = React.useCallback(async () => {
     try {
       const layoutData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/table-layouts`, [], withAdminToken());
       setTableLayout(Array.isArray(layoutData) ? layoutData.map(normalizeLayoutItem) : []);
@@ -2118,32 +2118,32 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       console.error("Failed to load table layout", error);
       setAdminError(error?.message || "Failed to load table layout.");
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadAdminUsers() {
+  const loadAdminUsers = React.useCallback(async () => {
     try {
       const data = await fetchJsonOrEmpty(`${API_BASE_URL}/api/admin/users`, [], withAdminToken());
       setAdminUsers(Array.isArray(data) ? data : []);
     } catch (error) {
       setAdminError(error?.message || "Failed to load admin users.");
     }
-  }
+  }, [withAdminToken]);
 
-  async function loadAuditLogs() {
+  const loadAuditLogs = React.useCallback(async () => {
     try {
       const data = await fetchJsonOrEmpty(`${API_BASE_URL}/api/admin/audit`, [], withAdminToken());
       setAuditLogs(Array.isArray(data) ? data : []);
     } catch (error) {
       setAdminError(error?.message || "Failed to load audit logs.");
     }
-  }
+  }, [withAdminToken]);
 
   React.useEffect(() => {
     loadReservations();
     loadDiningOrders();
     loadBlacklist();
     loadTableLayout();
-  }, []);
+  }, [loadBlacklist, loadDiningOrders, loadReservations, loadTableLayout]);
 
   React.useEffect(() => {
     setAdminError("");
@@ -2174,7 +2174,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       loadAdminUsers();
       loadAuditLogs();
     }
-  }, [activeTab]);
+  }, [activeTab, loadAdminUsers, loadAuditLogs, loadBlacklist, loadDiningOrders, loadMenuItems, loadTableLayout]);
 
   React.useEffect(() => {
     const pages = ["home", "liveMap", "reservations", "orders", "block", "menu", "layout", "customers", "admins"];
@@ -4272,11 +4272,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   <div className="grid gap-4">
                     {diningOrders.map((order) => {
                       const expanded = expandedOrderId === order.id;
+                      const detailsId = `dining-order-${order.id}-details`;
 
                       return (
                         <article key={order.id} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
                           <button
                             type="button"
+                            aria-expanded={expanded}
+                            aria-controls={detailsId}
                             onClick={() => setExpandedOrderId(expanded ? null : order.id)}
                             className="grid w-full gap-3 text-left md:grid-cols-[1fr_1fr_auto] md:items-center"
                           >
@@ -4306,7 +4309,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                           </button>
 
                           {expanded && (
-                            <div className="mt-4 border-t border-white/10 pt-4">
+                            <div id={detailsId} className="mt-4 border-t border-white/10 pt-4">
                               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                                 <div className="flex flex-wrap items-center gap-2">
                                   <span className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/12 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
@@ -4358,9 +4361,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                       <div className="shrink-0 text-right">
                                         <div className="mb-1 text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
                                         <div className="flex items-center overflow-hidden rounded-full border border-white/10">
-                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
+                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]" aria-label={`${a.orders.remove} ${item.name}`}>-</button>
                                           <span className="min-w-8 text-center text-sm text-white">{item.quantity}</span>
-                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
+                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]" aria-label={`${a.orders.addItem} ${item.name}`}>+</button>
                                         </div>
                                       </div>
                                     </div>

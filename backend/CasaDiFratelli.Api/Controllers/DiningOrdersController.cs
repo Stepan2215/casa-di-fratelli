@@ -34,6 +34,36 @@ public class DiningOrdersController : ControllerBase
             .SumAsync(x => x.UnitPrice * x.Quantity);
     }
 
+    private static void AddOrIncreaseItem(DiningOrder order, CreateDiningOrderItemRequest request)
+    {
+        var name = request.Name.Trim();
+        var quantity = Math.Min(request.Quantity, 99);
+        var notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+        var existingItem = order.Items.FirstOrDefault(x =>
+            x.MenuItemId == request.MenuItemId &&
+            x.Name.Equals(name, StringComparison.OrdinalIgnoreCase) &&
+            x.UnitPrice == request.UnitPrice &&
+            x.Notes == notes);
+
+        if (existingItem == null)
+        {
+            order.Items.Add(new DiningOrderItem
+            {
+                MenuItemId = request.MenuItemId,
+                Name = name,
+                UnitPrice = request.UnitPrice,
+                Quantity = quantity,
+                Notes = notes
+            });
+        }
+        else
+        {
+            existingItem.Quantity = Math.Min(existingItem.Quantity + quantity, 99);
+        }
+
+        order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+    }
+
     [HttpGet]
     [AdminAuthorize]
     public async Task<IActionResult> GetAll()
@@ -191,7 +221,7 @@ public class DiningOrdersController : ControllerBase
     [AdminAuthorize]
     public async Task<IActionResult> AddReservationItem(int reservationId, [FromBody] CreateDiningOrderItemRequest request)
     {
-        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name))
+        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name) || request.UnitPrice < 0)
             return BadRequest(new { message = "Order item is required." });
 
         var reservation = await _db.Reservations
@@ -220,28 +250,7 @@ public class DiningOrdersController : ControllerBase
             _db.DiningOrders.Add(order);
         }
 
-        var existingItem = order.Items.FirstOrDefault(x =>
-            x.MenuItemId == request.MenuItemId &&
-            x.Name.Equals(request.Name.Trim(), StringComparison.OrdinalIgnoreCase) &&
-            x.UnitPrice == request.UnitPrice);
-
-        if (existingItem == null)
-        {
-            order.Items.Add(new DiningOrderItem
-            {
-                MenuItemId = request.MenuItemId,
-                Name = request.Name.Trim(),
-                UnitPrice = request.UnitPrice,
-                Quantity = Math.Min(request.Quantity, 99),
-                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
-            });
-        }
-        else
-        {
-            existingItem.Quantity = Math.Min(existingItem.Quantity + request.Quantity, 99);
-        }
-
-        order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+        AddOrIncreaseItem(order, request);
         await _db.SaveChangesAsync();
         await _audit.RecordAsync(HttpContext, "add-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.ReservationId, order.TotalPrice });
 
@@ -252,7 +261,7 @@ public class DiningOrdersController : ControllerBase
     [AdminAuthorize]
     public async Task<IActionResult> AddOrderItem(int orderId, [FromBody] CreateDiningOrderItemRequest request)
     {
-        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name))
+        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name) || request.UnitPrice < 0)
             return BadRequest(new { message = "Order item is required." });
 
         var order = await _db.DiningOrders
@@ -262,28 +271,7 @@ public class DiningOrdersController : ControllerBase
         if (order == null)
             return NotFound();
 
-        var existingItem = order.Items.FirstOrDefault(x =>
-            x.MenuItemId == request.MenuItemId &&
-            x.Name.Equals(request.Name.Trim(), StringComparison.OrdinalIgnoreCase) &&
-            x.UnitPrice == request.UnitPrice);
-
-        if (existingItem == null)
-        {
-            order.Items.Add(new DiningOrderItem
-            {
-                MenuItemId = request.MenuItemId,
-                Name = request.Name.Trim(),
-                UnitPrice = request.UnitPrice,
-                Quantity = Math.Min(request.Quantity, 99),
-                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
-            });
-        }
-        else
-        {
-            existingItem.Quantity = Math.Min(existingItem.Quantity + request.Quantity, 99);
-        }
-
-        order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+        AddOrIncreaseItem(order, request);
         await _db.SaveChangesAsync();
         await _audit.RecordAsync(HttpContext, "add-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.ReservationId, order.TotalPrice });
 
@@ -319,9 +307,7 @@ public class DiningOrdersController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        order.TotalPrice = await _db.DiningOrderItems
-            .Where(x => x.DiningOrderId == parentOrderId)
-            .SumAsync(x => x.UnitPrice * x.Quantity);
+        await RecalculateOrderTotalAsync(order);
 
         await _db.SaveChangesAsync();
         await _audit.RecordAsync(HttpContext, "update-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.TotalPrice });
