@@ -71,8 +71,8 @@ export const openTerraceGroups = [
   ["48", "49"],
 ];
 
-export const reservationTimes = Array.from({ length: 18 }, (_, index) => {
-  const hour = (10 + index) % 24;
+export const reservationTimes = Array.from({ length: 13 }, (_, index) => {
+  const hour = 10 + index;
   return `${String(hour).padStart(2, "0")}:00`;
 });
 

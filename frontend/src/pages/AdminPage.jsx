@@ -118,6 +118,11 @@ const adminText = {
       approve: "Потвърди",
       move: "Премести",
       release: "Освободена",
+      consumption: "Консумация",
+      noConsumption: "Още няма добавена консумация.",
+      addConsumption: "Добави към поръчката",
+      searchDish: "Търси ястие...",
+      close: "Затвори",
       moveTitle: "Премести резервацията",
       bestOptions: "Най-добри свободни варианти",
       noMoveOptions: "Няма свободна подходяща маса за тези гости.",
@@ -254,6 +259,11 @@ const adminText = {
       approve: "Approve",
       move: "Move",
       release: "Released",
+      consumption: "Consumption",
+      noConsumption: "No consumption has been added yet.",
+      addConsumption: "Add to order",
+      searchDish: "Search dish...",
+      close: "Close",
       moveTitle: "Move reservation",
       bestOptions: "Best free options",
       noMoveOptions: "No suitable free table for this party.",
@@ -999,10 +1009,14 @@ function ReservationOperationsMap({
   text,
   layout,
   reservations,
+  diningOrders,
+  menuItems,
   selectedArea,
   onAreaChange,
   onApprove,
   onArrived,
+  onAddConsumptionItem,
+  onUpdateConsumptionItem,
   onMove,
   onNoShow,
   onOpenReservation,
@@ -1012,6 +1026,8 @@ function ReservationOperationsMap({
   const [selectedTableId, setSelectedTableId] = React.useState(null);
   const [moveReservationId, setMoveReservationId] = React.useState(null);
   const [moveDraft, setMoveDraft] = React.useState({ area: "indoor", tableIds: [], guestCount: 0 });
+  const [showConsumption, setShowConsumption] = React.useState(false);
+  const [consumptionSearch, setConsumptionSearch] = React.useState("");
   const [shouldScrollMovePanel, setShouldScrollMovePanel] = React.useState(false);
   const movePanelRef = React.useRef(null);
   const [now, setNow] = React.useState(() => new Date());
@@ -1096,6 +1112,19 @@ function ReservationOperationsMap({
   const selectedReservation =
     liveReservations.find((reservation) => reservation.id === selectedReservationId) ||
     reservations.find((reservation) => reservation.id === selectedReservationId);
+  const selectedConsumptionOrders = React.useMemo(
+    () => selectedReservation
+      ? diningOrders.filter((order) => Number(order.reservationId) === Number(selectedReservation.id) && order.status !== "Cancelled")
+      : [],
+    [diningOrders, selectedReservation]
+  );
+  const selectedConsumptionItems = selectedConsumptionOrders.flatMap((order) =>
+    order.items.map((item) => ({ ...item, orderId: order.id }))
+  );
+  const selectedConsumptionTotal = selectedConsumptionItems.reduce(
+    (total, item) => total + Number(item.unitPrice || 0) * Number(item.quantity || 0),
+    0
+  );
   const nextReservations = liveReservations.filter((reservation) => !reservation.isArrived);
   const todayReservationsForSelectedTable = React.useMemo(() => {
     if (!selectedTableId) return [];
@@ -1222,6 +1251,7 @@ function ReservationOperationsMap({
     if (moveReservationId) return;
     setSelectedReservationId(null);
     setSelectedTableId(null);
+    setShowConsumption(false);
   }, [moveReservationId, selectedArea]);
 
   React.useEffect(() => {
@@ -1369,6 +1399,13 @@ function ReservationOperationsMap({
                         )}
                         {reservation.isArrived && (
                           <>
+                            <button
+                              type="button"
+                              onClick={() => setShowConsumption(true)}
+                              className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                            >
+                              {text.consumption}
+                            </button>
                             <button
                               type="button"
                               onClick={() => openMovePanel(reservation)}
@@ -1593,6 +1630,9 @@ function ReservationOperationsMap({
                     <button type="button" onClick={() => openMovePanel(selectedReservation)} className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-sm font-semibold text-[#f2d39a]">
                       {text.move}
                     </button>
+                    <button type="button" onClick={() => setShowConsumption(true)} className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100">
+                      {text.consumption}
+                    </button>
                     <button type="button" onClick={() => onRelease(selectedReservation)} className="rounded-xl border border-sky-300/25 bg-sky-400/15 px-4 py-3 text-sm font-semibold text-sky-100">
                       {text.release}
                     </button>
@@ -1710,6 +1750,85 @@ function ReservationOperationsMap({
                   >
                     {text.saveMove}
                   </button>
+                </div>
+              )}
+
+              {showConsumption && selectedReservation.isArrived && (
+                <div className="mt-4 rounded-2xl border border-emerald-300/18 bg-emerald-400/10 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="section-kicker">{text.consumption}</div>
+                      <div className="mt-2 text-xl font-semibold text-[#fff4df]">
+                        {formatEuroAmount(selectedConsumptionTotal)}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => setShowConsumption(false)} className="ghost-button rounded-full px-3 py-2 text-xs">
+                      {text.close}
+                    </button>
+                  </div>
+
+                  {selectedConsumptionItems.length === 0 ? (
+                    <p className="mt-3 text-sm text-white/55">{text.noConsumption}</p>
+                  ) : (
+                    <div className="mt-3 grid gap-2">
+                      {selectedConsumptionItems.map((item) => (
+                        <div key={`${item.orderId}-${item.id}`} className="rounded-xl border border-white/10 bg-black/22 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-[#fff4df]">{item.name}</div>
+                              <div className="text-xs text-white/45">{formatEuroAmount(item.unitPrice)} · {formatEuroAmount(item.unitPrice * item.quantity)}</div>
+                            </div>
+                            <div className="flex items-center overflow-hidden rounded-full border border-white/10">
+                              <button type="button" onClick={() => onUpdateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
+                              <span className="min-w-8 text-center text-sm">{item.quantity}</span>
+                              <button type="button" onClick={() => onUpdateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-4">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[#f2d39a]">
+                      {text.addConsumption}
+                    </div>
+                    <input
+                      value={consumptionSearch}
+                      onChange={(event) => setConsumptionSearch(event.target.value)}
+                      placeholder={text.searchDish}
+                      className="mb-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#f2d39a]/50"
+                    />
+                    <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                      {menuItems
+                        .filter((item) => (item.isActive ?? item.IsActive ?? true) === true)
+                        .filter((item) => {
+                          const haystack = `${getValue(item, "nameBg") || ""} ${getValue(item, "nameEn") || ""}`.toLowerCase();
+                          return haystack.includes(consumptionSearch.trim().toLowerCase());
+                        })
+                        .slice(0, 80)
+                        .map((item) => {
+                          const name = getValue(item, "nameBg") || getValue(item, "nameEn") || "";
+                          const price = Number(getValue(item, "price") || 0);
+                          return (
+                            <button
+                              key={getValue(item, "id") || name}
+                              type="button"
+                              onClick={() => onAddConsumptionItem(selectedReservation.id, {
+                                menuItemId: getValue(item, "id"),
+                                name,
+                                unitPrice: price,
+                                quantity: 1,
+                              })}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition hover:border-[#c9a56a]/40"
+                            >
+                              <span className="min-w-0 truncate text-sm text-white/80">{name}</span>
+                              <span className="shrink-0 text-xs font-semibold text-[#f2d39a]">{formatEuroAmount(price)}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -2022,6 +2141,11 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       loadTableLayout();
     }
 
+    if (activeTab === "liveMap") {
+      loadDiningOrders();
+      loadMenuItems();
+    }
+
     if (activeTab === "admins") {
       loadAdminUsers();
       loadAuditLogs();
@@ -2178,6 +2302,42 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     await loadDiningOrders();
   }
 
+  async function addConsumptionItem(reservationId, item) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/dining-orders/reservations/${reservationId}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to add item."));
+      return;
+    }
+
+    await loadDiningOrders();
+  }
+
+  async function updateConsumptionItem(itemId, quantity) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/dining-orders/items/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ quantity }),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to update item."));
+      return;
+    }
+
+    await loadDiningOrders();
+  }
+
   async function markReservationArrived(reservation) {
     setAdminNotice("");
     setAdminError("");
@@ -2294,7 +2454,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
 
     setAdminNotice(adminLanguage === "bg" ? "Резервацията е преместена." : "Reservation moved.");
-    await loadReservations();
+    await Promise.all([loadReservations(), loadDiningOrders()]);
     return true;
   }
 
@@ -2517,7 +2677,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
       return next;
     });
     setAdminNotice("Tables updated.");
-    await loadReservations();
+    await Promise.all([loadReservations(), loadDiningOrders()]);
   }
 
   async function saveBlacklistPayload(payload) {
@@ -3146,7 +3306,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     }
 
     if (activeTab === "liveMap") {
-      await Promise.all([loadReservations(), loadTableLayout()]);
+      await Promise.all([loadReservations(), loadDiningOrders(), loadMenuItems(), loadTableLayout()]);
       return;
     }
 
@@ -3364,10 +3524,14 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                 text={a.liveMap}
                 layout={tableLayout}
                 reservations={reservations}
+                diningOrders={diningOrders}
+                menuItems={menuItems}
                 selectedArea={reservationMapArea}
                 onAreaChange={setReservationMapArea}
                 onApprove={(reservation) => updateStatus(reservation.id, "approve")}
                 onArrived={markReservationArrived}
+                onAddConsumptionItem={addConsumptionItem}
+                onUpdateConsumptionItem={updateConsumptionItem}
                 onMove={moveReservationFromMap}
                 onNoShow={markReservationNoShow}
                 onOpenReservation={openReservationFromMap}

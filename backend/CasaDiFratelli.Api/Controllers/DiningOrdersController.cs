@@ -21,6 +21,19 @@ public class DiningOrdersController : ControllerBase
         _audit = audit;
     }
 
+    private async Task RecalculateOrderTotalAsync(DiningOrder order)
+    {
+        if (order.Id == 0)
+        {
+            order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+            return;
+        }
+
+        order.TotalPrice = await _db.DiningOrderItems
+            .Where(x => x.DiningOrderId == order.Id)
+            .SumAsync(x => x.UnitPrice * x.Quantity);
+    }
+
     [HttpGet]
     [AdminAuthorize]
     public async Task<IActionResult> GetAll()
@@ -61,6 +74,40 @@ public class DiningOrdersController : ControllerBase
             .ToListAsync();
 
         return Ok(orders);
+    }
+
+    [HttpGet("reservation/{reservationId:int}")]
+    [AdminAuthorize]
+    public async Task<IActionResult> GetForReservation(int reservationId)
+    {
+        var orders = await _db.DiningOrders
+            .Include(x => x.Items)
+            .Include(x => x.Reservation)
+                .ThenInclude(x => x!.Tables)
+            .Where(x => x.ReservationId == reservationId && x.Status != "Cancelled")
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync();
+
+        return Ok(orders.Select(x => new
+        {
+            x.Id,
+            x.ReservationId,
+            x.GuestName,
+            TableLabel = x.Reservation == null ? x.TableLabel : string.Join(", ", x.Reservation.Tables.Select(t => t.TableCode)),
+            x.Status,
+            x.TotalPrice,
+            x.Notes,
+            x.CreatedAtUtc,
+            Items = x.Items.Select(item => new
+            {
+                item.Id,
+                item.MenuItemId,
+                item.Name,
+                item.UnitPrice,
+                item.Quantity,
+                item.Notes
+            }).ToList()
+        }));
     }
 
     [HttpGet("session")]
@@ -140,6 +187,96 @@ public class DiningOrdersController : ControllerBase
         });
     }
 
+    [HttpPost("reservations/{reservationId:int}/items")]
+    [AdminAuthorize]
+    public async Task<IActionResult> AddReservationItem(int reservationId, [FromBody] CreateDiningOrderItemRequest request)
+    {
+        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Order item is required." });
+
+        var reservation = await _db.Reservations
+            .Include(x => x.Tables)
+            .FirstOrDefaultAsync(x => x.Id == reservationId);
+
+        if (reservation == null)
+            return NotFound();
+
+        var order = await _db.DiningOrders
+            .Include(x => x.Items)
+            .Where(x => x.ReservationId == reservationId && x.Status != "Cancelled")
+            .OrderBy(x => x.CreatedAtUtc)
+            .FirstOrDefaultAsync();
+
+        if (order == null)
+        {
+            order = new DiningOrder
+            {
+                ReservationId = reservation.Id,
+                GuestName = reservation.GuestName,
+                TableLabel = string.Join(", ", reservation.Tables.Select(t => t.TableCode)),
+                Status = "New",
+                CreatedAtUtc = DateTime.UtcNow
+            };
+            _db.DiningOrders.Add(order);
+        }
+
+        var existingItem = order.Items.FirstOrDefault(x =>
+            x.MenuItemId == request.MenuItemId &&
+            x.Name.Equals(request.Name.Trim(), StringComparison.OrdinalIgnoreCase) &&
+            x.UnitPrice == request.UnitPrice);
+
+        if (existingItem == null)
+        {
+            order.Items.Add(new DiningOrderItem
+            {
+                MenuItemId = request.MenuItemId,
+                Name = request.Name.Trim(),
+                UnitPrice = request.UnitPrice,
+                Quantity = Math.Min(request.Quantity, 99),
+                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
+            });
+        }
+        else
+        {
+            existingItem.Quantity = Math.Min(existingItem.Quantity + request.Quantity, 99);
+        }
+
+        order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+        await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "add-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.ReservationId, order.TotalPrice });
+
+        return Ok(new { order.Id, order.TotalPrice });
+    }
+
+    [HttpPatch("items/{itemId:int}")]
+    [AdminAuthorize]
+    public async Task<IActionResult> UpdateItemQuantity(int itemId, [FromBody] UpdateDiningOrderItemRequest request)
+    {
+        var item = await _db.DiningOrderItems
+            .Include(x => x.DiningOrder)
+                .ThenInclude(x => x!.Items)
+            .FirstOrDefaultAsync(x => x.Id == itemId);
+
+        if (item?.DiningOrder == null)
+            return NotFound();
+
+        if (request.Quantity <= 0)
+        {
+            _db.DiningOrderItems.Remove(item);
+        }
+        else
+        {
+            item.Quantity = Math.Min(request.Quantity, 99);
+        }
+
+        await _db.SaveChangesAsync();
+        await RecalculateOrderTotalAsync(item.DiningOrder);
+        await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "update-item", "DiningOrder", item.DiningOrder.Id.ToString(), after: new { item.DiningOrder.Id, item.DiningOrder.TotalPrice });
+
+        return Ok(new { item.DiningOrder.Id, item.DiningOrder.TotalPrice });
+    }
+
     [HttpPatch("{id}/status")]
     [AdminAuthorize]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateDiningOrderStatusRequest request)
@@ -165,4 +302,9 @@ public class DiningOrdersController : ControllerBase
 public class UpdateDiningOrderStatusRequest
 {
     public string Status { get; set; } = "Seen";
+}
+
+public class UpdateDiningOrderItemRequest
+{
+    public int Quantity { get; set; }
 }

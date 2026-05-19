@@ -500,6 +500,10 @@ if (!string.IsNullOrWhiteSpace(adminEmail))
         reservation.ReservedTime = nextReservedTime;
 
         await _db.SaveChangesAsync();
+        var nextTableLabel = string.Join(", ", reservation.Tables.Select(t => t.TableCode));
+        await _db.DiningOrders
+            .Where(order => order.ReservationId == reservation.Id)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(order => order.TableLabel, nextTableLabel));
         await _audit.RecordAsync(HttpContext, "move-tables", "Reservation", reservation.Id.ToString(), beforeTables, new
         {
             reservation.Area,

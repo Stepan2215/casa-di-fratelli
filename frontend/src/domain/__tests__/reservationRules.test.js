@@ -29,10 +29,10 @@ import {
 
 const byId = (tables, id) => tables.find((table) => table.id === id);
 
-test("reservation times cover the restaurant day from 10:00 to 03:00", () => {
-  assert.equal(reservationTimes.length, 18);
+test("reservation times cover the restaurant day from 10:00 to 22:00", () => {
+  assert.equal(reservationTimes.length, 13);
   assert.equal(reservationTimes[0], "10:00");
-  assert.equal(reservationTimes.at(-1), "03:00");
+  assert.equal(reservationTimes.at(-1), "22:00");
 });
 
 test("time helpers keep the 3 hour reservation buffer exclusive", () => {
@@ -57,10 +57,6 @@ test("date helpers identify past date-times and hide old slots for today", () =>
   assert.deepEqual(
     getAvailableReservationTimesForDate(["14:00", "15:00", "16:00"], "2026-05-14", now),
     ["16:00"]
-  );
-  assert.deepEqual(
-    getAvailableReservationTimesForDate(["22:00", "23:00", "00:00", "01:00", "03:00"], "2026-05-14", now),
-    ["22:00", "23:00", "00:00", "01:00", "03:00"]
   );
   assert.deepEqual(
     getAvailableReservationTimesForDate(["14:00", "15:00"], "2026-05-15", now),

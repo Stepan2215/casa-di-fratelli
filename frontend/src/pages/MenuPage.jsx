@@ -52,6 +52,7 @@ export default function MenuPage({
   const [orderNotes, setOrderNotes] = React.useState("");
   const [orderError, setOrderError] = React.useState("");
   const [orderNotice, setOrderNotice] = React.useState("");
+  const [showOrderReview, setShowOrderReview] = React.useState(false);
   const [isSubmittingOrder, setIsSubmittingOrder] = React.useState(false);
   const activeCategoryData =
     data.categories.find((category) => category.id === activeCategory) ||
@@ -95,6 +96,8 @@ export default function MenuPage({
     });
   };
 
+  const isOrderLink = Boolean(orderParams.reservationId && orderParams.token);
+
   React.useEffect(() => {
     if (!orderParams.reservationId || !orderParams.token) return;
 
@@ -119,9 +122,11 @@ export default function MenuPage({
     }
 
     loadOrderSession();
+    const timer = window.setInterval(loadOrderSession, 30000);
 
     return () => {
       cancelled = true;
+      window.clearInterval(timer);
     };
   }, [language, orderParams.reservationId, orderParams.token]);
 
@@ -190,6 +195,7 @@ export default function MenuPage({
 
       setOrderItems([]);
       setOrderNotes("");
+      setShowOrderReview(false);
       setOrderNotice(language === "bg" ? "Поръчката е изпратена към екипа." : "Your order was sent to the team.");
     } catch (error) {
       setOrderError(error?.message || (language === "bg" ? "Поръчката не беше изпратена." : "The order was not sent."));
@@ -199,32 +205,39 @@ export default function MenuPage({
   }
 
   return (
-    <div className="luxury-shell min-h-screen text-white">
-      <Header
-        t={t}
-        language={language}
-        setLanguage={setLanguage}
-        onOpenReservation={onOpenReservation}
-        onOpenMenu={() => {}}
-        onOpenSection={onOpenSection}
-        onGoHome={onBackHome}
-        isMenuPage
-      />
+    <div className={`luxury-shell min-h-screen text-white ${orderEnabled ? "pb-40" : ""}`}>
+      {!isOrderLink && (
+        <>
+          <Header
+            t={t}
+            language={language}
+            setLanguage={setLanguage}
+            onOpenReservation={onOpenReservation}
+            onOpenMenu={() => {}}
+            onOpenSection={onOpenSection}
+            onGoHome={onBackHome}
+            isMenuPage
+          />
 
-      <MenuHero
-        data={data}
-        onOpenReservation={onOpenReservation}
-        language={language}
-      />
+          <MenuHero
+            data={data}
+            onOpenReservation={onOpenReservation}
+            language={language}
+          />
+        </>
+      )}
 
       {(orderSession || orderError) && (
-        <div className="border-y border-[#c9a56a]/20 bg-[#14100c]/95">
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between">
+        <div className="sticky top-0 z-50 border-b border-[#c9a56a]/20 bg-[#14100c]/95 backdrop-blur-2xl">
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
             <div>
               <div className="section-kicker">
-                {language === "bg" ? "Поръчка от масата" : "Table order"}
+                Casa di Fratelli
               </div>
-              <div className="mt-1 text-sm text-white/75">
+              <h1 className="mt-1 text-xl font-semibold text-[#fff4df]">
+                {language === "bg" ? "Дигитално меню" : "Digital menu"}
+              </h1>
+              <div className="mt-1 text-sm text-white/70">
                 {orderSession
                   ? `${language === "bg" ? "Маса" : "Table"} ${orderSession.tableIds?.join(", ")} · ${orderSession.guestName}`
                   : orderError}
@@ -235,7 +248,7 @@ export default function MenuPage({
         </div>
       )}
 
-      <div className="sticky top-[124px] z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl md:top-[152px]">
+      <div className={`sticky ${isOrderLink ? "top-[88px] md:top-[92px]" : "top-[124px] md:top-[152px]"} z-40 border-y border-white/10 bg-[#090705]/90 backdrop-blur-2xl`}>
         <div className="mx-auto max-w-7xl px-4 py-2.5 md:px-6 md:py-3">
           <div className="mb-2 flex items-center justify-between gap-3 md:hidden">
             <div className="min-w-0">
@@ -249,7 +262,7 @@ export default function MenuPage({
             <button
               type="button"
               onClick={onBackHome}
-              className="ghost-button shrink-0 rounded-full px-3 py-2 text-xs font-medium"
+              className={`ghost-button shrink-0 rounded-full px-3 py-2 text-xs font-medium ${isOrderLink ? "hidden" : ""}`}
             >
               {language === "bg" ? "Начало" : "Home"}
             </button>
@@ -275,19 +288,21 @@ export default function MenuPage({
               );
             })}
 
-            <button
-              type="button"
-              onClick={onBackHome}
-              className="ghost-button hidden whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium md:block"
-            >
-              {language === "bg" ? "Начало" : "Home"}
-            </button>
+            {!isOrderLink && (
+              <button
+                type="button"
+                onClick={onBackHome}
+                className="ghost-button hidden whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium md:block"
+              >
+                {language === "bg" ? "Начало" : "Home"}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="flex flex-col">
-        <div className="order-2 mx-auto grid max-w-7xl gap-10 px-6 pb-12 pt-8 md:gap-14 md:pb-20 md:pt-10">
+        <div className={`${isOrderLink ? "order-1" : "order-2"} mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-8 md:gap-14 md:px-6 md:pb-20 md:pt-10`}>
           {data.categories.map((category) => (
             <MenuCategorySection
               key={category.id}
@@ -299,9 +314,9 @@ export default function MenuPage({
           ))}
         </div>
 
-        <div className="order-1">
+        {!isOrderLink && <div className="order-1">
           <ChefHighlight data={data} />
-        </div>
+        </div>}
       </div>
 
       {orderEnabled && (
@@ -319,45 +334,83 @@ export default function MenuPage({
                 </div>
                 <button
                   type="button"
-                  onClick={submitOrder}
+                  onClick={() => setShowOrderReview(true)}
                   disabled={orderItems.length === 0 || isSubmittingOrder}
                   className="luxury-button rounded-2xl px-5 py-3 text-sm font-semibold disabled:opacity-50"
                 >
-                  {isSubmittingOrder
-                    ? language === "bg" ? "Изпращане..." : "Sending..."
-                    : language === "bg" ? "Изпрати" : "Send"}
+                  {language === "bg" ? "Прегледай" : "Review"}
                 </button>
               </div>
-              {orderItems.length > 0 && (
-                <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                  {orderItems.map((item) => (
-                    <div key={item.key} className="flex min-w-[220px] items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[#fff4df]">{item.name}</div>
-                        <div className="text-xs text-white/45">{formatOrderPrice(item.priceValue * item.quantity)}</div>
-                      </div>
-                      <div className="flex items-center overflow-hidden rounded-full border border-white/10">
-                        <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
-                        <span className="min-w-8 text-center text-sm">{item.quantity}</span>
-                        <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <input
-                value={orderNotes}
-                onChange={(event) => setOrderNotes(event.target.value)}
-                placeholder={language === "bg" ? "Бележка към поръчката..." : "Order note..."}
-                className="mt-3 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm outline-none placeholder:text-white/35 focus:border-[#f2d39a]/60"
-              />
               {orderError && <div className="mt-2 text-sm text-red-200">{orderError}</div>}
             </div>
           </div>
         </div>
       )}
 
-      <Footer t={t} onOpenPrivacy={onOpenPrivacy} />
+      {showOrderReview && (
+        <div className="fixed inset-0 z-[70] flex items-end bg-black/70 p-0 backdrop-blur-sm md:items-center md:p-6">
+          <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[28px] border border-white/10 bg-[#120e0b] p-4 shadow-2xl md:mx-auto md:max-w-2xl md:rounded-[28px] md:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="section-kicker">{language === "bg" ? "Преглед" : "Review"}</div>
+                <h2 className="mt-2 text-2xl font-semibold text-[#fff4df]">
+                  {language === "bg" ? "Вашата поръчка" : "Your order"}
+                </h2>
+                <p className="mt-1 text-sm text-white/55">
+                  {language === "bg" ? "Маса" : "Table"} {orderSession?.tableIds?.join(", ")}
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowOrderReview(false)} className="ghost-button rounded-full px-4 py-2 text-sm">
+                {language === "bg" ? "Затвори" : "Close"}
+              </button>
+            </div>
+
+            <div className="mt-5 grid gap-3">
+              {orderItems.map((item) => (
+                <div key={item.key} className="rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#fff4df]">{item.name}</div>
+                      <div className="mt-1 text-sm text-white/45">{formatOrderPrice(item.priceValue)} · {formatOrderPrice(item.priceValue * item.quantity)}</div>
+                    </div>
+                    <div className="flex items-center overflow-hidden rounded-full border border-white/10">
+                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity - 1)} className="px-4 py-2 text-lg text-[#f2d39a]">-</button>
+                      <span className="min-w-10 text-center text-base font-semibold">{item.quantity}</span>
+                      <button type="button" onClick={() => updateOrderQuantity(item.key, item.quantity + 1)} className="px-4 py-2 text-lg text-[#f2d39a]">+</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <input
+              value={orderNotes}
+              onChange={(event) => setOrderNotes(event.target.value)}
+              placeholder={language === "bg" ? "Бележка към поръчката..." : "Order note..."}
+              className="mt-4 w-full rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-base outline-none placeholder:text-white/35 focus:border-[#f2d39a]/60"
+            />
+
+            <div className="mt-5 flex items-center justify-between gap-4 border-t border-white/10 pt-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.22em] text-[#d8b377]">{language === "bg" ? "Общо" : "Total"}</div>
+                <div className="mt-1 text-2xl font-semibold text-[#fff4df]">{formatOrderPrice(orderTotal)}</div>
+              </div>
+              <button
+                type="button"
+                onClick={submitOrder}
+                disabled={orderItems.length === 0 || isSubmittingOrder}
+                className="luxury-button rounded-2xl px-6 py-4 text-sm font-semibold disabled:opacity-50"
+              >
+                {isSubmittingOrder
+                  ? language === "bg" ? "Изпращане..." : "Sending..."
+                  : language === "bg" ? "Изпрати поръчката" : "Send order"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isOrderLink && <Footer t={t} onOpenPrivacy={onOpenPrivacy} />}
     </div>
   );
 }
