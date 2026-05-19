@@ -101,6 +101,8 @@ const adminText = {
       status: "Статус",
       items: "Позиции",
       notes: "Бележка",
+      addItem: "Добави позиция",
+      searchDish: "Търси ястие...",
       markSeen: "Видяна",
       preparing: "Приготвя се",
       done: "Готова",
@@ -242,6 +244,8 @@ const adminText = {
       status: "Status",
       items: "Items",
       notes: "Note",
+      addItem: "Add item",
+      searchDish: "Search dish...",
       markSeen: "Seen",
       preparing: "Preparing",
       done: "Done",
@@ -1030,6 +1034,7 @@ function ReservationOperationsMap({
   const [consumptionSearch, setConsumptionSearch] = React.useState("");
   const [shouldScrollMovePanel, setShouldScrollMovePanel] = React.useState(false);
   const movePanelRef = React.useRef(null);
+  const consumptionPanelRef = React.useRef(null);
   const [now, setNow] = React.useState(() => new Date());
   const areas = [
     ["indoor", text.indoor],
@@ -1242,6 +1247,11 @@ function ReservationOperationsMap({
     }
   }
 
+  function openConsumptionPanel() {
+    setConsumptionSearch("");
+    setShowConsumption(true);
+  }
+
   React.useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 60000);
     return () => window.clearInterval(timer);
@@ -1266,6 +1276,16 @@ function ReservationOperationsMap({
 
     return () => window.cancelAnimationFrame(frame);
   }, [moveReservationId, shouldScrollMovePanel, selectedReservationId]);
+
+  React.useEffect(() => {
+    if (!showConsumption) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      consumptionPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [showConsumption, selectedReservationId]);
 
   return (
     <Panel title={text.title} subtitle={text.subtitle}>
@@ -1401,7 +1421,7 @@ function ReservationOperationsMap({
                           <>
                             <button
                               type="button"
-                              onClick={() => setShowConsumption(true)}
+                              onClick={openConsumptionPanel}
                               className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
                             >
                               {text.consumption}
@@ -1630,7 +1650,7 @@ function ReservationOperationsMap({
                     <button type="button" onClick={() => openMovePanel(selectedReservation)} className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-4 py-3 text-sm font-semibold text-[#f2d39a]">
                       {text.move}
                     </button>
-                    <button type="button" onClick={() => setShowConsumption(true)} className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100">
+                    <button type="button" onClick={openConsumptionPanel} className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-4 py-3 text-sm font-semibold text-emerald-100">
                       {text.consumption}
                     </button>
                     <button type="button" onClick={() => onRelease(selectedReservation)} className="rounded-xl border border-sky-300/25 bg-sky-400/15 px-4 py-3 text-sm font-semibold text-sky-100">
@@ -1754,7 +1774,7 @@ function ReservationOperationsMap({
               )}
 
               {showConsumption && selectedReservation.isArrived && (
-                <div className="mt-4 rounded-2xl border border-emerald-300/18 bg-emerald-400/10 p-4">
+                <div ref={consumptionPanelRef} className="mt-4 scroll-mt-28 rounded-2xl border border-emerald-300/18 bg-emerald-400/10 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="section-kicker">{text.consumption}</div>
@@ -1803,10 +1823,11 @@ function ReservationOperationsMap({
                       {menuItems
                         .filter((item) => (item.isActive ?? item.IsActive ?? true) === true)
                         .filter((item) => {
+                          if (!consumptionSearch.trim()) return false;
                           const haystack = `${getValue(item, "nameBg") || ""} ${getValue(item, "nameEn") || ""}`.toLowerCase();
                           return haystack.includes(consumptionSearch.trim().toLowerCase());
                         })
-                        .slice(0, 80)
+                        .slice(0, 12)
                         .map((item) => {
                           const name = getValue(item, "nameBg") || getValue(item, "nameEn") || "";
                           const price = Number(getValue(item, "price") || 0);
@@ -2007,6 +2028,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   const [layoutArea, setLayoutArea] = React.useState("indoor");
   const [reservationMapArea, setReservationMapArea] = React.useState("indoor");
   const [noteEdits, setNoteEdits] = React.useState({});
+  const [orderMenuSearches, setOrderMenuSearches] = React.useState({});
   const [hallBlock, setHallBlock] = React.useState(emptyHallBlock);
   const [adminNotice, setAdminNotice] = React.useState("");
   const [adminError, setAdminError] = React.useState("");
@@ -2131,6 +2153,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
 
     if (activeTab === "orders") {
       loadDiningOrders();
+      loadMenuItems();
     }
 
     if (activeTab === "blacklist") {
@@ -2318,6 +2341,25 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
 
     await loadDiningOrders();
+  }
+
+  async function addOrderItem(order, item) {
+    setAdminNotice("");
+    setAdminError("");
+
+    const response = await adminFetch(`${API_BASE_URL}/api/dining-orders/${order.id}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item),
+    });
+
+    if (!response.ok) {
+      setAdminError(await readErrorMessage(response, "Failed to add item."));
+      return;
+    }
+
+    await loadDiningOrders();
+    setOrderMenuSearches((prev) => ({ ...prev, [order.id]: "" }));
   }
 
   async function updateConsumptionItem(itemId, quantity) {
@@ -3281,7 +3323,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     }
 
     if (activeTab === "orders") {
-      await loadDiningOrders();
+      await Promise.all([loadDiningOrders(), loadMenuItems()]);
       return;
     }
 
@@ -3764,7 +3806,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 )}
 
-                <div className="grid gap-3 lg:hidden">
+                <div className="grid gap-3 xl:hidden">
                   {filteredReservations.map((r) => {
                     const expanded = expandedId === r.id;
                     const tableEdit = getTableEdit(r);
@@ -3892,7 +3934,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                 {a.reservations.changeTables}
                               </div>
                               <p className="mt-2 text-sm text-stone-400">{a.reservations.changeTablesHint}</p>
-                              <div className="mt-4 grid gap-2 md:grid-cols-[1fr_1fr_0.9fr_1fr_auto]">
+                              <div className="mt-4 grid gap-2 lg:grid-cols-[1fr_1fr_0.9fr_1fr_auto]">
                                 <label className="min-w-[140px]">
                                   <span className="mb-1 block text-xs text-stone-500">
                                     {a.reservations.date}
@@ -3976,7 +4018,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   })}
                 </div>
 
-                <div className="hidden overflow-x-auto lg:block">
+                <div className="hidden overflow-x-auto xl:block">
                   <table className="w-full min-w-[950px] text-left text-sm">
                     <thead className="text-stone-400">
                       <tr className="border-b border-white/10">
@@ -4285,13 +4327,62 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                                   <div className="font-semibold text-white">{item.name}</div>
                                   {item.notes && <div className="mt-1 text-xs text-white/45">{item.notes}</div>}
                                 </div>
-                                <div className="shrink-0 text-right text-sm text-[#f2d39a]">
-                                  x{item.quantity}
-                                  <div className="text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
+                                <div className="shrink-0 text-right">
+                                  <div className="mb-1 text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
+                                  <div className="flex items-center overflow-hidden rounded-full border border-white/10">
+                                    <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
+                                    <span className="min-w-8 text-center text-sm text-white">{item.quantity}</span>
+                                    <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           ))}
+                        </div>
+
+                        <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-400/10 p-4">
+                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                            {a.orders.addItem}
+                          </div>
+                          <input
+                            value={orderMenuSearches[order.id] || ""}
+                            onChange={(event) =>
+                              setOrderMenuSearches((prev) => ({ ...prev, [order.id]: event.target.value }))
+                            }
+                            placeholder={a.orders.searchDish}
+                            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#f2d39a]/50"
+                          />
+                          {(orderMenuSearches[order.id] || "").trim() && (
+                            <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                              {menuItems
+                                .filter((item) => (item.isActive ?? item.IsActive ?? true) === true)
+                                .filter((item) => {
+                                  const haystack = `${getValue(item, "nameBg") || ""} ${getValue(item, "nameEn") || ""}`.toLowerCase();
+                                  return haystack.includes((orderMenuSearches[order.id] || "").trim().toLowerCase());
+                                })
+                                .slice(0, 12)
+                                .map((item) => {
+                                  const name = getValue(item, "nameBg") || getValue(item, "nameEn") || "";
+                                  const price = Number(getValue(item, "price") || 0);
+                                  return (
+                                    <button
+                                      key={getValue(item, "id") || name}
+                                      type="button"
+                                      onClick={() => addOrderItem(order, {
+                                        menuItemId: getValue(item, "id"),
+                                        name,
+                                        unitPrice: price,
+                                        quantity: 1,
+                                      })}
+                                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition hover:border-[#c9a56a]/40"
+                                    >
+                                      <span className="min-w-0 truncate text-sm text-white/80">{name}</span>
+                                      <span className="shrink-0 text-xs font-semibold text-[#f2d39a]">{formatEuroAmount(price)}</span>
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          )}
                         </div>
                       </article>
                     ))}

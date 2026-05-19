@@ -248,6 +248,48 @@ public class DiningOrdersController : ControllerBase
         return Ok(new { order.Id, order.TotalPrice });
     }
 
+    [HttpPost("{orderId:int}/items")]
+    [AdminAuthorize]
+    public async Task<IActionResult> AddOrderItem(int orderId, [FromBody] CreateDiningOrderItemRequest request)
+    {
+        if (request.Quantity <= 0 || string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { message = "Order item is required." });
+
+        var order = await _db.DiningOrders
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.Id == orderId && x.Status != "Cancelled");
+
+        if (order == null)
+            return NotFound();
+
+        var existingItem = order.Items.FirstOrDefault(x =>
+            x.MenuItemId == request.MenuItemId &&
+            x.Name.Equals(request.Name.Trim(), StringComparison.OrdinalIgnoreCase) &&
+            x.UnitPrice == request.UnitPrice);
+
+        if (existingItem == null)
+        {
+            order.Items.Add(new DiningOrderItem
+            {
+                MenuItemId = request.MenuItemId,
+                Name = request.Name.Trim(),
+                UnitPrice = request.UnitPrice,
+                Quantity = Math.Min(request.Quantity, 99),
+                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
+            });
+        }
+        else
+        {
+            existingItem.Quantity = Math.Min(existingItem.Quantity + request.Quantity, 99);
+        }
+
+        order.TotalPrice = order.Items.Sum(x => x.UnitPrice * x.Quantity);
+        await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "add-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.ReservationId, order.TotalPrice });
+
+        return Ok(new { order.Id, order.TotalPrice });
+    }
+
     [HttpPatch("items/{itemId:int}")]
     [HttpPatch("{orderId:int}/items/{itemId:int}")]
     [AdminAuthorize]
