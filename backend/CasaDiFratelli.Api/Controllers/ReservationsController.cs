@@ -13,64 +13,77 @@ namespace CasaDiFratelli.Api.Controllers;
 [Route("api/[controller]")]
 public class ReservationsController : ControllerBase
 {
-private readonly AppDbContext _db;
-private readonly EmailService _emailService;
-private readonly IConfiguration _configuration;
-private readonly ReservationConflictService _reservationConflictService;
-private readonly AdminAuthService _adminAuth;
-private readonly AuditService _audit;
+    private const int PublicDailyContactReservationLimit = 2;
+    private readonly AppDbContext _db;
+    private readonly EmailService _emailService;
+    private readonly IConfiguration _configuration;
+    private readonly ReservationConflictService _reservationConflictService;
+    private readonly AdminAuthService _adminAuth;
+    private readonly AuditService _audit;
 
-public ReservationsController(
-    AppDbContext db,
-    EmailService emailService,
-    IConfiguration configuration,
-    ReservationConflictService reservationConflictService,
-    AdminAuthService adminAuth,
-    AuditService audit)
-{
-    _db = db;
-    _emailService = emailService;
-    _configuration = configuration;
-    _reservationConflictService = reservationConflictService;
-    _adminAuth = adminAuth;
-    _audit = audit;
-}
-
-private static DateTime GetRestaurantNow()
-{
-    try
+    public ReservationsController(
+        AppDbContext db,
+        EmailService emailService,
+        IConfiguration configuration,
+        ReservationConflictService reservationConflictService,
+        AdminAuthService adminAuth,
+        AuditService audit)
     {
-        var timezone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Sofia");
-        return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone);
+        _db = db;
+        _emailService = emailService;
+        _configuration = configuration;
+        _reservationConflictService = reservationConflictService;
+        _adminAuth = adminAuth;
+        _audit = audit;
     }
-    catch
+
+    private static DateTime GetRestaurantNow()
     {
-        return DateTime.Now;
+        try
+        {
+            var timezone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Sofia");
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timezone);
+        }
+        catch
+        {
+            return DateTime.Now;
+        }
     }
-}
 
-private static bool IsPastReservationTime(DateOnly reservedDate, string reservedTime)
-{
-    if (!TimeOnly.TryParse(reservedTime, out var time))
-        return false;
+    private static bool IsPastReservationTime(DateOnly reservedDate, string reservedTime)
+    {
+        if (!TimeOnly.TryParse(reservedTime, out var time))
+            return false;
 
-    var now = GetRestaurantNow();
-    var today = DateOnly.FromDateTime(now);
+        var now = GetRestaurantNow();
+        var today = DateOnly.FromDateTime(now);
 
-    if (reservedDate < today) return true;
-    if (reservedDate > today) return false;
+        if (reservedDate < today) return true;
+        if (reservedDate > today) return false;
 
-    var selectedDateTime = reservedDate.ToDateTime(time);
-    if (time.Hour <= 3 && now.Hour >= 10)
-        selectedDateTime = selectedDateTime.AddDays(1);
+        var selectedDateTime = reservedDate.ToDateTime(time);
+        if (time.Hour <= 3 && now.Hour >= 10)
+            selectedDateTime = selectedDateTime.AddDays(1);
 
-    return selectedDateTime <= now;
-}
+        return selectedDateTime <= now;
+    }
 
-private static string CreateOrderAccessToken()
-{
-    return Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
-}
+    private static string CreateOrderAccessToken()
+    {
+        return Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+    }
+
+    private static string NormalizePhoneForLimit(string phone)
+    {
+        return new string((phone ?? string.Empty).Where(char.IsDigit).ToArray());
+    }
+
+    private static bool IsActiveReservationForDailyLimit(Reservation reservation)
+    {
+        return reservation.Status != "Cancelled" &&
+            reservation.Status != "Released" &&
+            !reservation.IsNoShow;
+    }
 
     [HttpGet]
     [AdminAuthorize]
@@ -152,6 +165,12 @@ private static string CreateOrderAccessToken()
         if (IsPastReservationTime(request.ReservedDate, request.ReservedTime))
             return BadRequest("Reservation date or time has already passed.");
 
+        var guestName = request.GuestName.Trim();
+        var phone = request.Phone.Trim();
+        var email = string.IsNullOrWhiteSpace(request.Email) ? string.Empty : request.Email.Trim();
+        var normalizedEmail = email.ToLowerInvariant();
+        var normalizedPhone = NormalizePhoneForLimit(phone);
+
         var tableIds = ReservationConflictService.NormalizeTableIds(request.TableIds);
 
         if (tableIds.Count == 0)
@@ -160,16 +179,39 @@ private static string CreateOrderAccessToken()
         if (!TableCapacityService.HasEnoughSeats(tableIds, request.GuestCount))
             return BadRequest("Selected tables do not have enough seats.");
 
+        if (!request.CreatedByAdmin)
+        {
+            var sameDayContactReservations = await _db.Reservations
+                .Where(x => x.ReservedDate == request.ReservedDate)
+                .Select(x => new Reservation
+                {
+                    Email = x.Email,
+                    Phone = x.Phone,
+                    Status = x.Status,
+                    IsNoShow = x.IsNoShow
+                })
+                .ToListAsync();
+
+            var matchingContactReservationCount = sameDayContactReservations.Count(x =>
+                IsActiveReservationForDailyLimit(x) &&
+                ((!string.IsNullOrWhiteSpace(normalizedEmail) && (x.Email ?? string.Empty).ToLowerInvariant() == normalizedEmail) ||
+                (!string.IsNullOrWhiteSpace(normalizedPhone) && NormalizePhoneForLimit(x.Phone) == normalizedPhone)));
+
+            if (matchingContactReservationCount >= PublicDailyContactReservationLimit)
+            {
+                return StatusCode(StatusCodes.Status429TooManyRequests, new
+                {
+                    message = "You can make up to 2 reservations per day with the same email or phone."
+                });
+            }
+        }
+
         var conflict = await _reservationConflictService.FindTableConflictAsync(request.ReservedDate, request.ReservedTime, tableIds);
 
         if (conflict != null)
         {
             return Conflict(ReservationConflictService.ToConflictResponse(conflict));
         }
-
-        var guestName = request.GuestName.Trim();
-        var phone = request.Phone.Trim();
-        var email = string.IsNullOrWhiteSpace(request.Email) ? string.Empty : request.Email.Trim();
 
         var reservation = new Reservation
         {
