@@ -2065,18 +2065,24 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     [withAdminToken]
   );
 
-  const loadReservations = React.useCallback(async () => {
-    setLoading(true);
-    setAdminError("");
+  const loadReservations = React.useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setLoading(true);
+      setAdminError("");
+    }
 
     try {
       const reservationsData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/reservations`, [], withAdminToken());
       setReservations(Array.isArray(reservationsData) ? reservationsData.map(normalizeReservation) : []);
     } catch (error) {
       console.error("Failed to load reservations", error);
-      setAdminError(error?.message || "Failed to load reservations.");
+      if (!silent) {
+        setAdminError(error?.message || "Failed to load reservations.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [withAdminToken]);
 
@@ -3317,9 +3323,9 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     ["admins", adminLanguage === "bg" ? "Админи" : "Admins"],
   ];
 
-  const refreshActiveTab = React.useCallback(async () => {
+  const refreshActiveTab = React.useCallback(async ({ silent = false } = {}) => {
     if (activeTab === "home") {
-      await Promise.all([loadReservations(), loadDiningOrders(), loadBlacklist(), loadTableLayout()]);
+      await Promise.all([loadReservations({ silent }), loadDiningOrders(), loadBlacklist(), loadTableLayout()]);
       return;
     }
 
@@ -3349,11 +3355,11 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     }
 
     if (activeTab === "liveMap") {
-      await Promise.all([loadReservations(), loadDiningOrders(), loadMenuItems(), loadTableLayout()]);
+      await Promise.all([loadReservations({ silent }), loadDiningOrders(), loadMenuItems(), loadTableLayout()]);
       return;
     }
 
-    await loadReservations();
+    await loadReservations({ silent });
   }, [
     activeTab,
     loadAdminUsers,
@@ -3365,16 +3371,31 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     loadTableLayout,
   ]);
 
+  const shouldPauseAutoRefresh = Boolean(
+    showCreateReservation ||
+    expandedId ||
+    expandedOrderId ||
+    expandedCustomerKey ||
+    menuMode !== "list" ||
+    blacklistMode !== "list" ||
+    Object.keys(tableEdits).length > 0 ||
+    Object.keys(noteEdits).length > 0 ||
+    Object.values(orderMenuSearches).some((value) => String(value || "").trim())
+  );
+
   React.useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return undefined;
+    const autoRefreshTabs = new Set(["home", "liveMap", "reservations", "orders"]);
 
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      void refreshActiveTab();
+      if (!autoRefreshTabs.has(activeTab)) return;
+      if (shouldPauseAutoRefresh) return;
+      void refreshActiveTab({ silent: true });
     }, 5000);
 
     return () => window.clearInterval(intervalId);
-  }, [refreshActiveTab]);
+  }, [activeTab, refreshActiveTab, shouldPauseAutoRefresh]);
 
   const isDashboard = activeTab === "home";
   const activeTabLabel = tabs.find(([key]) => key === activeTab)?.[1] || a.appTitle;
@@ -3438,7 +3459,7 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
             </div>
 
             <button
-              onClick={refreshActiveTab}
+              onClick={() => refreshActiveTab()}
               className="ghost-button rounded-full px-5 py-3 text-sm font-semibold"
             >
               {a.refresh}
