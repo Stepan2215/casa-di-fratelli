@@ -2011,6 +2011,7 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
   const [search, setSearch] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("All");
   const [expandedId, setExpandedId] = React.useState(null);
+  const [expandedOrderId, setExpandedOrderId] = React.useState(null);
   const [expandedCustomerKey, setExpandedCustomerKey] = React.useState(null);
   const [menuMode, setMenuMode] = React.useState("list");
   const [selectedMenuCategory, setSelectedMenuCategory] = React.useState("");
@@ -4269,123 +4270,153 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
                   </div>
                 ) : (
                   <div className="grid gap-4">
-                    {diningOrders.map((order) => (
-                      <article key={order.id} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
-                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                          <div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/12 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
-                                #{order.id}
-                              </span>
+                    {diningOrders.map((order) => {
+                      const expanded = expandedOrderId === order.id;
+
+                      return (
+                        <article key={order.id} className="rounded-[24px] border border-white/10 bg-white/[0.04] p-4">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedOrderId(expanded ? null : order.id)}
+                            className="grid w-full gap-3 text-left md:grid-cols-[1fr_1fr_auto] md:items-center"
+                          >
+                            <div>
+                              <div className="text-xs uppercase tracking-[0.2em] text-[#c9a56a]">
+                                {a.orders.table}
+                              </div>
+                              <div className="mt-1 text-xl font-semibold text-[#fff4df]">{order.tableLabel}</div>
+                            </div>
+                            <div>
+                              <div className="text-xs uppercase tracking-[0.2em] text-white/35">
+                                {a.orders.guest}
+                              </div>
+                              <div className="mt-1 text-base font-semibold text-white">{order.guestName}</div>
+                            </div>
+                            <div className="flex items-center justify-between gap-3 md:justify-end">
+                              <div className="text-left md:text-right">
+                                <div className="text-xs uppercase tracking-[0.2em] text-white/35">
+                                  {a.orders.total}
+                                </div>
+                                <div className="mt-1 text-xl font-semibold text-[#f2d39a]">{formatEuroAmount(order.totalPrice)}</div>
+                              </div>
                               <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
-                                {a.orders.status}: {order.status}
+                                {expanded ? a.reservations.close : a.reservations.open}
                               </span>
                             </div>
-                            <h3 className="mt-3 text-xl font-semibold text-[#fff4df]">
-                              {a.orders.table} {order.tableLabel}
-                            </h3>
-                            <div className="mt-1 text-sm text-white/55">
-                              {a.orders.guest}: {order.guestName} · {formatEuroAmount(order.totalPrice)}
-                            </div>
-                            {order.notes && (
-                              <div className="mt-2 text-sm text-amber-100/80">
-                                {a.orders.notes}: {order.notes}
-                              </div>
-                            )}
-                          </div>
+                          </button>
 
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => updateDiningOrderStatus(order.id, "Seen")}
-                              className="ghost-button rounded-xl px-3 py-2 text-xs font-semibold"
-                            >
-                              {a.orders.markSeen}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateDiningOrderStatus(order.id, "Preparing")}
-                              className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-xs font-semibold text-[#f2d39a]"
-                            >
-                              {a.orders.preparing}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => updateDiningOrderStatus(order.id, "Done")}
-                              className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
-                            >
-                              {a.orders.done}
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid gap-2 md:grid-cols-2">
-                          {order.items.map((item) => (
-                            <div key={item.id || item.name} className="rounded-2xl border border-white/10 bg-black/20 p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="font-semibold text-white">{item.name}</div>
-                                  {item.notes && <div className="mt-1 text-xs text-white/45">{item.notes}</div>}
+                          {expanded && (
+                            <div className="mt-4 border-t border-white/10 pt-4">
+                              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-[#c9a56a]/25 bg-[#c9a56a]/12 px-3 py-1 text-xs font-semibold text-[#f2d39a]">
+                                    #{order.id}
+                                  </span>
+                                  <span className="rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-white/65">
+                                    {a.orders.status}: {order.status}
+                                  </span>
+                                  {order.notes && (
+                                    <span className="rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-xs text-amber-100">
+                                      {a.orders.notes}: {order.notes}
+                                    </span>
+                                  )}
                                 </div>
-                                <div className="shrink-0 text-right">
-                                  <div className="mb-1 text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
-                                  <div className="flex items-center overflow-hidden rounded-full border border-white/10">
-                                    <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
-                                    <span className="min-w-8 text-center text-sm text-white">{item.quantity}</span>
-                                    <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
+
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => updateDiningOrderStatus(order.id, "Seen")}
+                                    className="ghost-button rounded-xl px-3 py-2 text-xs font-semibold"
+                                  >
+                                    {a.orders.markSeen}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateDiningOrderStatus(order.id, "Preparing")}
+                                    className="rounded-xl border border-[#f2d39a]/25 bg-[#c9a56a]/15 px-3 py-2 text-xs font-semibold text-[#f2d39a]"
+                                  >
+                                    {a.orders.preparing}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => updateDiningOrderStatus(order.id, "Done")}
+                                    className="rounded-xl border border-emerald-300/25 bg-emerald-400/15 px-3 py-2 text-xs font-semibold text-emerald-100"
+                                  >
+                                    {a.orders.done}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="mt-4 grid gap-2 md:grid-cols-2">
+                                {order.items.map((item) => (
+                                  <div key={item.id || item.name} className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="font-semibold text-white">{item.name}</div>
+                                        {item.notes && <div className="mt-1 text-xs text-white/45">{item.notes}</div>}
+                                      </div>
+                                      <div className="shrink-0 text-right">
+                                        <div className="mb-1 text-xs text-white/45">{formatEuroAmount(item.unitPrice * item.quantity)}</div>
+                                        <div className="flex items-center overflow-hidden rounded-full border border-white/10">
+                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity - 1)} className="px-3 py-1 text-[#f2d39a]">-</button>
+                                          <span className="min-w-8 text-center text-sm text-white">{item.quantity}</span>
+                                          <button type="button" onClick={() => updateConsumptionItem(item.id, item.quantity + 1)} className="px-3 py-1 text-[#f2d39a]">+</button>
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
+                                ))}
                               </div>
-                            </div>
-                          ))}
-                        </div>
 
-                        <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-400/10 p-4">
-                          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
-                            {a.orders.addItem}
-                          </div>
-                          <input
-                            value={orderMenuSearches[order.id] || ""}
-                            onChange={(event) =>
-                              setOrderMenuSearches((prev) => ({ ...prev, [order.id]: event.target.value }))
-                            }
-                            placeholder={a.orders.searchDish}
-                            className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#f2d39a]/50"
-                          />
-                          {(orderMenuSearches[order.id] || "").trim() && (
-                            <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
-                              {menuItems
-                                .filter((item) => (item.isActive ?? item.IsActive ?? true) === true)
-                                .filter((item) => {
-                                  const haystack = `${getValue(item, "nameBg") || ""} ${getValue(item, "nameEn") || ""}`.toLowerCase();
-                                  return haystack.includes((orderMenuSearches[order.id] || "").trim().toLowerCase());
-                                })
-                                .slice(0, 12)
-                                .map((item) => {
-                                  const name = getValue(item, "nameBg") || getValue(item, "nameEn") || "";
-                                  const price = Number(getValue(item, "price") || 0);
-                                  return (
-                                    <button
-                                      key={getValue(item, "id") || name}
-                                      type="button"
-                                      onClick={() => addOrderItem(order, {
-                                        menuItemId: getValue(item, "id"),
-                                        name,
-                                        unitPrice: price,
-                                        quantity: 1,
+                              <div className="mt-4 rounded-2xl border border-emerald-300/15 bg-emerald-400/10 p-4">
+                                <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                                  {a.orders.addItem}
+                                </div>
+                                <input
+                                  value={orderMenuSearches[order.id] || ""}
+                                  onChange={(event) =>
+                                    setOrderMenuSearches((prev) => ({ ...prev, [order.id]: event.target.value }))
+                                  }
+                                  placeholder={a.orders.searchDish}
+                                  className="w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#f2d39a]/50"
+                                />
+                                {(orderMenuSearches[order.id] || "").trim() && (
+                                  <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto pr-1 md:grid-cols-2">
+                                    {menuItems
+                                      .filter((item) => (item.isActive ?? item.IsActive ?? true) === true)
+                                      .filter((item) => {
+                                        const haystack = `${getValue(item, "nameBg") || ""} ${getValue(item, "nameEn") || ""}`.toLowerCase();
+                                        return haystack.includes((orderMenuSearches[order.id] || "").trim().toLowerCase());
+                                      })
+                                      .slice(0, 12)
+                                      .map((item) => {
+                                        const name = getValue(item, "nameBg") || getValue(item, "nameEn") || "";
+                                        const price = Number(getValue(item, "price") || 0);
+                                        return (
+                                          <button
+                                            key={getValue(item, "id") || name}
+                                            type="button"
+                                            onClick={() => addOrderItem(order, {
+                                              menuItemId: getValue(item, "id"),
+                                              name,
+                                              unitPrice: price,
+                                              quantity: 1,
+                                            })}
+                                            className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition hover:border-[#c9a56a]/40"
+                                          >
+                                            <span className="min-w-0 truncate text-sm text-white/80">{name}</span>
+                                            <span className="shrink-0 text-xs font-semibold text-[#f2d39a]">{formatEuroAmount(price)}</span>
+                                          </button>
+                                        );
                                       })}
-                                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.035] px-3 py-2 text-left transition hover:border-[#c9a56a]/40"
-                                    >
-                                      <span className="min-w-0 truncate text-sm text-white/80">{name}</span>
-                                      <span className="shrink-0 text-xs font-semibold text-[#f2d39a]">{formatEuroAmount(price)}</span>
-                                    </button>
-                                  );
-                                })}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
-                        </div>
-                      </article>
-                    ))}
+                        </article>
+                      );
+                    })}
                   </div>
                 )}
               </Panel>
