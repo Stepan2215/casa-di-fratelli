@@ -2096,13 +2096,15 @@ export default function AdminPage({ adminToken, adminUser, onAdminLogout, onMenu
     }
   }, [withAdminToken]);
 
-  const loadDiningOrders = React.useCallback(async () => {
+  const loadDiningOrders = React.useCallback(async ({ silent = false } = {}) => {
     try {
       const ordersData = await fetchJsonOrEmpty(`${API_BASE_URL}/api/dining-orders`, [], withAdminToken());
       setDiningOrders(Array.isArray(ordersData) ? ordersData.map(normalizeDiningOrder) : []);
     } catch (error) {
       console.error("Failed to load dining orders", error);
-      setAdminError(error?.message || "Failed to load dining orders.");
+      if (!silent) {
+        setAdminError(error?.message || "Failed to load dining orders.");
+      }
     }
   }, [withAdminToken]);
 
@@ -3371,11 +3373,15 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
     loadTableLayout,
   ]);
 
-  const shouldPauseAutoRefresh = Boolean(
+  const refreshLiveData = React.useCallback(async () => {
+    await Promise.all([
+      loadReservations({ silent: true }),
+      loadDiningOrders({ silent: true }),
+    ]);
+  }, [loadDiningOrders, loadReservations]);
+
+  const shouldPauseLiveDataRefresh = Boolean(
     showCreateReservation ||
-    expandedId ||
-    expandedOrderId ||
-    expandedCustomerKey ||
     menuMode !== "list" ||
     blacklistMode !== "list" ||
     Object.keys(tableEdits).length > 0 ||
@@ -3385,17 +3391,17 @@ const approvedCount = statsReservations.filter((r) => r.status === "Approved").l
 
   React.useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") return undefined;
-    const autoRefreshTabs = new Set(["home", "liveMap", "reservations", "orders"]);
+    const liveDataTabs = new Set(["home", "liveMap", "reservations", "orders"]);
 
     const intervalId = window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      if (!autoRefreshTabs.has(activeTab)) return;
-      if (shouldPauseAutoRefresh) return;
-      void refreshActiveTab({ silent: true });
+      if (!liveDataTabs.has(activeTab)) return;
+      if (shouldPauseLiveDataRefresh) return;
+      void refreshLiveData();
     }, 5000);
 
     return () => window.clearInterval(intervalId);
-  }, [activeTab, refreshActiveTab, shouldPauseAutoRefresh]);
+  }, [activeTab, refreshLiveData, shouldPauseLiveDataRefresh]);
 
   const isDashboard = activeTab === "home";
   const activeTabLabel = tabs.find(([key]) => key === activeTab)?.[1] || a.appTitle;
