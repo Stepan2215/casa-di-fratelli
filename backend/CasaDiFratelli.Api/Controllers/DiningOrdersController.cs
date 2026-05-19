@@ -249,15 +249,21 @@ public class DiningOrdersController : ControllerBase
     }
 
     [HttpPatch("items/{itemId:int}")]
+    [HttpPatch("{orderId:int}/items/{itemId:int}")]
     [AdminAuthorize]
-    public async Task<IActionResult> UpdateItemQuantity(int itemId, [FromBody] UpdateDiningOrderItemRequest request)
+    public async Task<IActionResult> UpdateItemQuantity(int itemId, [FromBody] UpdateDiningOrderItemRequest request, int? orderId = null)
     {
-        var item = await _db.DiningOrderItems
-            .Include(x => x.DiningOrder)
-                .ThenInclude(x => x!.Items)
-            .FirstOrDefaultAsync(x => x.Id == itemId);
+        var item = await _db.DiningOrderItems.FirstOrDefaultAsync(x =>
+            x.Id == itemId &&
+            (!orderId.HasValue || x.DiningOrderId == orderId.Value));
 
-        if (item?.DiningOrder == null)
+        if (item == null)
+            return NotFound();
+
+        var parentOrderId = item.DiningOrderId;
+        var order = await _db.DiningOrders.FirstOrDefaultAsync(x => x.Id == parentOrderId);
+
+        if (order == null)
             return NotFound();
 
         if (request.Quantity <= 0)
@@ -270,11 +276,15 @@ public class DiningOrdersController : ControllerBase
         }
 
         await _db.SaveChangesAsync();
-        await RecalculateOrderTotalAsync(item.DiningOrder);
-        await _db.SaveChangesAsync();
-        await _audit.RecordAsync(HttpContext, "update-item", "DiningOrder", item.DiningOrder.Id.ToString(), after: new { item.DiningOrder.Id, item.DiningOrder.TotalPrice });
 
-        return Ok(new { item.DiningOrder.Id, item.DiningOrder.TotalPrice });
+        order.TotalPrice = await _db.DiningOrderItems
+            .Where(x => x.DiningOrderId == parentOrderId)
+            .SumAsync(x => x.UnitPrice * x.Quantity);
+
+        await _db.SaveChangesAsync();
+        await _audit.RecordAsync(HttpContext, "update-item", "DiningOrder", order.Id.ToString(), after: new { order.Id, order.TotalPrice });
+
+        return Ok(new { order.Id, order.TotalPrice });
     }
 
     [HttpPatch("{id}/status")]
