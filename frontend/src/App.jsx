@@ -299,6 +299,15 @@ export default function App() {
   }, []);
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (pendingHomeSectionRef.current) return;
+
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+  }, [currentPage]);
+
+  React.useEffect(() => {
     if (currentPage !== "home" || !pendingHomeSectionRef.current) return;
 
     const sectionId = pendingHomeSectionRef.current;
